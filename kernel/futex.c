@@ -810,9 +810,12 @@ static struct futex_pi_state * alloc_pi_state(void)
 }
 
 /*
+ * Drops a reference to the pi_state object and frees or caches it
+ * when the last reference is gone.
+ *
  * Must be called with the hb lock held.
  */
-static void free_pi_state(struct futex_pi_state *pi_state)
+static void put_pi_state(struct futex_pi_state *pi_state)
 {
 	if (!pi_state)
 		return;
@@ -1866,7 +1869,7 @@ retry_private:
 		case 0:
 			break;
 		case -EFAULT:
-			free_pi_state(pi_state);
+			put_pi_state(pi_state);
 			pi_state = NULL;
 			double_unlock_hb(hb1, hb2);
 			hb_waiters_dec(hb2);
@@ -1883,7 +1886,7 @@ retry_private:
 			 *   exit to complete.
 			 * - The user space value changed.
 			 */
-			free_pi_state(pi_state);
+			put_pi_state(pi_state);
 			pi_state = NULL;
 			double_unlock_hb(hb1, hb2);
 			hb_waiters_dec(hb2);
@@ -1952,7 +1955,7 @@ retry_private:
 			} else if (ret) {
 				/* -EDEADLK */
 				this->pi_state = NULL;
-				free_pi_state(pi_state);
+				put_pi_state(pi_state);
 				goto out_unlock;
 			}
 		}
@@ -1961,7 +1964,7 @@ retry_private:
 	}
 
 out_unlock:
-	free_pi_state(pi_state);
+	put_pi_state(pi_state);
 	double_unlock_hb(hb1, hb2);
 	wake_up_q(&wake_q);
 	hb_waiters_dec(hb2);
@@ -2114,7 +2117,7 @@ static void unqueue_me_pi(struct futex_q *q)
 	__unqueue_futex(q);
 
 	BUG_ON(!q->pi_state);
-	free_pi_state(q->pi_state);
+	put_pi_state(q->pi_state);
 	q->pi_state = NULL;
 
 	spin_unlock(q->lock_ptr);
@@ -2907,7 +2910,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 			 * Drop the reference to the pi state which
 			 * the requeue_pi() code acquired for us.
 			 */
-			free_pi_state(q.pi_state);
+			put_pi_state(q.pi_state);
 			spin_unlock(q.lock_ptr);
 		}
 	} else {
