@@ -20,8 +20,8 @@
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
  */
 
-#include <linux/latencytop.h>
 #include <linux/sched.h>
+#include <linux/latencytop.h>
 #include <linux/cpumask.h>
 #include <linux/cpuidle.h>
 #include <linux/slab.h>
@@ -900,7 +900,9 @@ static void
 update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	struct task_struct *p;
-	u64 delta = rq_clock(rq_of(cfs_rq)) - se->statistics.wait_start;
+	u64 delta;
+
+	delta = rq_clock(rq_of(cfs_rq)) - se->statistics.wait_start;
 
 	if (entity_is_task(se)) {
 		p = task_of(se);
@@ -921,22 +923,12 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->statistics.wait_sum += delta;
 	se->statistics.wait_start = 0;
 }
-#else
-static inline void
-update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-}
-
-static inline void
-update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-}
-#endif
 
 /*
  * Task is being enqueued - update stats:
  */
-static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static inline void
+update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	/*
 	 * Are we enqueueing a waiting task? (for current tasks
@@ -947,7 +939,7 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 static inline void
-update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
 	/*
 	 * Mark the end of the wait period if dequeueing a
@@ -955,7 +947,40 @@ update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 */
 	if (se != cfs_rq->curr)
 		update_stats_wait_end(cfs_rq, se);
+
+	if (flags & DEQUEUE_SLEEP) {
+		if (entity_is_task(se)) {
+			struct task_struct *tsk = task_of(se);
+
+			if (tsk->state & TASK_INTERRUPTIBLE)
+				se->statistics.sleep_start = rq_clock(rq_of(cfs_rq));
+			if (tsk->state & TASK_UNINTERRUPTIBLE)
+				se->statistics.block_start = rq_clock(rq_of(cfs_rq));
+		}
+	}
+
 }
+#else
+static inline void
+update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+}
+
+static inline void
+update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+}
+
+static inline void
+update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+}
+
+static inline void
+update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+{
+}
+#endif
 
 /*
  * We are picking a new current task - update its stats:
@@ -3570,6 +3595,26 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
 
+static inline void check_schedstat_required(void)
+{
+#ifdef CONFIG_SCHEDSTATS
+	if (schedstat_enabled())
+		return;
+
+	/* Force schedstat enabled if a dependent tracepoint is active */
+	if (trace_sched_stat_wait_enabled()    ||
+			trace_sched_stat_sleep_enabled()   ||
+			trace_sched_stat_iowait_enabled()  ||
+			trace_sched_stat_blocked_enabled() ||
+			trace_sched_stat_runtime_enabled())  {
+		pr_warn_once("Scheduler tracepoints stat_sleep, stat_iowait, "
+			     "stat_blocked and stat_runtime require the "
+			     "kernel parameter schedstats=enabled or "
+			     "kernel.sched_schedstats=1\n");
+	}
+#endif
+}
+
 static void
 enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
@@ -3591,11 +3636,15 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 
 	if (flags & ENQUEUE_WAKEUP) {
 		place_entity(cfs_rq, se, 0);
-		enqueue_sleeper(cfs_rq, se);
+		if (schedstat_enabled())
+			enqueue_sleeper(cfs_rq, se);
 	}
 
-	update_stats_enqueue(cfs_rq, se);
-	check_spread(cfs_rq, se);
+	check_schedstat_required();
+	if (schedstat_enabled()) {
+		update_stats_enqueue(cfs_rq, se);
+		check_spread(cfs_rq, se);
+	}
 	if (se != cfs_rq->curr)
 		__enqueue_entity(cfs_rq, se);
 	se->on_rq = 1;
@@ -3679,19 +3728,8 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	update_load_avg(se, update_flags);
 	dequeue_entity_load_avg(cfs_rq, se);
 
-	update_stats_dequeue(cfs_rq, se);
-	if (flags & DEQUEUE_SLEEP) {
-#ifdef CONFIG_SCHEDSTATS
-		if (entity_is_task(se)) {
-			struct task_struct *tsk = task_of(se);
-
-			if (tsk->state & TASK_INTERRUPTIBLE)
-				se->statistics.sleep_start = rq_clock(rq_of(cfs_rq));
-			if (tsk->state & TASK_UNINTERRUPTIBLE)
-				se->statistics.block_start = rq_clock(rq_of(cfs_rq));
-		}
-#endif
-	}
+	if (schedstat_enabled())
+		update_stats_dequeue(cfs_rq, se, flags);
 
 	clear_buddies(cfs_rq, se);
 
@@ -3765,7 +3803,8 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		 * a CPU. So account for the time it spent waiting on the
 		 * runqueue.
 		 */
-		update_stats_wait_end(cfs_rq, se);
+		if (schedstat_enabled())
+			update_stats_wait_end(cfs_rq, se);
 		__dequeue_entity(cfs_rq, se);
 		update_load_avg(se, UPDATE_TG);
 	}
@@ -3778,7 +3817,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * least twice that of our own weight (i.e. dont track it
 	 * when there are only lesser-weight tasks around):
 	 */
-	if (rq_of(cfs_rq)->load.weight >= 2*se->load.weight) {
+	if (schedstat_enabled() && rq_of(cfs_rq)->load.weight >= 2*se->load.weight) {
 		se->statistics.slice_max = max(se->statistics.slice_max,
 			se->sum_exec_runtime - se->prev_sum_exec_runtime);
 	}
@@ -3861,9 +3900,13 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 	/* throttle cfs_rqs exceeding runtime */
 	check_cfs_rq_runtime(cfs_rq);
 
-	check_spread(cfs_rq, prev);
+	if (schedstat_enabled()) {
+		check_spread(cfs_rq, prev);
+		if (prev->on_rq)
+			update_stats_wait_start(cfs_rq, prev);
+	}
+
 	if (prev->on_rq) {
-		update_stats_wait_start(cfs_rq, prev);
 		/* Put 'current' back into the tree. */
 		__enqueue_entity(cfs_rq, prev);
 		/* in !on_rq case, update occurred at dequeue */
