@@ -154,7 +154,7 @@ static void __rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);	
 			if (wake) {	
 				smp_mb(); /* EGP done before wake_up(). */	
-				wake_up(&rsp->expedited_wq);	
+				swake_up(&rsp->expedited_wq);	
 			}	
 			break;	
 		}	
@@ -402,7 +402,7 @@ retry_ipi:
  	jiffies_stall = rcu_jiffies_till_stall_check();	
 	jiffies_start = jiffies;	
  	for (;;) {	
-		ret = wait_event_interruptible_timeout(	
+		ret = swait_event_interruptible_timeout(	
 				rsp->expedited_wq,	
 				sync_rcu_preempt_exp_done(rnp_root),	
 				jiffies_stall);	
@@ -410,7 +410,7 @@ retry_ipi:
 			return;	
 		if (ret < 0) {	
 			/* Hit a signal, disable CPU stall warnings. */	
-			wait_event(rsp->expedited_wq,	
+			swait_event(rsp->expedited_wq,	
 				   sync_rcu_preempt_exp_done(rnp_root));	
 			return;	
 		}	
