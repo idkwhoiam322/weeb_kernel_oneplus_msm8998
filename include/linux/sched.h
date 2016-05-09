@@ -1130,6 +1130,7 @@ struct sched_group;
 struct sched_domain_shared {
 	atomic_t	ref;
 	atomic_t	nr_busy_cpus;
+	int		has_idle_cores;
 };
 
 struct eas_stats {
@@ -1191,6 +1192,8 @@ struct sched_domain {
 	/* idle_balance() stats */
 	u64 max_newidle_lb_cost;
 	unsigned long next_decay_max_lb_cost;
+
+	u64 avg_scan_cost;		/* select_idle_sibling */
 
 #ifdef CONFIG_SCHEDSTATS
 	/* load_balance() stats */
