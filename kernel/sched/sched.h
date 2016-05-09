@@ -45,6 +45,12 @@ static inline void update_cpu_load_active(struct rq *this_rq) { }
 static inline void check_for_migration(struct rq *rq, struct task_struct *p) { }
 #endif
 
+#ifdef CONFIG_SCHED_SMT
+extern void update_idle_core(struct rq *rq);
+#else
+static inline void update_idle_core(struct rq *rq) { }
+#endif
+
 /*
  * Helpers for converting nanosecond timing to jiffy resolution
  */
