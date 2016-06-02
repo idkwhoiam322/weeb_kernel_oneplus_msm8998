@@ -39,6 +39,12 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 	smp_mb();
 	owner = READ_ONCE(lock->owner) << 16;
 
+	/*
+	 * Ensure prior spin_lock operations to other locks have completed
+	 * on this CPU before we test whether "lock" is locked.
+	 */
+	smp_mb();
+
 	asm volatile(
 "	sevl\n"
 "1:	wfe\n"
