@@ -320,7 +320,6 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 {	
 	int cpu;	
 	unsigned long flags;	
-	unsigned long mask;	
 	unsigned long mask_ofl_test;	
 	unsigned long mask_ofl_ipi;	
 	int ret;	
@@ -331,7 +330,7 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 		smp_mb__after_unlock_lock();	
  		/* Each pass checks a CPU for identity, offline, and idle. */	
 		mask_ofl_test = 0;	
-		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++) {	
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
 			struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);	
 			struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);	
  			if (raw_smp_processor_id() == cpu ||	
@@ -348,8 +347,8 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 			rnp->exp_tasks = rnp->blkd_tasks.next;	
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);	
  		/* IPI the remaining CPUs for expedited quiescent state. */	
-		mask = 1;	
-		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {	
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			unsigned long mask = leaf_node_cpu_bit(rnp, cpu);
 			if (!(mask_ofl_ipi & mask))	
 				continue;	
 retry_ipi:	
@@ -409,9 +408,9 @@ retry_ipi:
 		       rsp->name);	
 		rcu_for_each_leaf_node(rsp, rnp) {	
 			(void)rcu_print_task_exp_stall(rnp);	
-			mask = 1;	
-			for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {	
+			for_each_leaf_node_possible_cpu(rnp, cpu) {
 				struct rcu_data *rdp;	
+				mask = leaf_node_cpu_bit(rnp, cpu);
  				if (!(rnp->expmask & mask))	
 					continue;	
 				rdp = per_cpu_ptr(rsp->rda, cpu);	
@@ -420,13 +419,12 @@ retry_ipi:
 					"o."[!!(rdp->grpmask & rnp->expmaskinit)],	
 					"N."[!!(rdp->grpmask & rnp->expmaskinitnext)]);	
 			}	
-			mask <<= 1;	
 		}	
 		pr_cont(" } %lu jiffies s: %lu\n",	
 			jiffies - jiffies_start, rsp->expedited_sequence);	
 		rcu_for_each_leaf_node(rsp, rnp) {	
-			mask = 1;	
-			for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {	
+			for_each_leaf_node_possible_cpu(rnp, cpu) {
+				mask = leaf_node_cpu_bit(rnp, cpu);
 				if (!(rnp->expmask & mask))	
 					continue;	
 				dump_cpu_task(cpu);	
