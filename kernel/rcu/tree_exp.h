@@ -357,19 +357,17 @@ retry_ipi:
 			if (!ret) {	
 				mask_ofl_ipi &= ~mask;	
 			} else {	
-				/* Failed, raced with offline. */	
+				/* Failed, raced with CPU hotplug operation. */
 				raw_spin_lock_irqsave(&rnp->lock, flags);	
-				if (cpu_online(cpu) &&	
+				if ((rnp->qsmaskinitnext & mask) &&
 				    (rnp->expmask & mask)) {	
+					/* Online, so delay for a bit and try again. */
 					raw_spin_unlock_irqrestore(&rnp->lock,	
 								   flags);	
 					schedule_timeout_uninterruptible(1);	
-					if (cpu_online(cpu) &&	
-					    (rnp->expmask & mask))	
-						goto retry_ipi;	
-					raw_spin_lock_irqsave(&rnp->lock,	
-							      flags);	
+					goto retry_ipi;	
 				}	
+				/* CPU really is offline, so we can ignore it. */
 				if (!(rnp->expmask & mask))	
 					mask_ofl_ipi &= ~mask;	
 				raw_spin_unlock_irqrestore(&rnp->lock, flags);	
