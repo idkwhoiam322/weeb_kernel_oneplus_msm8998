@@ -4286,8 +4286,9 @@ int extent_readpages(struct extent_io_tree *tree,
 		prefetchw(&page->flags);
 		list_del(&page->lru);
 		if (add_to_page_cache_lru(page, mapping,
-					page->index, GFP_NOFS)) {
-			page_cache_release(page);
+					page_index(page),
+					readahead_gfp_mask(mapping))) {
+                        page_cache_release(page);
 			continue;
 		}
 
