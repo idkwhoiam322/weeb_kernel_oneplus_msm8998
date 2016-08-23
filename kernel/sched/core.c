@@ -77,13 +77,14 @@
 #include <linux/cpufreq_times.h>
 #include <linux/rcupdate_wait.h>
 #include <linux/prefetch.h>
+#include <linux/mutex.h>
+#include <linux/cpufreq.h>
 
 #include <linux/kcov.h>
 
 #include <asm/switch_to.h>
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
-#include <asm/mutex.h>
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #endif
