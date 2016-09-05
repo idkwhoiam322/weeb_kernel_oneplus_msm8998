@@ -2219,8 +2219,9 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 	 * reordered with p->state check below. This pairs with mb() in
 	 * set_current_state() the waiting thread does.
 	 */
-	smp_mb__before_spinlock();
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+        smp_mb__after_spinlock();
+
 	src_cpu = cpu = task_cpu(p);
 
 	if (!(p->state & state))
@@ -3600,8 +3601,8 @@ static void __sched notrace __schedule(bool preempt)
 	 * can't be reordered with __set_current_state(TASK_INTERRUPTIBLE)
 	 * done by the caller to avoid the race with signal_wake_up().
 	 */
-	smp_mb__before_spinlock();
 	rq_lock(rq, &rf);
+	smp_mb__after_spinlock();
 
 	/* Promote REQ to ACT */
 	rq->clock_update_flags <<= 1;
