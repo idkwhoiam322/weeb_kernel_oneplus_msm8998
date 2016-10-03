@@ -57,6 +57,13 @@ SCHED_FEAT(NONTASK_CAPACITY, true)
  */
 SCHED_FEAT(TTWU_QUEUE, false)
 
+/*
+ * Issue a WARN when we do multiple update_rq_clock() calls
+ * in a single rq->lock section. Default disabled because the
+ * annotations are not complete.
+ */
+SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
+
 #ifdef HAVE_RT_PUSH_IPI
 /*
  * In order to avoid a thundering herd attack of CPUs that are
