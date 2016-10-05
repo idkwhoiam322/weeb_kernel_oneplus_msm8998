@@ -1240,7 +1240,7 @@ static struct rq *move_queued_task(struct rq *rq, struct task_struct *p, int new
 	lockdep_assert_held(&rq->lock);
 
         WRITE_ONCE(p->on_rq, TASK_ON_RQ_MIGRATING);
-	dequeue_task(rq, p, 0);
+	dequeue_task(rq, p, DEQUEUE_NOCLOCK);
 	double_lock_balance(rq, cpu_rq(new_cpu));
 	set_task_cpu(p, new_cpu);
 	double_unlock_balance(rq, cpu_rq(new_cpu));
@@ -1277,6 +1277,7 @@ static struct rq *__migrate_task(struct rq *rq, struct task_struct *p, int dest_
 	if (!is_cpu_allowed(p, dest_cpu))
 		return rq;
 
+        update_rq_clock(rq);
 	rq = move_queued_task(rq, p, dest_cpu);
 
 	return rq;
