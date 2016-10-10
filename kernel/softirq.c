@@ -65,7 +65,7 @@ DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
 DEFINE_PER_CPU(__u32, active_softirqs);
 
 const char * const softirq_to_name[NR_SOFTIRQS] = {
-	"HI", "TIMER", "NET_TX", "NET_RX", "BLOCK", "BLOCK_IOPOLL",
+	"HI", "TIMER", "NET_TX", "NET_RX", "BLOCK", "IRQ_POLL",
 	"TASKLET", "SCHED", "HRTIMER", "RCU"
 };
 
