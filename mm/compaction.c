@@ -902,6 +902,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		    page_count(page) > page_mapcount(page))
 			goto isolate_fail;
 
+		/*
+		 * Only allow to migrate anonymous pages in GFP_NOFS context
+		 * because those do not depend on fs locks.
+		 */
+		if (!(cc->gfp_mask & __GFP_FS) && page_mapping(page))
+			goto isolate_fail;
+
 		/* If we already hold the lock, we can skip some rechecking */
 		if (!locked) {
 			locked = compact_trylock_irqsave(&zone->lru_lock,
@@ -1698,7 +1705,6 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 			int alloc_flags, const struct alloc_context *ac,
 			enum migrate_mode mode, int *contended)
 {
-	int may_enter_fs = gfp_mask & __GFP_FS;
 	int may_perform_io = gfp_mask & __GFP_IO;
 	struct zoneref *z;
 	struct zone *zone;
@@ -1707,8 +1713,11 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 
 	*contended = COMPACT_CONTENDED_NONE;
 
-	/* Check if the GFP flags allow compaction */
-	if (!may_enter_fs || !may_perform_io)
+	/*
+	 * Check if the GFP flags allow compaction - GFP_NOIO is really
+	 * tricky context because the migration might require IO
+	 */
+	if (!may_perform_io)
 		return COMPACT_SKIPPED;
 
 	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, mode);
@@ -1858,6 +1867,7 @@ static void compact_node(int nid)
 		.order = -1,
 		.mode = MIGRATE_SYNC,
 		.ignore_skip_hint = true,
+		.gfp_mask = GFP_KERNEL,
 	};
 
 	__compact_pgdat(NODE_DATA(nid), &cc);
@@ -1963,6 +1973,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 		.classzone_idx = pgdat->kcompactd_classzone_idx,
 		.mode = MIGRATE_SYNC_LIGHT,
 		.ignore_skip_hint = true,
+		.gfp_mask = GFP_KERNEL,
 
 	};
 	bool success = false;
