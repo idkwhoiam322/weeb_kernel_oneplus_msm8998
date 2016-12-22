@@ -9877,6 +9877,11 @@ static int need_active_balance(struct lb_env *env)
 			return 1;
 	}
 
+        if ((env->idle != CPU_NOT_IDLE) &&
+            (capacity_orig_of(env->src_cpu) < capacity_orig_of(env->dst_cpu)) &&
+            env->src_rq->cfs.h_nr_running == 1 && env->src_rq->misfit_task)
+                return 1;
+
 	return unlikely(sd->nr_balance_failed >
 			sd->cache_nice_tries + NEED_ACTIVE_BALANCE_THRESHOLD);
 }
