@@ -3963,6 +3963,7 @@ static void debugfs_init(void) {}
  * global list. This log context can be reused from the list in case of a
  * subsystem restart.
  */
+#ifdef CONFIG_IPC_LOGGING
 static void *ipc_router_create_log_ctx(char *name)
 {
 #ifdef CONFIG_IPC_LOGGING
@@ -3991,6 +3992,12 @@ static void *ipc_router_create_log_ctx(char *name)
 	return NULL;
 #endif
 }
+#else
+static void *ipc_router_create_log_ctx(char *name)
+{
+	return NULL;
+}
+#endif
 
 static void ipc_router_log_ctx_init(void)
 {
