@@ -11,7 +11,7 @@
 #include <linux/unistd.h>
 #include <linux/cpu.h>
 #include <linux/oom.h>
-#include <linux/rcupdate.h>
+#include <linux/rcupdate_wait.h>
 #include <linux/export.h>
 #include <linux/bug.h>
 #include <linux/kthread.h>

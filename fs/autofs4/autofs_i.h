@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/magic.h>
+#include <linux/completion.h>
 
 /* This is the range of ioctl() numbers we claim as ours */
 #define AUTOFS_IOC_FIRST     AUTOFS_IOC_READY
