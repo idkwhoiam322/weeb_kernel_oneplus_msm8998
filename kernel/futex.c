@@ -1377,10 +1377,11 @@ static void mark_wake_futex(struct wake_q_head *wake_q, struct futex_q *q)
 	get_task_struct(p);
 	__unqueue_futex(q);
 	/*
-	 * The waiting task can free the futex_q as soon as
-	 * q->lock_ptr = NULL is written, without taking any locks. A
-	 * memory barrier is required here to prevent the following
-	 * store to lock_ptr from getting ahead of the plist_del.
+	 * The waiting task can free the futex_q as soon as q->lock_ptr = NULL
+	 * is written, without taking any locks. This is possible in the event
+	 * of a spurious wakeup, for example. A memory barrier is required here
+	 * to prevent the following store to lock_ptr from getting ahead of the
+	 * plist_del in __unqueue_futex().
 	 */
 	smp_store_release(&q->lock_ptr, NULL);
 
