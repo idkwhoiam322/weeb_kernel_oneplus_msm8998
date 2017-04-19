@@ -9546,11 +9546,7 @@ static int ufshcd_scale_gear(struct ufs_hba *hba, bool scale_up)
 			/* scale up to G3 now */
 			new_pwr_info.gear_tx = UFS_HS_G3;
 			new_pwr_info.gear_rx = UFS_HS_G3;
-			/* now, fall through to set the HS-G3 */
 		}
-		ret = ufshcd_change_power_mode(hba, &new_pwr_info);
-		if (ret)
-			goto out;
 	} else {
 		memcpy(&new_pwr_info, &hba->pwr_info,
 		       sizeof(struct ufs_pa_layer_attr));
@@ -9570,8 +9566,8 @@ static int ufshcd_scale_gear(struct ufs_hba *hba, bool scale_up)
 				new_pwr_info.pwr_rx = FASTAUTO_MODE;
 			}
 		}
-		ret = ufshcd_change_power_mode(hba, &new_pwr_info);
 	}
+	ret = ufshcd_change_power_mode(hba, &new_pwr_info);
 
 out:
 	if (ret)
