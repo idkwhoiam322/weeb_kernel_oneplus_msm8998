@@ -368,8 +368,6 @@ static inline void rcu_init_nohz(void)
  * macro rather than an inline function to avoid #include hell.
  */
 #ifdef CONFIG_TASKS_RCU
-#define TASKS_RCU(x) x
-extern struct srcu_struct tasks_rcu_exit_srcu;
 #define rcu_note_voluntary_context_switch_lite(t) \
 	do { \
 		if (READ_ONCE((t)->rcu_tasks_holdout)) \
@@ -380,10 +378,13 @@ extern struct srcu_struct tasks_rcu_exit_srcu;
 		rcu_all_qs(); \
 		rcu_note_voluntary_context_switch_lite(t); \
 	} while (0)
+void exit_tasks_rcu_start(void);
+void exit_tasks_rcu_finish(void);
 #else /* #ifdef CONFIG_TASKS_RCU */
-#define TASKS_RCU(x) do { } while (0)
 #define rcu_note_voluntary_context_switch_lite(t)	do { } while (0)
 #define rcu_note_voluntary_context_switch(t)		rcu_all_qs()
+static inline void exit_tasks_rcu_start(void) { }
+static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /**
