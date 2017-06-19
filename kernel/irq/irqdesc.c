@@ -36,14 +36,14 @@ static void __init init_irq_default_affinity(void)
 #endif
 
 #ifdef CONFIG_SMP
-static int alloc_masks(struct irq_desc *desc, gfp_t gfp, int node)
+static int alloc_masks(struct irq_desc *desc, int node)
 {
 	if (!zalloc_cpumask_var_node(&desc->irq_common_data.affinity,
-				     gfp, node))
+				     GFP_KERNEL, node))
 		return -ENOMEM;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	if (!zalloc_cpumask_var_node(&desc->pending_mask, gfp, node)) {
+	if (!zalloc_cpumask_var_node(&desc->pending_mask, GFP_KERNEL, node)) {
 		free_cpumask_var(desc->irq_common_data.affinity);
 		return -ENOMEM;
 	}
@@ -64,7 +64,7 @@ static void desc_smp_init(struct irq_desc *desc, int node)
 
 #else
 static inline int
-alloc_masks(struct irq_desc *desc, gfp_t gfp, int node) { return 0; }
+alloc_masks(struct irq_desc *desc, int node) { return 0; }
 static inline void desc_smp_init(struct irq_desc *desc, int node) { }
 #endif
 
@@ -144,9 +144,8 @@ void irq_unlock_sparse(void)
 static struct irq_desc *alloc_desc(int irq, int node, struct module *owner)
 {
 	struct irq_desc *desc;
-	gfp_t gfp = GFP_KERNEL;
 
-	desc = kzalloc_node(sizeof(*desc), gfp, node);
+	desc = kzalloc_node(sizeof(*desc), GFP_KERNEL, node);
 	if (!desc)
 		return NULL;
 	/* allocate based on nr_cpu_ids */
@@ -154,7 +153,7 @@ static struct irq_desc *alloc_desc(int irq, int node, struct module *owner)
 	if (!desc->kstat_irqs)
 		goto err_desc;
 
-	if (alloc_masks(desc, gfp, node))
+	if (alloc_masks(desc, node))
 		goto err_kstat;
 
 	raw_spin_lock_init(&desc->lock);
@@ -278,7 +277,7 @@ int __init early_irq_init(void)
 
 	for (i = 0; i < count; i++) {
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
-		alloc_masks(&desc[i], GFP_KERNEL, node);
+		alloc_masks(&desc[i], node);
 		raw_spin_lock_init(&desc[i].lock);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 		desc_set_defaults(i, &desc[i], node, NULL);
