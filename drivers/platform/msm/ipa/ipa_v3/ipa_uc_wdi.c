@@ -1183,7 +1183,7 @@ int ipa3_connect_wdi_pipe(struct ipa_wdi_in_params *in,
 				IPA_CPU_2_HW_CMD_WDI_TX_SET_UP :
 				IPA_CPU_2_HW_CMD_WDI_RX_SET_UP,
 				IPA_HW_2_CPU_WDI_CMD_STATUS_SUCCESS,
-				false, 10*HZ);
+				false, IPA_TIMEOUT(10));
 
 	if (result) {
 		result = -EFAULT;
@@ -1276,7 +1276,7 @@ int ipa3_disconnect_wdi_pipe(u32 clnt_hdl)
 	result = ipa3_uc_send_cmd(tear.raw32b,
 				IPA_CPU_2_HW_CMD_WDI_TEAR_DOWN,
 				IPA_HW_2_CPU_WDI_CMD_STATUS_SUCCESS,
-				false, 10*HZ);
+				false, IPA_TIMEOUT(10));
 
 	if (result) {
 		result = -EFAULT;
@@ -1341,7 +1341,7 @@ int ipa3_enable_wdi_pipe(u32 clnt_hdl)
 	result = ipa3_uc_send_cmd(enable.raw32b,
 		IPA_CPU_2_HW_CMD_WDI_CH_ENABLE,
 		IPA_HW_2_CPU_WDI_CMD_STATUS_SUCCESS,
-		false, 10*HZ);
+		false, IPA_TIMEOUT(10));
 
 	if (result) {
 		result = -EFAULT;
@@ -1452,7 +1452,7 @@ int ipa3_disable_wdi_pipe(u32 clnt_hdl)
 	result = ipa3_uc_send_cmd(disable.raw32b,
 		IPA_CPU_2_HW_CMD_WDI_CH_DISABLE,
 		IPA_HW_2_CPU_WDI_CMD_STATUS_SUCCESS,
-		false, 10*HZ);
+		false, IPA_TIMEOUT(10));
 
 	if (result) {
 		result = -EFAULT;
@@ -1513,7 +1513,7 @@ int ipa3_resume_wdi_pipe(u32 clnt_hdl)
 	result = ipa3_uc_send_cmd(resume.raw32b,
 		IPA_CPU_2_HW_CMD_WDI_CH_RESUME,
 		IPA_HW_2_CPU_WDI_CMD_STATUS_SUCCESS,
-		false, 10*HZ);
+		false, IPA_TIMEOUT(10));
 
 	if (result) {
 		result = -EFAULT;
@@ -1606,7 +1606,7 @@ int ipa3_suspend_wdi_pipe(u32 clnt_hdl)
 		result = ipa3_uc_send_cmd(suspend.raw32b,
 			IPA_CPU_2_HW_CMD_WDI_CH_SUSPEND,
 			IPA_HW_2_CPU_WDI_CMD_STATUS_SUCCESS,
-			false, 10*HZ);
+			false, IPA_TIMEOUT(10));
 
 		if (result) {
 			result = -EFAULT;
@@ -1637,7 +1637,7 @@ int ipa3_suspend_wdi_pipe(u32 clnt_hdl)
 		result = ipa3_uc_send_cmd(suspend.raw32b,
 			IPA_CPU_2_HW_CMD_WDI_CH_SUSPEND,
 			IPA_HW_2_CPU_WDI_CMD_STATUS_SUCCESS,
-			false, 10*HZ);
+			false, IPA_TIMEOUT(10));
 
 		if (result) {
 			result = -EFAULT;
@@ -1705,7 +1705,7 @@ int ipa3_write_qmapid_wdi_pipe(u32 clnt_hdl, u8 qmap_id)
 	result = ipa3_uc_send_cmd(qmap.raw32b,
 		IPA_CPU_2_HW_CMD_WDI_RX_EXT_CFG,
 		IPA_HW_2_CPU_WDI_CMD_STATUS_SUCCESS,
-		false, 10*HZ);
+		false, IPA_TIMEOUT(10));
 
 	if (result) {
 		result = -EFAULT;
