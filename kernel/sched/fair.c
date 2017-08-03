@@ -9834,6 +9834,8 @@ static inline int find_new_ilb(void)
 	if (sd) {
 		cpumask_and(&cpumask, nohz.idle_cpus_mask,
 			    sched_domain_span(sd));
+		cpumask_andnot(&cpumask, &cpumask,
+			    cpu_isolated_mask);
 		ilb = cpumask_first(&cpumask);
 	}
 	rcu_read_unlock();
@@ -9842,8 +9844,11 @@ static inline int find_new_ilb(void)
 		if (!energy_aware() ||
 		    (capacity_orig_of(cpu) ==
 		     cpu_rq(cpu)->rd->max_cpu_capacity.val ||
-		     cpu_overutilized(cpu)))
-			ilb = cpumask_first(nohz.idle_cpus_mask);
+		     cpu_overutilized(cpu))) {
+			cpumask_andnot(&cpumask, nohz.idle_cpus_mask,
+			    cpu_isolated_mask);
+			ilb = cpumask_first(&cpumask);
+		}
 	}
 
 	if (ilb < nr_cpu_ids && idle_cpu(ilb))
@@ -10171,6 +10176,7 @@ static inline bool nohz_kick_needed(struct rq *rq)
 	struct sched_group_capacity *sgc;
 	int nr_busy, cpu = rq->cpu;
 	bool kick = false;
+	cpumask_t cpumask;
 
 	if (unlikely(rq->idle_balance))
 		return false;
@@ -10186,7 +10192,8 @@ static inline bool nohz_kick_needed(struct rq *rq)
 	 * None are in tickless mode and hence no need for NOHZ idle load
 	 * balancing.
 	 */
-	if (likely(!atomic_read(&nohz.nr_cpus)))
+	cpumask_andnot(&cpumask, nohz.idle_cpus_mask, cpu_isolated_mask);
+	if (cpumask_empty(&cpumask))
 		return false;
 
 	if (time_before(now, nohz.next_balance))
@@ -10223,8 +10230,7 @@ static inline bool nohz_kick_needed(struct rq *rq)
 	}
 
 	sd = rcu_dereference(per_cpu(sd_asym, cpu));
-	if (sd && (cpumask_first_and(nohz.idle_cpus_mask,
-				  sched_domain_span(sd)) < cpu)) {
+	if (sd && (cpumask_first_and(&cpumask, sched_domain_span(sd)) < cpu)) {
 		kick = true;
 		goto unlock;
 	}
@@ -10247,6 +10253,13 @@ static void run_rebalance_domains(struct softirq_action *h)
 	enum cpu_idle_type idle = this_rq->idle_balance ?
 						CPU_IDLE : CPU_NOT_IDLE;
 
+	/*
+	 * Since core isolation doesn't update nohz.idle_cpus_mask, there
+	 * is a possibility this nohz kicked cpu could be isolated. Hence
+	 * return if the cpu is isolated.
+	 */
+	if (cpu_isolated(this_rq->cpu))
+		return;
 	/*
 	 * If this cpu has a pending nohz_balance_kick, then do the
 	 * balancing on behalf of the other idle cpus whose ticks are
