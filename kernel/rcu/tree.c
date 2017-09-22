@@ -749,7 +749,6 @@ void rcu_irq_exit(void)
 	long long oldval;
 	struct rcu_dynticks *rdtp;
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_irq_exit() invoked with irqs enabled!!!");
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	/* Page faults can happen in NMI handlers, so check... */
@@ -893,7 +892,6 @@ void rcu_irq_enter(void)
 	struct rcu_dynticks *rdtp;
 	long long oldval;
 
-	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_irq_enter() invoked with irqs enabled!!!");
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	/* Page faults can happen in NMI handlers, so check... */
