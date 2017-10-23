@@ -903,7 +903,7 @@ static void dump_throttled_rt_tasks(struct rt_rq *rt_rq)
 	int idx;
 
 	pos += snprintf(pos, sizeof(buf),
-		"sched: RT throttling activated for rt_rq %p (cpu %d)\n",
+		"sched: RT throttling activated for rt_rq %pK (cpu %d)\n",
 		rt_rq, cpu_of(rq_of_rt_rq(rt_rq)));
 
 	if (bitmap_empty(array->bitmap, MAX_RT_PRIO))
