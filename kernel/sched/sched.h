@@ -639,6 +639,7 @@ struct rq {
 	unsigned int misfit_task;
 #ifdef CONFIG_NO_HZ_COMMON
 	u64 nohz_stamp;
+	unsigned long last_blocked_load_update_tick;
 	unsigned long nohz_flags;
 #endif
 #ifdef CONFIG_NO_HZ_FULL
