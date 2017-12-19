@@ -7632,7 +7632,16 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 
 	rcu_read_lock();
 	sd = rcu_dereference(cpu_rq(prev_cpu)->sd);
-	if (energy_aware() && sd && !sd_overutilized(sd)) {
+	if (energy_aware() && sd && !sd_overutilized(sd) &&
+		(sched_feat(EAS_PREFER_IDLE) && 
+			!(schedtune_prefer_idle(p) > 0 && !sync))) {
+		/*
+		 * If the sync flag is set but ignored, prefer to
+		 * select cpu in the same cluster as current. So
+		 * if current is a big cpu and sync is set, indicate
+		 * that the selection algorithm for a boosted task
+		 * should be used.
+		 */
 		bool sync_boost = sync && cpu >= start_cpu(true);
 
 		new_cpu = select_energy_cpu_brute(p, prev_cpu, sync_boost);
