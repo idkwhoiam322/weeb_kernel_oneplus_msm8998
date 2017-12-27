@@ -1351,7 +1351,7 @@ bool key_back_pressed;
 bool key_appselect_pressed;
 bool key_home_pressed;
 #endif
-void int_touch(void)
+static inline void __int_touch(void)
 {
 	int ret = -1, i = 0;
 	uint8_t buf[90];
@@ -1560,6 +1560,12 @@ void int_touch(void)
 INT_TOUCH_END:
 	mutex_unlock(&ts->mutexreport);
 }
+
+void int_touch(void)
+{
+	__int_touch();
+}
+
 #ifdef SUPPORT_TP_TOUCHKEY
 #define OEM_KEY_BACK (key_switch ? KEY_APPSELECT : KEY_BACK)
 #define OEM_KEY_APPSELECT (key_switch ? KEY_BACK : KEY_APPSELECT)
@@ -1567,7 +1573,7 @@ INT_TOUCH_END:
 #define OEM_KEY_BACK KEY_BACK
 #define OEM_KEY_APPSELECT KEY_APPSELECT
 #endif
-static void int_key_report_s3508(struct synaptics_ts_data *ts)
+static inline void int_key_report_s3508(struct synaptics_ts_data *ts)
 {
 	int ret = 0;
 	int F1A_0D_DATA00 = 0x00;
