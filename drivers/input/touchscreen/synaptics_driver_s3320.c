@@ -1351,7 +1351,7 @@ bool key_back_pressed;
 bool key_appselect_pressed;
 bool key_home_pressed;
 #endif
-void int_touch(void)
+static inline void __int_touch(void)
 {
 	int ret = -1, i = 0;
 	uint8_t buf[90];
@@ -1560,6 +1560,12 @@ void int_touch(void)
 INT_TOUCH_END:
 	mutex_unlock(&ts->mutexreport);
 }
+
+void int_touch(void)
+{
+	__int_touch();
+}
+
 #ifdef SUPPORT_TP_TOUCHKEY
 #define OEM_KEY_BACK (key_switch ? KEY_APPSELECT : KEY_BACK)
 #define OEM_KEY_APPSELECT (key_switch ? KEY_BACK : KEY_APPSELECT)
@@ -1567,7 +1573,7 @@ INT_TOUCH_END:
 #define OEM_KEY_BACK KEY_BACK
 #define OEM_KEY_APPSELECT KEY_APPSELECT
 #endif
-static void int_key_report_s3508(struct synaptics_ts_data *ts)
+static inline void int_key_report_s3508(struct synaptics_ts_data *ts)
 {
 	int ret = 0;
 	int F1A_0D_DATA00 = 0x00;
@@ -3720,7 +3726,7 @@ static const struct file_operations key_disable_proc_fops = {
 #define CREATE_GESTURE_NODE(NAME)\
 	CREATE_PROC_NODE(touchpanel, NAME##_enable, 0666)
 
-static int init_synaptics_proc(void)
+static int init_synaptics_proc(struct synaptics_ts_data *ts)
 {
 	int ret = 0;
 
@@ -3789,8 +3795,11 @@ static int init_synaptics_proc(void)
 	CREATE_PROC_NODE(touchpanel, touch_press, 0666);
 
 #ifdef SUPPORT_TP_TOUCHKEY
-	CREATE_PROC_NODE(s1302, key_rep, 0666);
-	CREATE_PROC_NODE(touchpanel, key_disable, 0666);
+	// disable button swap and key disabler proc nodes for 17801 (dumpling)
+	if (!ts->support_1080x2160_tp) {
+		CREATE_PROC_NODE(s1302, key_rep, 0666);
+		CREATE_PROC_NODE(touchpanel, key_disable, 0666);
+	}
 #endif
 
 	return ret;
@@ -4860,7 +4869,7 @@ static int synaptics_ts_probe(struct i2c_client *client,
 
 	}
 #endif
-	init_synaptics_proc();
+	init_synaptics_proc(ts);
 	TPDTM_DMESG("synaptics_ts_probe 3203: normal end\n");
 	return 0;
 
