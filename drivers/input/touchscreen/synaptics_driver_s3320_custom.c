@@ -1347,9 +1347,9 @@ static char prlog_count;
 static unsigned char pres_value;
 #endif
 #ifdef SUPPORT_VIRTUAL_KEY
-bool key_back_pressed;
-bool key_appselect_pressed;
-bool key_home_pressed;
+static bool key_back_pressed;
+static bool key_appselect_pressed;
+static bool key_home_pressed;
 #endif
 static inline void int_touch(void)
 {
