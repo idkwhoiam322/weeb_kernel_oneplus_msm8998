@@ -641,7 +641,7 @@ static inline int cpulist_parse(const char *buf, struct cpumask *dstp)
  *
  * This will eventually be a runtime variable, depending on nr_cpu_ids.
  */
-static inline size_t cpumask_size(void)
+static inline unsigned int cpumask_size(void)
 {
 	return BITS_TO_LONGS(nr_cpumask_bits) * sizeof(long);
 }
