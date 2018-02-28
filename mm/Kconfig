@@ -738,8 +738,24 @@ config PROCESS_RECLAIM
 	 (echo file > /proc/PID/reclaim) reclaims file-backed pages only.
 	 (echo anon > /proc/PID/reclaim) reclaims anonymous pages only.
 	 (echo all > /proc/PID/reclaim) reclaims all pages.
-
 	 (echo addr size-byte > /proc/PID/reclaim) reclaims pages in
 	 (addr, addr + size-bytes) of the process.
 
 	 Any other vaule is ignored.
+
+config BALANCE_ANON_FILE_RECLAIM
+	bool "During reclaim treat anon and file backed pages equally"
+	depends on SWAP
+	help
+	  When performing memory reclaim treat anonymous and file backed pages
+	  equally.
+	  Swapping anonymous pages out to memory can be efficient enough to justify
+	  treating anonymous and file backed pages equally.
+
+config VM_MAX_READAHEAD
+	int "Default max readahead window size"
+	default 128
+	help
+	  This sets the VM_MAX_READAHEAD value to allow the readahead window
+	  to grow to a maximum size of configured. This will benefit sequential
+	  read throughput and thus early boot performance.
