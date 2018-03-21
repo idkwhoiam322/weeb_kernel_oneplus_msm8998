@@ -200,7 +200,7 @@ static irqreturn_t modem_wdog_bite_intr_handler(int irq, void *dev_id)
 static int pil_subsys_init(struct modem_data *drv,
 					struct platform_device *pdev)
 {
-	int ret;
+	int ret = -EINVAL;
 
 	drv->subsys_desc.name = "modem";
 	drv->subsys_desc.dev = &pdev->dev;
@@ -212,6 +212,13 @@ static int pil_subsys_init(struct modem_data *drv,
 	drv->subsys_desc.err_fatal_handler = modem_err_fatal_intr_handler;
 	drv->subsys_desc.stop_ack_handler = modem_stop_ack_intr_handler;
 	drv->subsys_desc.wdog_bite_handler = modem_wdog_bite_intr_handler;
+
+	if (IS_ERR_OR_NULL(drv->q6)) {
+		ret = PTR_ERR(drv->q6);
+		dev_err(&pdev->dev, "Pil q6 data is err %pK %d!!!\n",
+			drv->q6, ret);
+		goto err_subsys;
+	}
 
 	drv->q6->desc.modem_ssr = false;
 	drv->subsys = subsys_register(&drv->subsys_desc);
