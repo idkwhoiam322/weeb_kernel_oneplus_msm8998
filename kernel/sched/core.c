@@ -1300,6 +1300,11 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 	struct rq *rq;
 	int ret = 0;
 
+	/* Force all trivial, unbound kthreads onto the little cluster */
+	if (p->flags & PF_KTHREAD && p->pid != 1 &&
+		cpumask_equal(new_mask, cpu_all_mask))
+		new_mask = cpu_lp_mask;
+
 	rq = task_rq_lock(p, &rf);
         update_rq_clock(rq);
 
