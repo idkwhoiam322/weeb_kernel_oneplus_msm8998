@@ -109,7 +109,8 @@ static int __init arm_idle_init(void)
 
 	ret = cpuidle_register_driver(drv);
 	if (ret) {
-		pr_err("Failed to register cpuidle driver\n");
+		if (ret != -EBUSY)
+			pr_err("Failed to register cpuidle driver\n");
 		return ret;
 	}
 
