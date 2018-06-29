@@ -8935,11 +8935,9 @@ static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sd
 	struct sched_domain *child = env->sd->child;
 	struct sched_group *sg = env->sd->groups;
 	struct sg_lb_stats tmp_sgs;
-	int load_idx, prefer_sibling = 0;
+	int load_idx;
 	bool overload = false, overutilized = false;
-
-	if (child && child->flags & SD_PREFER_SIBLING)
-		prefer_sibling = 1;
+	bool prefer_sibling = child && child->flags & SD_PREFER_SIBLING;
 
 	load_idx = get_sd_load_idx(env->sd, env->idle);
 
