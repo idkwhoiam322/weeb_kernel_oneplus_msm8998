@@ -5715,6 +5715,8 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 		rq_unlock(rq, rf);
 		raw_spin_lock(&next->pi_lock);
 		rq_relock(rq, rf);
+		if (!(rq->clock_update_flags & RQCF_UPDATED))
+			update_rq_clock(rq);
 
 		/*
 		 * Since we're inside stop-machine, _nothing_ should have
@@ -5734,6 +5736,8 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 			rq = dead_rq;
 			*rf = orf;
 			rq_relock(rq, rf);
+			if (!(rq->clock_update_flags & RQCF_UPDATED))
+				update_rq_clock(rq);
 		}
 		raw_spin_unlock(&next->pi_lock);
 	}
