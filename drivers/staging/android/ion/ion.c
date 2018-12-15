@@ -1424,7 +1424,6 @@ bool ion_dma_buf_is_secure(struct dma_buf *dmabuf)
 }
 EXPORT_SYMBOL(ion_dma_buf_is_secure);
 
-
 struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd)
 {
 	struct dma_buf *dmabuf;

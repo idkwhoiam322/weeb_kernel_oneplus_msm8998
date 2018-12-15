@@ -9021,7 +9021,6 @@ int ufshcd_system_resume(struct ufs_hba *hba)
 	int ret = 0;
 	ktime_t start = ktime_get();
 
-
 	if (!hba)
 		return -EINVAL;
 
