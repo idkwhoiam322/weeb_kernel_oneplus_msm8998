@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2299,37 +2299,33 @@ static int mdss_dsi_parse_reset_seq(struct device_node *np,
 
 static bool mdss_dsi_cmp_panel_reg_v2(struct mdss_dsi_ctrl_pdata *ctrl)
 {
-        int i, j = 0;
-        int len = 0, *lenp;
-        int group = 0;
+	int i, j = 0;
+	int len = 0, *lenp;
+	int group = 0;
 
-        lenp = ctrl->status_valid_params ?: ctrl->status_cmds_rlen;
+	lenp = ctrl->status_valid_params ?: ctrl->status_cmds_rlen;
 
-        for (i = 0; i < ctrl->status_cmds.cmd_cnt; i++)
-       	 len += lenp[i];
+	for (i = 0; i < ctrl->status_cmds.cmd_cnt; i++)
+		len += lenp[i];
 
-        for (i = 0; i < len; i++) {
-       	 pr_debug("[%i] return:0x%x status:0x%x\n",
-       		 i, (unsigned int)ctrl->return_buf[i],
-       		 (unsigned int)ctrl->status_value[j + i]);
-       	 MDSS_XLOG(ctrl->ndx, ctrl->return_buf[i],
-       		 ctrl->status_value[j + i]);
-       	 j += len;
-        }
+	for (j = 0; j < ctrl->groups; ++j) {
+		for (i = 0; i < len; ++i) {
+			pr_debug("[%i] return:0x%x status:0x%x\n",
+				i, ctrl->return_buf[i],
+				(unsigned int)ctrl->status_value[group + i]);
+			MDSS_XLOG(ctrl->ndx, ctrl->return_buf[i],
+					ctrl->status_value[group + i]);
+			if (ctrl->return_buf[i] !=
+				ctrl->status_value[group + i])
+				break;
+		}
 
-        for (j = 0; j < ctrl->groups; ++j) {
-       	 for (i = 0; i < len; ++i) {
-       		 if (ctrl->return_buf[i] !=
-       			 ctrl->status_value[group + i])
-       			 break;
-       	 }
+		if (i == len)
+			return true;
+		group += len;
+	}
 
-       	 if (i == len)
-       		 return true;
-       	 group += len;
-        }
-
-        return false;
+	return false;
 }
 
 static int mdss_dsi_gen_read_status(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
@@ -2828,45 +2824,71 @@ static int mdss_dsi_set_refresh_rate_range(struct device_node *pan_node,
 static void mdss_dsi_parse_dfps_config(struct device_node *pan_node,
        		 struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
-        const char *data;
-        bool dynamic_fps;
-        struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
+	const char *data;
+	bool dynamic_fps, dynamic_bitclk;
+	struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
+	int rc = 0;
 
-        dynamic_fps = of_property_read_bool(pan_node,
-       		 "qcom,mdss-dsi-pan-enable-dynamic-fps");
+	dynamic_fps = of_property_read_bool(pan_node,
+			"qcom,mdss-dsi-pan-enable-dynamic-fps");
 
-        if (!dynamic_fps)
-       	 return;
+	if (!dynamic_fps)
+		goto dynamic_bitclk;
 
-        pinfo->dynamic_fps = true;
-        data = of_get_property(pan_node, "qcom,mdss-dsi-pan-fps-update", NULL);
-        if (data) {
-       	 if (!strcmp(data, "dfps_suspend_resume_mode")) {
-       		 pinfo->dfps_update = DFPS_SUSPEND_RESUME_MODE;
-       		 pr_debug("dfps mode: suspend/resume\n");
-       	 } else if (!strcmp(data, "dfps_immediate_clk_mode")) {
-       		 pinfo->dfps_update = DFPS_IMMEDIATE_CLK_UPDATE_MODE;
-       		 pr_debug("dfps mode: Immediate clk\n");
-       	 } else if (!strcmp(data, "dfps_immediate_porch_mode_hfp")) {
-       		 pinfo->dfps_update =
-       			 DFPS_IMMEDIATE_PORCH_UPDATE_MODE_HFP;
-       		 pr_debug("dfps mode: Immediate porch HFP\n");
-       	 } else if (!strcmp(data, "dfps_immediate_porch_mode_vfp")) {
-       		 pinfo->dfps_update =
-       			 DFPS_IMMEDIATE_PORCH_UPDATE_MODE_VFP;
-       		 pr_debug("dfps mode: Immediate porch VFP\n");
-       	 } else {
-       		 pinfo->dfps_update = DFPS_SUSPEND_RESUME_MODE;
-       		 pr_debug("default dfps mode: suspend/resume\n");
-       	 }
-        } else {
-       	 pinfo->dynamic_fps = false;
-       	 pr_debug("dfps update mode not configured: disable\n");
-        }
-        pinfo->new_fps = pinfo->mipi.frame_rate;
-        pinfo->current_fps = pinfo->mipi.frame_rate;
+	pinfo->dynamic_fps = true;
+	data = of_get_property(pan_node, "qcom,mdss-dsi-pan-fps-update", NULL);
+	if (data) {
+		if (!strcmp(data, "dfps_suspend_resume_mode")) {
+			pinfo->dfps_update = DFPS_SUSPEND_RESUME_MODE;
+			pr_debug("dfps mode: suspend/resume\n");
+		} else if (!strcmp(data, "dfps_immediate_clk_mode")) {
+			pinfo->dfps_update = DFPS_IMMEDIATE_CLK_UPDATE_MODE;
+			pr_debug("dfps mode: Immediate clk\n");
+		} else if (!strcmp(data, "dfps_immediate_porch_mode_hfp")) {
+			pinfo->dfps_update =
+				DFPS_IMMEDIATE_PORCH_UPDATE_MODE_HFP;
+			pr_debug("dfps mode: Immediate porch HFP\n");
+		} else if (!strcmp(data, "dfps_immediate_porch_mode_vfp")) {
+			pinfo->dfps_update =
+				DFPS_IMMEDIATE_PORCH_UPDATE_MODE_VFP;
+			pr_debug("dfps mode: Immediate porch VFP\n");
+		} else {
+			pinfo->dfps_update = DFPS_SUSPEND_RESUME_MODE;
+			pr_debug("default dfps mode: suspend/resume\n");
+		}
+	} else {
+		pinfo->dynamic_fps = false;
+		pr_debug("dfps update mode not configured: disable\n");
+	}
+	pinfo->new_fps = pinfo->mipi.frame_rate;
+	pinfo->current_fps = pinfo->mipi.frame_rate;
 
-        return;
+dynamic_bitclk:
+	dynamic_bitclk = of_property_read_bool(pan_node,
+			"qcom,mdss-dsi-pan-enable-dynamic-bitclk");
+	if (!dynamic_bitclk)
+		return;
+
+	of_find_property(pan_node, "qcom,mdss-dsi-dynamic-bitclk_freq",
+		&pinfo->supp_bitclk_len);
+	pinfo->supp_bitclk_len = pinfo->supp_bitclk_len/sizeof(u32);
+	if (pinfo->supp_bitclk_len < 1)
+		return;
+
+	pinfo->supp_bitclks = kzalloc((sizeof(u32) * pinfo->supp_bitclk_len),
+		GFP_KERNEL);
+	if (!pinfo->supp_bitclks)
+		return;
+
+	rc = of_property_read_u32_array(pan_node,
+		"qcom,mdss-dsi-dynamic-bitclk_freq", pinfo->supp_bitclks,
+		pinfo->supp_bitclk_len);
+	if (rc) {
+		pr_err("Error from dynamic bitclk freq u64 array read\n");
+		return;
+	}
+	pinfo->dynamic_bitclk = true;
+	return;
 }
 
 int mdss_panel_parse_bl_settings(struct device_node *np,
