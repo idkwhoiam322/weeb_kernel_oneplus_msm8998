@@ -1,4 +1,4 @@
-#include <linux/gpio.h>
+	#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -90,7 +90,7 @@ static void dash_uart_tx_bit(
 		else
 			dash_uart_gpio_set_value(
 			chip, chip->uart_tx_gpio, 0);
-			tx_bit++;
+		tx_bit++;
 		break;
 	case BIT_STOP:
 	case BIT_IDLE:
