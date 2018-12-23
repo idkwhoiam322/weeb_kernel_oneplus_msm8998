@@ -11,7 +11,6 @@
  */
 
 #include "pxlw-iris-settings.dtsi"
-
 / {
 	reserved-memory {
 		ramoops_mem: ramoops_mem@ac000000 {
@@ -26,42 +25,37 @@
 			reg = <0 0xAC400000 0 0x00B00000>;
 			label = "mtp_mem";
 		};
-	bootloader_log_mem: bootloader_log_mem@9fff7000 {
-		reg = <0 0x9FFF7000 0 0x00100000>;
-		label = "bootloader_log_mem";
-	};
+		bootloader_log_mem: bootloader_log_mem@9fff7000 {
+			reg = <0 0x9FFF7000 0 0x00100000>;
+			label = "bootloader_log_mem";
+		};
 	};
 };
 
 &pil_ipa_gpu_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x95600000 0 0x100000>;
+    reg = <0 0x95600000 0 0x100000>;//move start address +4M to match modem aligned
 };
 
 &pil_slpi_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x94700000 0 0xf00000>;
+    reg = <0 0x94700000 0 0xf00000>;//move start address +4M to match modem aligned
 };
 
 &pil_mba_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x94500000 0 0x200000>;
+    reg = <0 0x94500000 0 0x200000>;//move start address +4M to match modem aligned
 };
 
 &pil_video_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x94000000 0 0x500000>;
+    reg = <0 0x94000000 0 0x500000>;//move start address +4M to match modem aligned
 };
 
 &modem_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x8d000000 0 0x7000000>;
+    reg = <0 0x8d000000 0 0x7000000>;//move start address +4M to match modem aligned
 };
 
 &pil_adsp_mem{
-	//increae 4M size by oneplus
-	reg = <0 0x8b200000 0 0x1e00000>;
+    reg = <0 0x8b200000 0 0x1e00000>; //increae 4M size by oneplus
 };
+
 /* I/O */
 &soc {
 	gpio_keys {
@@ -319,7 +313,6 @@
 			qcom,soc-low-threshold = <5>;
 		};
 	};
-
 	ramoops {
 		compatible = "ramoops";
 		status = "ok";
@@ -350,12 +343,10 @@
 		pinctrl-0 = <&uart_console_active>;
 		pinctrl-1 = <&uart_console_deactive>;
 	};
-
 	bootloader_log {
 		compatible = "bootloader_log";
 		linux,contiguous-region = <&bootloader_log_mem>;
 	};
-
 };
 
 &pm8998_gpios {
@@ -682,7 +673,7 @@
 		status = "disabled";
 	};
 	synaptics-rmi-ts@20 {
-		compatible = "HWK,synaptics,s3320";
+		compatible = "synaptics,s3320";
 		reg = <0x20>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <125 0x2008>;
@@ -704,6 +695,7 @@
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 	};
 };
+
 &pcie0_clkreq_default {
 	mux {
 		pins = "gpio36";
@@ -749,8 +741,10 @@
 &snd_9335 {
 	qcom,mbhc-audio-jack-type = "4-pole-jack";
 };
-/* liuhaituo@MultiMediaAudio modified for adapation phone headset 2018/3/2 */
 /*
+ * liuhaituo@MultiMediaAudio modified for adapation phone
+ * headset and AKG headset-mic 2018/4/26
+ */
 &slim_aud {
 	tasha_codec {
 		qcom,cdc-micbias1-mv = <1800>;
@@ -759,7 +753,6 @@
 		qcom,cdc-micbias4-mv = <1800>;
 	};
 };
-*/
 
 /* Audio */
 &soc {
@@ -887,7 +880,6 @@
 				fsmgr_flags = "wait";
 				status = "ok";
 			};
-
 			system {
 				compatible = "android,system";
 				dev = "/dev/block/platform/soc/1da4000.ufshc/by-name/system";
@@ -899,6 +891,7 @@
 		};
 	};
 };
+
 /* External Thermistors */
 &pm8998_vadc {
 	chan@4e {
@@ -982,25 +975,6 @@
 	};
 };
 
-/*  wangdongdong@MultiMediaService,2017/02/23,add adsp qos configuration start
- *  CRs-Fixed: 2009756
- */
-&soc {
-	qcom,glink-smem-native-xprt-adsp@86000000 {
-		qcom,qos-config = <&glink_qos_adsp>;
-		qcom,ramp-time = <0xaf>;
-	};
-	glink_qos_adsp: qcom,glink-qos-config-adsp {
-		compatible = "qcom,glink-qos-config";
-		qcom,flow-info = <0x3c 0x0>,
-				<0x3c 0x0>,
-				<0x3c 0x0>,
-				<0x3c 0x0>;
-		qcom,mtu-size = <0x800>;
-		qcom,tput-stats-cycle = <0xa>;
-	};
-};
-/*  wangdongdong@MultiMediaService,2017/02/23,end  */
 
 /*Anderson-Config_UARTPIN_as_GPIO*[*/
 &soc {
@@ -1031,6 +1005,23 @@
 /*but gpio37 will request in pcie0. so disable it*/
 &pcie0 {
 	status = "disabled";
+};
+
+&pm8998_gpios {
+	gpio@d400 {
+		qcom,pull = <4>;
+	};
+};
+
+&spi_1 {
+    status = "ok";
+    qcom,disable-autosuspend;
+
+    ese@0 {
+        compatible = "nxp,p61";
+        reg = <0>;
+        spi-max-frequency = <8000000>;
+    };
 };
 
 &i2c_6 {

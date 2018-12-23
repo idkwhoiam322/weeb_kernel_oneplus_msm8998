@@ -14,54 +14,48 @@
 #include "pxlw-iris-settings.dtsi"
 
 / {
-	reserved-memory {
-		ramoops_mem: ramoops_mem@ac000000 {
-			reg = <0 0xAC000000 0 0x00200000>;
-			label = "ramoops_mem";
-		};
-		param_mem: param_mem@ac200000 {
-			reg = <0 0xAC200000 0 0x00100000>;
-			label = "param_mem";
-		};
-		mtp_mem: mtp_mem@ac400000 {
-			reg = <0 0xAC400000 0 0x00B00000>;
-			label = "mtp_mem";
-		};
-		bootloader_log_mem: bootloader_log_mem@9fff7000 {
-			reg = <0 0x9FFF7000 0 0x00100000>;
-			label = "bootloader_log_mem";
-		};
-	};
+    reserved-memory {
+        ramoops_mem: ramoops_mem@ac000000 {
+            reg = <0 0xAC000000 0 0x00200000>;
+            label = "ramoops_mem";
+        };
+        param_mem: param_mem@ac200000 {
+            reg = <0 0xAC200000 0 0x00100000>;
+            label = "param_mem";
+        };
+        mtp_mem: mtp_mem@ac400000 {
+            reg = <0 0xAC400000 0 0x00B00000>;
+            label = "mtp_mem";
+        };
+        bootloader_log_mem: bootloader_log_mem@9fff7000 {
+            reg = <0 0x9FFF7000 0 0x00100000>;
+            label = "bootloader_log_mem";
+        };
+    };
 };
 
 &pil_ipa_gpu_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x95600000 0 0x100000>;
+    reg = <0 0x95600000 0 0x100000>;//move start address +4M to match modem aligned
 };
 
 &pil_slpi_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x94700000 0 0xf00000>;
+    reg = <0 0x94700000 0 0xf00000>;//move start address +4M to match modem aligned
 };
 
 &pil_mba_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x94500000 0 0x200000>;
+    reg = <0 0x94500000 0 0x200000>;//move start address +4M to match modem aligned
 };
 
 &pil_video_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x94000000 0 0x500000>;
+    reg = <0 0x94000000 0 0x500000>;//move start address +4M to match modem aligned
 };
 
 &modem_mem{
-	//move start address +4M to match modem aligned
-	reg = <0 0x8d000000 0 0x7000000>;
+    reg = <0 0x8d000000 0 0x7000000>;//move start address +4M to match modem aligned
 };
 
 &pil_adsp_mem{
-	//increae 4M size by oneplus
-	reg = <0 0x8b200000 0 0x1e00000>;
+    reg = <0 0x8b200000 0 0x1e00000>; //increae 4M size by oneplus
 };
 
 /* I/O */
@@ -268,11 +262,11 @@
 			qcom,soc-low-threshold = <5>;
 		};
 	};
-	ramoops {
-		compatible = "ramoops";
-		status = "ok";
-		memory-region = <&ramoops_mem>;
-	};
+    ramoops {
+        compatible = "ramoops";
+        status = "ok";
+        memory-region = <&ramoops_mem>;
+    };
 
 	/* Add  0x9c 0x21C, 0xf0 0x23C */
 	qusb_phy0: qusb@c012000 {
@@ -296,10 +290,10 @@
 		pinctrl-0 = <&uart_console_active>;
 		pinctrl-1 = <&uart_console_deactive>;
 	};
-	bootloader_log {
-		compatible = "bootloader_log";
-		linux,contiguous-region = <&bootloader_log_mem>;
-	};
+    bootloader_log {
+        compatible = "bootloader_log";
+        linux,contiguous-region = <&bootloader_log_mem>;
+    };
 };
 
 
@@ -376,12 +370,6 @@
 
 	/*shankai@bsp, add debounce time 2017-3-18*/
 	qcom,pm8998@0{
-		qcom,power-on@800 {
-		    qcom,pon-dbc-delay = <31250>;
-		    qcom,kpdpwr-sw-debounce;
-	    };
-	};
-	qcom,pmi8998@3 {
 		qcom,leds@d000 {
 			qcom,rgb-sync;
 		};
@@ -726,6 +714,18 @@
 &snd_9335 {
 	qcom,mbhc-audio-jack-type = "4-pole-jack";
 };
+/*
+ * liuhaituo@MultiMediaAudio modified for adapation phone
+ * headset and AKG headset-mic 2018/4/26
+ */
+&slim_aud {
+	tasha_codec {
+		qcom,cdc-micbias1-mv = <1800>;
+		qcom,cdc-micbias2-mv = <2700>;
+		qcom,cdc-micbias3-mv = <1800>;
+		qcom,cdc-micbias4-mv = <1800>;
+	};
+};
 
 /* Audio */
 &soc {
@@ -831,7 +831,6 @@
 		status = "disabled";
 	};
 };
-
 
 &firmware {
 	android {
@@ -953,30 +952,29 @@
 		qcom,thermal-node;
 	};
 };
-/*  wangdongdong@MultiMediaService,2017/02/23,add adsp qos configuration start
- *  CRs-Fixed: 2009756
- */
-&soc {
-	qcom,glink-smem-native-xprt-adsp@86000000 {
-		qcom,qos-config = <&glink_qos_adsp>;
-		qcom,ramp-time = <0xaf>;
-	};
-	glink_qos_adsp: qcom,glink-qos-config-adsp {
-		compatible = "qcom,glink-qos-config";
-		qcom,flow-info = <0x3c 0x0>,
-				<0x3c 0x0>,
-				<0x3c 0x0>,
-				<0x3c 0x0>;
-		qcom,mtu-size = <0x800>;
-		qcom,tput-stats-cycle = <0xa>;
-	};
-};
-/*  wangdongdong@MultiMediaService,2017/02/23,end  */
+
 
 /*pcie 0 don't used,gpio 37 will used in nfc.*/
 /*but gpio37 will request in pcie0. so disable it*/
 &pcie0 {
 	status = "disabled";
+};
+
+&pm8998_gpios {
+	gpio@d400 {
+		qcom,pull = <4>;
+	};
+};
+
+&spi_1 {
+    status = "ok";
+    qcom,disable-autosuspend;
+
+    ese@0 {
+        compatible = "nxp,p61";
+        reg = <0>;
+        spi-max-frequency = <8000000>;
+    };
 };
 
 &i2c_6 { /* BLSP1 QUP6 (NFC) */
@@ -1005,3 +1003,28 @@
 		clock-names = "ref_clk";
 	};
 };
+
+/*Anderson-Config_UARTPIN_as_GPIO*[*/
+&soc {
+	tlmm: pinctrl@03400000 {
+		uart_console_deactive: uart_console_deactive {
+			mux {
+				pins = "gpio4", "gpio5";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio4", "gpio5";
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+	};
+};
+
+&uartblsp2dm1 {
+	pinctrl-names = "uart_active", "uart_deactive";
+	pinctrl-0 = <&uart_console_active>;
+	pinctrl-1 = <&uart_console_deactive>;
+};
+/*Anderson-Config_UARTPIN_as_GPIO*]**/
