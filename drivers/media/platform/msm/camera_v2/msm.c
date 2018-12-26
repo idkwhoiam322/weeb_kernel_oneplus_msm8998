@@ -90,6 +90,7 @@ static uint32_t gpu_limit;
 			__q->len--;				\
 			list_del_init(&node->member);		\
 			kzfree(node);				\
+            node = NULL;                \
 			break;					\
 		}						\
 	}							\
@@ -107,6 +108,7 @@ static uint32_t gpu_limit;
 			__q->len--;				\
 			list_del_init(&node->member);		\
 			kzfree(node);				\
+            node = NULL;                \
 			break;					\
 		}						\
 	}							\
@@ -126,6 +128,7 @@ static uint32_t gpu_limit;
 			if (&node->member) \
 				list_del_init(&node->member);		\
 			kzfree(node);	\
+            node = NULL;    \
 		}	\
 	}	\
 	spin_unlock_irqrestore(&__q->lock, flags);		\
@@ -151,11 +154,11 @@ typedef int (*msm_queue_find_func)(void *d1, void *d2);
 #define msm_queue_find(queue, type, member, func, data) ({\
 	unsigned long flags;					\
 	struct msm_queue_head *__q = (queue);			\
-	type *node = NULL; \
+	type *node = 0; \
 	typeof(node) __ret = NULL; \
 	msm_queue_find_func __f = (func); \
 	spin_lock_irqsave(&__q->lock, flags);			\
-	if (!list_empty(&__q->list)) { \
+	if (!list_empty(&__q->list) && (__q->len != 0)) { \
 		list_for_each_entry(node, &__q->list, member) \
 		if ((__f) && __f(node, data)) { \
 			__ret = node; \
