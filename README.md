@@ -13,6 +13,7 @@ pie_caf: OnePlus Pie Beta OSS + upstreamed to caf latest tag.
 pie_clang: OnePlus Pie Beta OSS + Nathan's latest clang stuffs merged for 4.4-pie.
 pie_eas: OnePlus Pie Beta OSS + EAS base stuff from Joshuous's Oreo source.
 oneplus/QC8998_P_9.0_Beta: OnePlus Pie Beta OSS which everything is based on. This branch will only pull from OnePlus's own update.
+Anything that is not mentioned above: Experimenetal and you should probably just leave it alone. Feel free to peek but don't blame me thanks!
 ```
 ## Features
 ![phones](https://telegra.ph/file/00a5eb3b0b5dd14e4c065.png)
