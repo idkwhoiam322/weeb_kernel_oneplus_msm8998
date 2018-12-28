@@ -31,7 +31,10 @@ pie_eas: OnePlus OSS source + EAS base stuff from Joshuous's Oreo source
 - some arm64 related optimizations
 - Compiled using Clang 8.0.6: With O3 optimizations wherever possible
 - KCAL Control [Note: This doesn't seem to work on Pie yet, will investigate at some point]
-- Boeffla Wakelock Blocker: I don't have much to say about this, just read what I think of it [HERE](https://github.com/whoknowswhoiam/weebmsm8998-pie/commit/210374f687bc11d06800d2881a1bc1a92d97b3af).
+- Boeffla Wakelock Blocker
+```
+> I don't have much to say about Boeffla's Wakelock Blocker, just read what I think of it [HERE](https://github.com/whoknowswhoiam/weebmsm8998-pie/commit/210374f687bc11d06800d2881a1bc1a92d97b3af).
+```
 - Wireguard Support
 - Sweep2wake, double tap to wake, vibration control by flar2
 - Support for Custom ROMs
@@ -56,4 +59,5 @@ pie_eas: OnePlus OSS source + EAS base stuff from Joshuous's Oreo source
  GNU General Public License for more details.
 ```
 > See the accompanying [COPYING](https://github.com/whoknowswhoiam/weebmsm8998-pie/blob/9.0/COPYING) file for more details.
+
 > Also this is kanged from [HERE](https://github.com/RaphielGang/bash_kernel_sdm845/tree/README).
