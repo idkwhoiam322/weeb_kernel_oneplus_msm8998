@@ -6,12 +6,14 @@
 
 
 ## Branching, mechanics, and stuffs
+```
 9.0: "Stable" Branch, feel free to kang and use for whatever but do know that `I love force pushing` and I really mean `love` so like you should know what to do to deal with it because I often drop commits even though I usually end up doing it on another branch.
-pie_als: OnePlus OSS source + upstreamed to linux latest tag
-pie_caf: OnePlus OSS source + upstreamed to caf latest tag
-pie_clang: OnePlus OSS source + Nathan's latest clang stuffs merged for 4.4-pie
-pie_eas: OnePlus OSS source + EAS base stuff from Joshuous's Oreo source
-
+pie_als: OnePlus Pie Beta OSS + upstreamed to linux latest tag.
+pie_caf: OnePlus Pie Beta OSS + upstreamed to caf latest tag.
+pie_clang: OnePlus Pie Beta OSS + Nathan's latest clang stuffs merged for 4.4-pie.
+pie_eas: OnePlus Pie Beta OSS + EAS base stuff from Joshuous's Oreo source.
+oneplus/QC8998_P_9.0_Beta: OnePlus Pie Beta OSS which everything is based on. This branch will only pull from OnePlus's own update.
+```
 ## Features
 ![phones](https://telegra.ph/file/00a5eb3b0b5dd14e4c065.png)
 
