@@ -15,10 +15,28 @@ pie_eas: OnePlus Pie Beta OSS + EAS base stuff from Joshuous's Oreo source.
 oneplus/QC8998_P_9.0_Beta: OnePlus Pie Beta OSS which everything is based on. This branch will only pull from OnePlus's own update.
 Anything that is not mentioned above: Experimenetal and you should probably just leave it alone. Feel free to peek but don't blame me thanks!
 ```
-## Features
+## About Phone
 ![phones](https://telegra.ph/file/00a5eb3b0b5dd14e4c065.png)
 
 `									(Left) OnePlus 5T - OnePlus 5 (Right)									`	
+###### OnePlus 5
+```
+Device Codename - Cheeseburger
+Release Date - 22nd June 2017
+Current Android Version - 9/Pie
+```
+*Full Specifications - [GSM Arena](https://www.gsmarena.com/oneplus_5-8647.php)*
+
+###### OnePlus 5T
+```
+Device Codename - Dumpling
+Release Date - 16 November 2017
+Current Android Version - 9/Pie
+```
+*Full Specifications - [GSM Arena](https://www.gsmarena.com/oneplus_5t-8912.php)*
+
+
+## Features
 ```
 - EAS stuff from Josh's Oreo source as base
 - HMP Stuff removed
