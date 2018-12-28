@@ -17,7 +17,8 @@ Anything that is not mentioned above: Experimenetal and you should probably just
 ```
 ## Features
 ![phones](https://telegra.ph/file/00a5eb3b0b5dd14e4c065.png)
-													`(Left) OnePlus 5T - OnePlus 5 (Right)`	
+
+`									(Left) OnePlus 5T - OnePlus 5 (Right)									`	
 ```
 - EAS stuff from Josh's Oreo source as base
 - HMP Stuff removed
