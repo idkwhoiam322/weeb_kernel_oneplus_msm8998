@@ -706,7 +706,7 @@ static void c0_cpufreq_limit(struct work_struct *work)
 			LITTLE_CPU_QOS_FREQ, CPUFREQ_RELATION_H);
 		cpufreq_cpu_put(policy);
 	}
-	sched_set_boost(1);
+	// sched_set_boost(1);
 }
 
 void c0_cpufreq_limit_queue(void)
