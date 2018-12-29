@@ -67,6 +67,17 @@ Current Android Version - 9/Pie
 - Kernel Samepage Merging
 ```
 
+## Features you will never see
+```
+- Overclock/Underclock
+- Undervolting
+- Anything that compromises performance or causes any kind of janks, if I've added any such changes myself, I'll revert them before they go into stable
+- Any schedulers other than cfq (maybe maple since Flash Kernel had it, but for now even that's a no)
+- No fsync toggle (stupid to disable it)
+- No disabling CRC check (Not worth it, we are not using EMMC weak ass storage)
+- Any governors other than schedutil
+```
+
 ## LICENSE
 ```
  Copyright (c), The Linux Foundation. All rights reserved.
