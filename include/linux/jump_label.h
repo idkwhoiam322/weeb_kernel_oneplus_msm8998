@@ -70,10 +70,6 @@
  * Additional babbling in: Documentation/static-keys.txt
  */
 
-#if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_JUMP_LABEL)
-# define HAVE_JUMP_LABEL
-#endif
-
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -85,7 +81,7 @@ extern bool static_key_initialized;
 				    "%s used before call to jump_label_init", \
 				    __func__)
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 
 struct static_key {
 	atomic_t enabled;
@@ -106,10 +102,10 @@ struct static_key {
 struct static_key {
 	atomic_t enabled;
 };
-#endif	/* HAVE_JUMP_LABEL */
+#endif	/* CONFIG_JUMP_LABEL */
 #endif /* __ASSEMBLY__ */
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 #include <asm/jump_label.h>
 
 #ifndef __ASSEMBLY__
@@ -184,7 +180,7 @@ enum jump_label_type {
 
 struct module;
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 
 #define JUMP_TYPE_FALSE		0UL
 #define JUMP_TYPE_TRUE		1UL
@@ -233,7 +229,7 @@ extern void static_key_disable(struct static_key *key);
 	{ .enabled = { 0 },					\
 	  .entries = (void *)JUMP_TYPE_FALSE }
 
-#else  /* !HAVE_JUMP_LABEL */
+#else  /* !CONFIG_JUMP_LABEL */
 
 #include <linux/atomic.h>
 #include <linux/bug.h>
@@ -310,7 +306,7 @@ static inline void static_key_disable(struct static_key *key)
 #define STATIC_KEY_INIT_TRUE	{ .enabled = ATOMIC_INIT(1) }
 #define STATIC_KEY_INIT_FALSE	{ .enabled = ATOMIC_INIT(0) }
 
-#endif	/* HAVE_JUMP_LABEL */
+#endif	/* CONFIG_JUMP_LABEL */
 
 #define STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
 #define jump_label_enabled static_key_enabled
@@ -368,7 +364,7 @@ extern bool ____wrong_branch_error(void);
 	static_key_count((struct static_key *)x) > 0;				\
 })
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 
 /*
  * Combine the right initial value (type) with the right branch order
@@ -450,12 +446,12 @@ extern bool ____wrong_branch_error(void);
 	branch;									\
 })
 
-#else /* !HAVE_JUMP_LABEL */
+#else /* !CONFIG_JUMP_LABEL */
 
 #define static_branch_likely(x)		likely(static_key_enabled(&(x)->key))
 #define static_branch_unlikely(x)	unlikely(static_key_enabled(&(x)->key))
 
-#endif /* HAVE_JUMP_LABEL */
+#endif /* CONFIG_JUMP_LABEL */
 
 /*
  * Advanced usage; refcount, branch is enabled when: count != 0
