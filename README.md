@@ -7,7 +7,8 @@
 
 ## Branching, mechanics, and stuffs
 ```
-9.0: "Stable" Branch, feel free to kang and use for whatever but do know that `I love force pushing` and I really mean `love` so like you should know what to do to deal with it because I often drop commits even though I usually end up doing it on another branch.
+9.0: EXPERIMENTAL Branch, feel free to kang and use for whatever but do know that `I love force pushing` and I really mean `love` so like you should know what to do to deal with it because I often drop commits even though I usually end up doing it on another branch.
+pie: "Stable" Branch, My final branch which I will use to build my stable releases. No force pushes.
 pie_als: OnePlus Pie Beta OSS + upstreamed to linux latest tag.
 pie_caf: OnePlus Pie Beta OSS + upstreamed to caf latest tag.
 pie_clang: OnePlus Pie Beta OSS + Nathan's latest clang stuffs merged for 4.4-pie.
