@@ -4,7 +4,7 @@
 
 choice
 	prompt "Timer frequency"
-	default HZ_625
+	default HZ_600
 	help
 	 Allows the configuration of the timer frequency. It is customary
 	 to have the timer interrupt run at 1000 Hz but 100 Hz may be more
@@ -39,6 +39,20 @@ choice
 	 on SMP and NUMA systems and exactly dividing by both PAL and
 	 NTSC frame rates for video and multimedia work.
 
+	config HZ_500
+		bool "500 HZ"
+	help
+	 600 Hz is a good compromise for embedded-high-use devices
+	 (in this case, phones) that shwoing good interactiveness and
+	 balancing between performance and power usage
+
+	config HZ_600
+		bool "600 HZ"
+	help
+	 600 Hz is a good compromise for embedded-high-use devices
+	 (in this case, phones) that shwoing good interactiveness and
+	 balancing between performance and power usage
+
 	config HZ_625
 		bool "625 HZ"
 	help
@@ -60,6 +74,8 @@ config HZ
 	default 100 if HZ_100
 	default 250 if HZ_250
 	default 300 if HZ_300
+	default 500 if HZ_500
+	default 600 if HZ_600
 	default 625 if HZ_625
 	default 1000 if HZ_1000
 
