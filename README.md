@@ -39,34 +39,42 @@ Current Android Version - 9/Pie
 
 
 ## Features
+Based on Weeb Kernel v2.01 Odyssey Release
 ```
-- EAS stuff from Josh's Oreo source as base
+- Latest Linux Upstream - 4.4.170
+- Latest CAF Upstream - LA.UM.7.4.r1-04600-8x98.0
+- Up to date with latest OnePlus changes
+- EAS stuff from Josh's Oreo source as base for EAS side changes
 - HMP Stuff removed
 - EAS stuff upstreamed from various sources (caf, nathan, etc.)
-- Latest Linux Upstream
-- Latest CAF Upstream
 - Dynamic Stune Boost
+- Disalbed Qualcomm Download Mode
+- Fixed dmesg spam (reverted faulty commits)
+- Fixed several warnings and improved code using GCC 9.0 and Clang from Mainline
+- Upstreamed z3fold and used as default for zswap (thanks to celtare21)
+- qcacld-3.0 workqueues relaxed (thanks to raphielscape)
+- Enabled YAMA LSM Security
+- SELinux Enforcing (Unless your ROM says otherwise)
+- Removed OnePlus QoS code (thanks to Francisco Franco)
 - CFQ Upstreamed
 - ZRAM Upstreamed
-- ZSTD as default ZRAM Compression Algorithm
+- ZSTD Upstreamed
+- LZ4 Upstreamed
+- LZ4 as default ZRAM Compression Algorithm
+- VFS Cache Pressure dropped to 50
+- Swappiness dropped to 8
 - Westwood as default TCP Congestion Algorithm
 - Sound Control
-- Flat Memory model
 - some arm64 related optimizations
-- Compiled using Clang 8.0.6: With O3 optimizations wherever possible
+- Compiled using Clang 8.0.7: With O3 optimizations wherever possible
 - KCAL Control [Note: This doesn't seem to work on Pie yet, will investigate at some point]
-- Boeffla Wakelock Blocker
-```
-> I don't have much to say about Boeffla's Wakelock Blocker, just read what I think of it [HERE](https://github.com/whoknowswhoiam/weebmsm8998-pie/commit/210374f687bc11d06800d2881a1bc1a92d97b3af).
-```
 - Wireguard Support
-- Sweep2wake, double tap to wake, vibration control by flar2
-- Support for Custom ROMs
-- HZ 500
+- Sweep2wake, double tap to wake gestures by flar2
+- Support for Custom ROMs + Omni
+- HZ 300
 - Backlight dimmer
 - CPU Governors cut down to just schedutil and the fallback performance governor
 - Disables dm-verity
-- Kernel Samepage Merging
 ```
 
 ## Features you will never see
