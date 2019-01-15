@@ -1440,7 +1440,7 @@ static struct device_attribute qpnp_hap_attrs[] = {
 	__ATTR(vtg_max, S_IRUGO, qpnp_hap_vmax_max, NULL),
 	__ATTR(vtg_min, S_IRUGO, qpnp_hap_vmax_min, NULL),
 #else
-	__ATTR(vmax, (S_IRUGO | S_IWUSR | S_IWGRP),
+	__ATTR(vmax_mv, (S_IRUGO | S_IWUSR | S_IWGRP),
 			qpnp_hap_vmax_show,
 			qpnp_hap_vmax_store),
 #endif
