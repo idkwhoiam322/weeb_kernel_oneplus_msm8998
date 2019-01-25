@@ -97,6 +97,11 @@ SCHED_FEAT(ENERGY_AWARE, true)
 SCHED_FEAT(ENERGY_AWARE, false)
 #endif
 
+/*
+ * Bias schedtune boosted tasks to higher capacity CPUs.
+ * If disabled, no bias will be applied.
+ */
+SCHED_FEAT(STUNE_BOOST_BIAS_BIG, true)
 
 /*
  * Minimum capacity capping. Keep track of minimum capacity factor when
@@ -112,4 +117,3 @@ SCHED_FEAT(MIN_CAPACITY_CAPPING, false)
  * If disabled, boosts will only bias tasks to higher-capacity CPUs.
  */
 SCHED_FEAT(SCHEDTUNE_BOOST_UTIL, true)
-
