@@ -7061,22 +7061,17 @@ static inline unsigned long cpu_util_rt(int cpu)
 
 static inline unsigned long cpu_util_freq(int cpu)
 {
+	unsigned long long util = cpu_util(cpu) + cpu_util_rt(cpu);
+
 #ifdef CONFIG_SCHED_WALT
-	u64 walt_cpu_util;
-
-	if (unlikely(walt_disabled || !sysctl_sched_use_walt_cpu_util)) {
-		return min(cpu_util(cpu) + cpu_util_rt(cpu),
-			   capacity_orig_of(cpu));
+	if (likely(!walt_disabled && sysctl_sched_use_walt_cpu_util)) {
+		util = cpu_rq(cpu)->prev_runnable_sum;
+		util <<= SCHED_CAPACITY_SHIFT;
+		do_div(util, walt_ravg_window);
 	}
-
-	walt_cpu_util = cpu_rq(cpu)->prev_runnable_sum;
-	walt_cpu_util <<= SCHED_CAPACITY_SHIFT;
-	do_div(walt_cpu_util, walt_ravg_window);
-
-	return min_t(unsigned long, walt_cpu_util, capacity_orig_of(cpu));
-#else
-	return min(cpu_util(cpu) + cpu_util_rt(cpu), capacity_orig_of(cpu));
 #endif
+
+	return min_t(unsigned long, util, capacity_orig_of(cpu));
 }
 
 static int start_cpu(bool boosted)
