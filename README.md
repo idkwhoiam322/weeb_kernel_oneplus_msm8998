@@ -39,50 +39,71 @@ Current Android Version - 9/Pie
 
 
 ## Features
-Based on Weeb Kernel v2.01 Odyssey Release
+Based on Weeb Kernel v2.1x Release - Codename: AURA
 ```
-- Latest Linux Upstream - 4.4.170
-- Latest CAF Upstream - LA.UM.7.4.r1-04600-8x98.0
+- Compiled using Latest AOSP Clang
+- Latest Linux Upstream - 4.4.176
+- Latest CAF Upstream - LA.UM.7.4.r1-04700-8x98.0
 - Up to date with latest OnePlus changes
+- Cleaned up some OnePlus code
 - EAS stuff from Josh's Oreo source as base for EAS side changes
 - HMP Stuff removed
-- EAS stuff upstreamed from various sources (caf, nathan, etc.)
-- Dynamic Stune Boost
-- Disalbed Qualcomm Download Mode
-- Fixed dmesg spam (reverted faulty commits)
+- Removed unnecessary code
+- Dynamic Stune Boost introduction and improvements (thanks to joshuous and RenderBroken)
+- Improvements to devfreq
+- Disabled Qualcomm Download Mode
+- F2FS upstreamed to kernel/common [February] along with some improvements from arter97
 - Fixed several warnings and improved code using GCC 9.0 and Clang from Mainline
 - Upstreamed z3fold and used as default for zswap (thanks to celtare21)
 - qcacld-3.0 workqueues relaxed (thanks to raphielscape)
+- Several Kernel Hardening patches thanks to CopperHeadOS and others
 - Enabled YAMA LSM Security
 - SELinux Enforcing (Unless your ROM says otherwise)
+- SELINUX: Disable auditing
+- NTFS R/W support
 - Removed OnePlus QoS code (thanks to Francisco Franco)
 - CFQ Upstreamed
 - ZRAM Upstreamed
 - ZSTD Upstreamed
 - LZ4 Upstreamed
 - LZ4 as default ZRAM Compression Algorithm
-- VFS Cache Pressure dropped to 50
 - Swappiness dropped to 8
+- Dirty Ratio = 5
+- Dirty Background Ratio = 2
+- Several updates to kernel/sched and some backported from the future (Thanks to nathanchance, google, kuran kaname, etc. etc.)
+- kgsl backports (thanks to celtare21)
+- Reset LMK to android 4.4 state and improved on that (Thanks to Franciso Franco and Kuran Kaname (Celtare21))
 - Westwood as default TCP Congestion Algorithm
 - Sound Control
 - some arm64 related optimizations
-- Compiled using Clang 8.0.7: With O3 optimizations wherever possible
-- KCAL Control [Note: This doesn't seem to work on Pie yet, will investigate at some point]
+- KCAL Control
 - Wireguard Support
-- Sweep2wake, double tap to wake gestures by flar2
-- Support for Custom ROMs + Omni
-- HZ 300
+- Sweep2sleep, double tap to wake gestures by flar2
+- HZ 100
 - Backlight dimmer
-- CPU Governors cut down to just schedutil and the fallback performance governor
+- CPU Governors cut down to just schedutil and performance(for quicker boot only) governors
+- CAKE as default net qdisc (thanks to kdrag0n)
+- Upstreamed kthread
+- RCU Upstream
+- vdso32 support
+- BFQ backported from 4.9
+- USB Fast Charging (DISABLED by default)
+- High Brightness Mode
 - Disables dm-verity
+- Variants:
+	OxygenOS
+	Custom ROMs that aren't omni
+	Omni based custom ROMs
+- Disable KALLSYMS since we have useless pstore, and this allows us to have a significantly smaller kernel image
+- Performance cluster underclocked to 1958400 kHz - Does not affect performance significantly but has improvements in device temperature and some decent improvements in battery
 ```
 
 ## Features you will never see
 ```
-- Overclock/Underclock
+- Overclock [Nope, I blindly trust Qualcomm here]
 - Undervolting
 - Anything that compromises performance or causes any kind of janks, if I've added any such changes myself, I'll revert them before they go into stable
-- Any schedulers other than cfq (maybe maple since Flash Kernel had it, but for now even that's a no)
+- Any schedulers other than cfq (maybe maple since Flash Kernel had it, but for now even that's a no) [Exception to the BFQ backport I did cuz it seems to be more consistent than cfq in my experience]
 - No fsync toggle (stupid to disable it)
 - No disabling CRC check (Not worth it, we are not using EMMC weak ass storage)
 - Any governors other than schedutil
