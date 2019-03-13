@@ -41,11 +41,11 @@ Current Android Version - 9/Pie
 
 
 ## Features
-Based on Weeb Kernel v2.1x Release - Codename: AURA
+Based on Weeb Kernel v2.21 Release - Codename: Pandemonium
 ```
-- Compiled using Latest AOSP Clang
+- Compiled using Latest AOSP Clang - 9.0.1
 - Latest Linux Upstream - 4.4.176
-- Latest CAF Upstream - LA.UM.7.4.r1-04700-8x98.0
+- Latest CAF Upstream - LA.UM.7.4.r1-04800-8x98.0
 - Up to date with latest OnePlus changes
 - Cleaned up some OnePlus code
 - EAS stuff from Josh's Oreo source as base for EAS side changes
@@ -81,23 +81,22 @@ Based on Weeb Kernel v2.1x Release - Codename: AURA
 - KCAL Control
 - Wireguard Support
 - Sweep2sleep, double tap to wake gestures by flar2
-- HZ 100
+- HZ 625
 - Backlight dimmer
 - CPU Governors cut down to just schedutil and performance(for quicker boot only) governors
 - CAKE as default net qdisc (thanks to kdrag0n)
-- Upstreamed kthread
-- RCU Upstream
 - vdso32 support
 - BFQ backported from 4.9
 - USB Fast Charging (DISABLED by default)
 - High Brightness Mode
 - Disables dm-verity
+- Performance cluster underclocked to 1958400 kHz - Does not affect performance significantly but has improvements in device temperature and some decent improvements in battery [DISABLED BY DEFAULT]
+- ULPS mode for display
 - Variants:
-	OxygenOS
-	Custom ROMs that aren't omni
-	Omni based custom ROMs
-- Disable KALLSYMS since we have useless pstore, and this allows us to have a significantly smaller kernel image
-- Performance cluster underclocked to 1958400 kHz - Does not affect performance significantly but has improvements in device temperature and some decent improvements in battery
+	oos - OxygenOS
+	custom - Custom ROMs that aren't omni
+	omni - Omni based custom ROMs
+	hax - ROMs that need Sultan's hacks to load wifi on device init call. eg. CodeName Phoenix, Dirty Unicorns
 ```
 
 ## Features you will never see
