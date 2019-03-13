@@ -8,13 +8,12 @@
 [![Build Status](https://semaphoreci.com/api/v1/whoknowswhoiam/weebmsm8998-pie/branches/9-0/badge.svg)](https://semaphoreci.com/whoknowswhoiam/weebmsm8998-pie)
 ## Branching, mechanics, and stuffs
 ```
-[DEPRECATED] 9.0:EXPERIMENTAL Branch, feel free to kang and use for whatever but do know that `I love force pushing` and I really mean `love` so like you should know what to do to deal with it because I often drop commits even though I usually end up doing it on another branch.
-pie-staging: Rebased staging branch as of 20th February 2019. Same description as the deprecated 9.0 branch.
+9.0: Staging Branch, feel free to kang and use for whatever but do know that `I love force pushing` and I really mean `love` so like you should know what to do to deal with it because I often drop commits even though I usually end up doing it on another branch.
 pie: "Stable" Branch, My final branch which I will use to build my stable releases. No force pushes.
 pie_als: OnePlus Pie Beta OSS + upstreamed to linux latest tag.
 pie_caf: OnePlus Pie Beta OSS + upstreamed to caf latest tag.
 pie_clang: OnePlus Pie Beta OSS + Nathan's latest clang stuffs merged for 4.4-pie.
-pie_eas: OnePlus Pie Beta OSS + EAS base stuff from Joshuous's Oreo source.
+pie_eas: OnePlus Pie Beta OSS + EAS base stuff from Joshuous's Oreo source + a ton of picks from 4.9 backported by Kuran and (very few) by me and some others too.
 pie_f2fs: OnePlus Pie BETA OSS + F2FS merged from aosp kernel/common and patchese from arter97.
 oneplus/QC8998_P_9.0_Beta: OnePlus Pie Beta OSS which everything is based on. This branch will only pull from OnePlus's own update.
 
