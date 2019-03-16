@@ -913,9 +913,7 @@ static ssize_t mdss_fb_get_hbm_mode(struct device *dev,
 
 	level = mdss_fb_send_panel_event(mfd, MDSS_EVENT_PANEL_GET_HBM_MODE,
 			NULL);
-	ret = scnprintf(buf, PAGE_SIZE, "HBM mode = %d\n"
-	                                        "0-->HBM OFF\n"
-					                        "1-->HBM ON\n", level);
+	ret = scnprintf(buf, PAGE_SIZE, "%d\n", level);
 	return ret;
 }
 
