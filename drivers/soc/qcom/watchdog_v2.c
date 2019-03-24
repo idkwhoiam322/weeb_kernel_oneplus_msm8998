@@ -471,14 +471,14 @@ void msm_trigger_wdog_bite(void)
 {
 	if (!wdog_data)
 		return;
-	pr_info("Causing a watchdog bite!");
+	pr_info("Causing a watchdog bite!\n");
 	__raw_writel(1, wdog_data->base + WDT0_BITE_TIME);
 	mb();
 	__raw_writel(1, wdog_data->base + WDT0_RST);
 	mb();
 	/* Delay to make sure bite occurs */
 	mdelay(10000);
-	pr_err("Wdog - STS: 0x%x, CTL: 0x%x, BARK TIME: 0x%x, BITE TIME: 0x%x",
+	pr_err("Wdog - STS: 0x%x, CTL: 0x%x, BARK TIME: 0x%x, BITE TIME: 0x%x\n",
 		__raw_readl(wdog_data->base + WDT0_STS),
 		__raw_readl(wdog_data->base + WDT0_EN),
 		__raw_readl(wdog_data->base + WDT0_BARK_TIME),
