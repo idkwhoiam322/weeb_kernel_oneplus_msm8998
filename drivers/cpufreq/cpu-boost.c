@@ -42,6 +42,7 @@ module_param(input_boost_ms, uint, 0644);
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 static int dynamic_stune_boost;
+static int prev_dynamic_stune_boost;
 module_param(dynamic_stune_boost, uint, 0644);
 static bool stune_boost_active;
 static int boost_slot;
@@ -186,28 +187,75 @@ static void do_input_boost_rem(struct work_struct *work)
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 static void do_dynamic_stune_boost_rem(struct work_struct *work)
 {
+	int ret;
+
 	/* Reset dynamic stune boost value to the default value */
 	if (stune_boost_active) {
-		reset_stune_boost("top-app", boost_slot);
+		ret = reset_stune_boost("top-app", boost_slot);
+		if (!ret) {
+			stune_boost_active = false;
+		}
+	}
+}
+
+static bool try_stune_boost(void) {
+	int ret;
+
+	ret = do_stune_boost("top-app", dynamic_stune_boost, &boost_slot);
+	if (!ret) {
+		stune_boost_active = true;
+	}
+	return ret == 0;
+}
+
+static bool try_stune_unboost(void) {
+	int ret;
+
+	ret = reset_stune_boost("top-app", boost_slot);
+	if (!ret) {
 		stune_boost_active = false;
 	}
+	return ret == 0;
+}
+
+static void queue_stune_unboost(void) {
+	queue_delayed_work(cpu_boost_wq, &dynamic_stune_boost_rem,
+			   msecs_to_jiffies(dynamic_stune_boost_ms));
+}
+
+static bool is_stune_boost_updated(void) {
+	return prev_dynamic_stune_boost != dynamic_stune_boost;
 }
 #endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 
 static void do_input_boost(struct work_struct *work)
 {
-	unsigned int i, ret;
+	unsigned int i;
 	struct cpu_sync *i_sync_info;
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 	cancel_delayed_work_sync(&dynamic_stune_boost_rem);
-#endif /* CONFIG_DYNAMIC_STUNE_BOOST */
-	cancel_delayed_work_sync(&input_boost_rem);
 
-	if (stune_boost_active) {
-		reset_stune_boost("top-app", boost_slot);
-		stune_boost_active = false;
+	if (!stune_boost_active) {
+		if (try_stune_boost()) {
+			queue_stune_unboost();
+		}
+	} else if (is_stune_boost_updated()) {
+		if (try_stune_unboost()) {
+			if (try_stune_boost()) {
+				queue_stune_unboost();
+			}
+		} else {
+			queue_stune_unboost();
+		}
+	} else {
+		queue_stune_unboost();
 	}
+
+	prev_dynamic_stune_boost = dynamic_stune_boost;
+#endif /* CONFIG_DYNAMIC_STUNE_BOOST */
+
+	cancel_delayed_work_sync(&input_boost_rem);
 
 	/* Set the input_boost_min for all CPUs in the system */
 	pr_debug("Setting input boost min for all CPUs\n");
@@ -218,16 +266,6 @@ static void do_input_boost(struct work_struct *work)
 
 	/* Update policies for all online CPUs */
 	update_policy_online();
-
-#ifdef CONFIG_DYNAMIC_STUNE_BOOST
-	/* Set dynamic stune boost value */
-	ret = do_stune_boost("top-app", dynamic_stune_boost, &boost_slot);
-	if (!ret)
-		stune_boost_active = true;
-
-	queue_delayed_work(cpu_boost_wq, &dynamic_stune_boost_rem,
-					msecs_to_jiffies(dynamic_stune_boost_ms));
-#endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 
 	queue_delayed_work(cpu_boost_wq, &input_boost_rem,
 					msecs_to_jiffies(input_boost_ms));
