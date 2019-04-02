@@ -55,6 +55,7 @@
 static LIST_HEAD(smk_ipv6_port_list);
 #endif
 static struct kmem_cache *smack_inode_cache;
+struct kmem_cache *smack_rule_cache;
 int smack_enabled;
 
 static const match_table_t smk_mount_tokens = {
@@ -350,7 +351,7 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 	INIT_LIST_HEAD(nhead);
 
 	list_for_each_entry_rcu(orp, ohead, list) {
-		nrp = kzalloc(sizeof(struct smack_rule), gfp);
+		nrp = kmem_cache_zalloc(smack_rule_cache, gfp);
 		if (nrp == NULL) {
 			rc = -ENOMEM;
 			break;
@@ -1950,7 +1951,7 @@ static void smack_cred_free(struct cred *cred)
 	list_for_each_safe(l, n, &tsp->smk_rules) {
 		rp = list_entry(l, struct smack_rule, list);
 		list_del(&rp->list);
-		kfree(rp);
+		kmem_cache_free(smack_rule_cache, rp);
 	}
 	kfree(tsp);
 }
@@ -4768,6 +4769,12 @@ static __init int smack_init(void)
 	smack_inode_cache = KMEM_CACHE(inode_smack, 0);
 	if (!smack_inode_cache)
 		return -ENOMEM;
+
+        smack_rule_cache = KMEM_CACHE(smack_rule, 0);
+        if (!smack_rule_cache) {
+                kmem_cache_destroy(smack_inode_cache);
+                return -ENOMEM;
+        }
 
 	tsp = new_task_smack(&smack_known_floor, &smack_known_floor,
 				GFP_KERNEL);
