@@ -1986,34 +1986,6 @@ const char *buffer, size_t count, loff_t *ppos)
 }
 #endif
 
-static ssize_t tp_show(struct device_driver *ddri, char *buf)
-{
-	struct synaptics_ts_data *ts = ts_g;
-	int a;
-	int b, c;
-
-	if (!ts)
-		return 0;
-	a = synaptics_rmi4_i2c_read_word(ts->client, F01_RMI_DATA_BASE);
-	if (a < 0)
-		TPD_ERR("tp_show read i2c err\n");
-	b = synaptics_rmi4_i2c_read_byte(ts->client, F01_RMI_DATA01);
-	if (b < 0)
-		TPD_ERR("tp_show read i2c err\n");
-	c = synaptics_rmi4_i2c_read_byte(ts->client, F12_2D_DATA_BASE);
-	if (c < 0)
-		TPD_ERR("tp_show read i2c err\n");
-
-	return snprintf(buf, 88, "F01_RMI_DATA_BASE[0x%x]=0x%x;\n"
-	"F01_RMI_DATA01[0x%x]=0x%x;F12_2D_DATA_BASE[0x%x]=0x%x;\n",
-	F01_RMI_DATA_BASE, a, F01_RMI_DATA01, b, F12_2D_DATA_BASE, c);
-}
-
-static ssize_t store_tp(struct device_driver *ddri,
-			const char *buf, size_t count)
-{
-	return count;
-}
 static ssize_t vendor_id_read_func(struct file *file,
 char __user *user_buf, size_t count, loff_t *ppos)
 {
