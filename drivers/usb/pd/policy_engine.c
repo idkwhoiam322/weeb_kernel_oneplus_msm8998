@@ -3997,6 +3997,7 @@ void usbpd_destroy(struct usbpd *pd)
 	power_supply_put(pd->usb_psy);
 	destroy_workqueue(pd->wq);
 	device_del(&pd->dev);
+	put_device(&pd->dev);
 	kfree(pd);
 }
 EXPORT_SYMBOL(usbpd_destroy);
