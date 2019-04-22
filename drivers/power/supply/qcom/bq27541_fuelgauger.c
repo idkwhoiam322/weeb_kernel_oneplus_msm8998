@@ -1098,7 +1098,7 @@ static void update_battery_soc_work(struct work_struct *work)
 		queue_delayed_work(system_power_efficient_wq,
 		&bq27541_di->modify_soc_smooth_parameter,
 				msecs_to_jiffies(10000));
-		queue_delayed_work(system_power_efficient_wq,
+	queue_delayed_work(system_power_efficient_wq,
 		&bq27541_di->battery_soc_work,
 			msecs_to_jiffies(vbat < 3600 ?
 				LOW_BAT_SOC_UPDATE_MS : BATTERY_SOC_UPDATE_MS));
