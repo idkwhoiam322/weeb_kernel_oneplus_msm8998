@@ -1855,7 +1855,7 @@ static int bq27541_battery_probe(struct i2c_client *client,
 	queue_delayed_work(system_power_efficient_wq,
 				&di->hw_config, msecs_to_jiffies(BQ27541_INIT_DELAY_MS));
 	queue_delayed_work(system_power_efficient_wq,
-				&di->battery_soc_work, msecs_to_jiffies(BATTERY_SOC_UPDATE_MS * 100));
+				&di->battery_soc_work, msecs_to_jiffies(BATTERY_SOC_UPDATE_MS * 10));
 	pr_debug("probe success\n");
 	check_bat_present(di);
 	return 0;
