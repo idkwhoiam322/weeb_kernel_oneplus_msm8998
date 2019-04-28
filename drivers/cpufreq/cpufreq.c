@@ -2343,11 +2343,11 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 
 /* Set CPU min frequencies for small and large clusters */
 	if (new_policy->cpu > 3) {
-		if (new_policy->min != HP_MIN_FREQUENCY)
+		if (new_policy->min < HP_MIN_FREQUENCY)
 			new_policy->min = HP_MIN_FREQUENCY;
 	}
 	else {
-		if (new_policy->min != LP_MIN_FREQUENCY)
+		if (new_policy->min < LP_MIN_FREQUENCY)
 			new_policy->min = LP_MIN_FREQUENCY;		
 	}
 
