@@ -1,4 +1,5 @@
-/* Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -262,10 +263,8 @@ new_packet:
 		 * sparse, don't aggregate. We will need to tune this later
 		 */
 		diff = timespec_sub(config->agg_last, last);
-		size = config->egress_agg_size - skb->len;
 
-		if ((diff.tv_sec > 0) || (diff.tv_nsec > agg_bypass_time) ||
-		    (size <= 0)) {
+		if ((diff.tv_sec > 0) || (diff.tv_nsec > agg_bypass_time)) {
 			spin_unlock_irqrestore(&config->agg_lock, flags);
 			LOGL("delta t: %ld.%09lu\tcount: bypass", diff.tv_sec,
 			     diff.tv_nsec);
