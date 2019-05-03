@@ -91,7 +91,7 @@ SCHED_FEAT(STUNE_BOOST_BIAS_BIG, false)
  * If enabled, this can be used to inform the scheduler about capacity
  * restrictions.
  */
-SCHED_FEAT(MIN_CAPACITY_CAPPING, true)
+SCHED_FEAT(MIN_CAPACITY_CAPPING, false)
 
 /*
  * Enforce the priority of candidates selected by find_best_target()
