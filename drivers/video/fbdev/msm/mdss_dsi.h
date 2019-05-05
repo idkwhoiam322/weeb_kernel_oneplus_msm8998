@@ -19,6 +19,7 @@
 #include <linux/irqreturn.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/gpio.h>
+#include <linux/pm_qos.h>
 
 #include "mdss_panel.h"
 #include "mdss_dsi_cmd.h"
@@ -642,6 +643,8 @@ struct mdss_dsi_ctrl_pdata {
 	bool update_phy_timing; /* flag to recalculate PHY timings */
 
 	bool phy_power_off;
+
+	struct pm_qos_request pm_qos_req;
 };
 
 struct dsi_status_data {
