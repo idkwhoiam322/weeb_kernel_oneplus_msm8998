@@ -499,6 +499,7 @@ static void sys_sync_work_func(struct work_struct *work)
 	wake_up(&sys_sync_wait);
 }
 
+#ifndef CONFIG_SUSPEND_SKIP_SYNC
 static int sys_sync_queue(void)
 {
 	int work_status = work_busy(&sys_sync_work);
@@ -532,6 +533,7 @@ static int sys_sync_queue(void)
 abort:
 	return -EAGAIN;
 }
+#endif
 
 /**
  * enter_state - Do common work needed to enter system sleep state.
