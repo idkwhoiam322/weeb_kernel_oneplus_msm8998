@@ -129,7 +129,6 @@ static inline void host_log_rsn_info(uint8_t *ucast_cipher,
 				     uint8_t *auth_suite,
 				     uint8_t *gp_mgmt_cipher)
 {
-
 }
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
