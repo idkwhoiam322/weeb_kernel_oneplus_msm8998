@@ -8,8 +8,9 @@
 [![Build Status](https://semaphoreci.com/api/v1/whoknowswhoiam/weebmsm8998-pie/branches/9-0/badge.svg)](https://semaphoreci.com/whoknowswhoiam/weebmsm8998-pie)
 ## Branching, mechanics, and stuffs
 ```
-9.0: Staging Branch, feel free to kang and use for whatever but do know that `I love force pushing` and I really mean `love` so like you should know what to do to deal with it because I often drop commits even though I usually end up doing it on another branch.
-pie: "Stable" Branch, My final branch which I will use to build my stable releases. No force pushes.
+kernel-4.4: Staging Branch, feel free to kang and use for whatever but do know that `I love force pushing` and I really mean `love` so like you should know what to do to deal with it because I often drop commits even though I usually end up doing it on another branch.
+pie: "Stable" Branch, My final branch which I will use to build my stable releases.
+	This is finally merged to my stable repo: https://github.com/RaphielGang/weebmsm8998-pie/
 pie_als: OnePlus Pie Beta OSS + upstreamed to linux latest tag.
 pie_caf: OnePlus Pie Beta OSS + upstreamed to caf latest tag.
 pie_clang: OnePlus Pie Beta OSS + Nathan's latest clang stuffs merged for 4.4-pie.
@@ -41,62 +42,53 @@ Current Android Version - 9/Pie
 
 
 ## Features
-Based on Weeb Kernel v2.21 Release - Codename: Pandemonium
+Based on Weeb Kernel v2.314 Release - Codename: Behemoth
 ```
-- Compiled using Latest AOSP Clang - 9.0.1
-- Latest Linux Upstream - 4.4.176
-- Latest CAF Upstream - LA.UM.7.4.r1-04800-8x98.0
+- Compiled using AOSP clang 9.0.3
+- Latest LTS merged from kernel.org - 4.4.180
+- Latest CAF and QCACLD tag - "LA.UM.7.4.r1-05100-8x98.0"
+- Latest f2fs merge from kernel/common
+- Latest f2fs related commits ( like rapid gc ) from arter97 as per May 15 2019
+- Latest fixes for clang support
 - Up to date with latest OnePlus changes
-- Cleaned up some OnePlus code
-- EAS stuff from Josh's Oreo source as base for EAS side changes
-- HMP Stuff removed
-- Removed unnecessary code
-- Dynamic Stune Boost introduction and improvements (thanks to joshuous and RenderBroken)
-- Improvements to devfreq
-- Disabled Qualcomm Download Mode
-- F2FS upstreamed to kernel/common [February] along with some improvements from arter97
-- Fixed several warnings and improved code using GCC 9.0 and Clang from Mainline
-- Upstreamed z3fold and used as default for zswap (thanks to celtare21)
-- qcacld-3.0 workqueues relaxed (thanks to raphielscape)
-- Several Kernel Hardening patches thanks to CopperHeadOS and others
-- Enabled YAMA LSM Security
-- SELinux Enforcing (Unless your ROM says otherwise)
-- SELINUX: Disable auditing
-- NTFS R/W support
-- Removed OnePlus QoS code (thanks to Francisco Franco)
-- CFQ Upstreamed
-- ZRAM Upstreamed
-- ZSTD Upstreamed
-- LZ4 Upstreamed
-- LZ4 as default ZRAM Compression Algorithm
-- Swappiness dropped to 8
-- Dirty Ratio = 5
-- Dirty Background Ratio = 2
-- Several updates to kernel/sched and some backported from the future (Thanks to nathanchance, google, kuran kaname, etc. etc.)
-- kgsl backports (thanks to celtare21)
-- Reset LMK to android 4.4 state and improved on that (Thanks to Franciso Franco and Kuran Kaname (Celtare21))
-- Westwood as default TCP Congestion Algorithm
-- Sound Control
-- some arm64 related optimizations
-- KCAL Control
-- Wireguard Support
-- Sweep2sleep, double tap to wake gestures by flar2
-- HZ 625
-- Backlight dimmer
-- CPU Governors cut down to just schedutil and performance(for quicker boot only) governors
-- CAKE as default net qdisc (thanks to kdrag0n)
+- Used latest GCC and clang to fix several code issues detected
+- KCAL support
+- Sound control
+- Sweep2sleep
+- Hight Brightness Mode ( HBM )
+- Source unified for oos and custom ROMs
+- kanged pixel 3 cpusets
+- Redone EAS implementation - seems to work much better now as reported by users and seen by myself
+- Disabled CAF CPU_BOOST
+- Wireguard support
+- CFQ upstreamed
+- ZRAM disabled
+- increased kgsl priority
 - vdso32 support
-- BFQ backported from 4.9
-- USB Fast Charging (DISABLED by default)
-- High Brightness Mode
-- Disables dm-verity
-- Performance cluster underclocked to 1958400 kHz - Does not affect performance significantly but has improvements in device temperature and some decent improvements in battery [DISABLED BY DEFAULT]
 - ULPS mode for display
+- Disabled audit
+- HZ 100
+- Lower touch latency
+- kerneltoast's ( aka sultanxda ) devfreq boost driver
+- Removed qos code added by oneplus
+- Several EAS backports from higher kernel versions ( 4.9, 4.14, 4.19, some from mainline too )
+- schedutil updated with several patches from higher kernel versions
+- Some softirq backports from mainline that improved jitter
+- CRC32 backports by arter97
+- RCU and cpufreq backports by celtare21
+- Several improvements from p2 and p3/a Q tag
+- Disabled a ton of unnecessary logging
+- top-app schedtune.boost locked at 1
+- Removed unused frequencies ( All frequencies below 518400 and 806400 have been removed )
+- Stune_assist v2 by YaroST12 ( used to set prefer_idle values to 1 for foreground and top-app )
+- cpuidle, kgsl, mdss, qos and ufs power efficiency improvements by kerneltoast
+- Fake sched_boost proc to fool userspace since I'm not using dynamic stune boost
+- Removed excessive debug bloat from qcacld
+- Dependency on Magisk removed. Kernel modifies a file in vendor to adjust cpusets ( defaults for most things hardcoded in kernel, users free to modify them )
 - Variants:
 	oos - OxygenOS
 	custom - Custom ROMs that aren't omni
 	omni - Omni based custom ROMs
-	hax - ROMs that need Sultan's hacks to load wifi on device init call. eg. CodeName Phoenix, Dirty Unicorns
 ```
 
 ## Features you will never see
