@@ -2329,7 +2329,7 @@ int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_get_policy);
 
-#define LP_MIN_FREQUENCY 1036800
+#define LP_MIN_FREQUENCY 518400
 #define HP_MIN_FREQUENCY 806400
 
 /*
