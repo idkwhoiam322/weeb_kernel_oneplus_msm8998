@@ -1,4 +1,4 @@
-1#
+#
 # Automatically generated file; DO NOT EDIT.
 # Linux/arm64 4.4.178 Kernel Configuration
 #
@@ -3585,7 +3585,7 @@ CONFIG_USB_CONFIGFS_F_CCID=y
 # CONFIG_USB_G_WEBCAM is not set
 # CONFIG_USB_LED_TRIG is not set
 # CONFIG_UWB is not set
-CONFIG_MMC=y
+# CONFIG_MMC is not set
 CONFIG_BOGUS_MMC=y
 
 #
