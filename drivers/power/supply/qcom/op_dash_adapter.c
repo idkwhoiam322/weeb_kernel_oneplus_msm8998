@@ -585,7 +585,7 @@ static int __init dash_adapter_init(void)
 	op_adapter_init(chip);
 	the_chip = chip;
 
-	pr_info("%s success\n", __func__);
+	pr_debug("%s success\n", __func__);
 	return 0;
 }
 
