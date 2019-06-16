@@ -302,7 +302,6 @@ static int smb2_parse_dt(struct smb2 *chip)
 			chg->BATT_TEMP_T5, rc, 1);
 	OF_PROP_READ(node, "hot-bat-decidegc",
 			chg->BATT_TEMP_T6, rc, 1);
-
 	/* read other settings */
 	OF_PROP_READ(node, "qcom,cutoff-voltage-with-charger",
 				smbchg_cutoff_volt_with_charger, rc, 1);
@@ -312,35 +311,35 @@ static int smb2_parse_dt(struct smb2 *chip)
 
 	chg->pd_disabled = of_property_read_bool(node,
 						"disable-pd");
-	pr_info("T0=%d, T1=%d, T2=%d, T3=%d, T4=%d, T5=%d, T6=%d\n",
+	pr_debug("T0=%d, T1=%d, T2=%d, T3=%d, T4=%d, T5=%d, T6=%d\n",
 		chg->BATT_TEMP_T0, chg->BATT_TEMP_T1, chg->BATT_TEMP_T2,
 		chg->BATT_TEMP_T3, chg->BATT_TEMP_T4, chg->BATT_TEMP_T5,
 		chg->BATT_TEMP_T6);
-	pr_info("BATT_TEMP_LITTLE_COLD=%d, %d, %d\n",
+	pr_debug("BATT_TEMP_LITTLE_COLD=%d, %d, %d\n",
 		chg->ibatmax[BATT_TEMP_LITTLE_COLD],
 		chg->vbatmax[BATT_TEMP_LITTLE_COLD],
 		chg->vbatdet[BATT_TEMP_LITTLE_COLD]);
-	pr_info("BATT_TEMP_COOL=%d, %d, %d\n",
+	pr_debug("BATT_TEMP_COOL=%d, %d, %d\n",
 		chg->ibatmax[BATT_TEMP_COOL],
 		chg->vbatmax[BATT_TEMP_COOL],
 		chg->vbatdet[BATT_TEMP_COOL]);
-	pr_info("BATT_TEMP_LITTLE_COOL=%d, %d, %d\n",
+	pr_debug("BATT_TEMP_LITTLE_COOL=%d, %d, %d\n",
 		chg->ibatmax[BATT_TEMP_LITTLE_COOL],
 		chg->vbatmax[BATT_TEMP_LITTLE_COOL],
 		chg->vbatdet[BATT_TEMP_LITTLE_COOL]);
-	pr_info("BATT_TEMP_PRE_NORMAL=%d, %d, %d\n",
+	pr_debug("BATT_TEMP_PRE_NORMAL=%d, %d, %d\n",
 		chg->ibatmax[BATT_TEMP_PRE_NORMAL],
 		chg->vbatmax[BATT_TEMP_PRE_NORMAL],
 		chg->vbatdet[BATT_TEMP_PRE_NORMAL]);
-	pr_info("BATT_TEMP_NORMAL=%d, %d, %d\n",
+	pr_debug("BATT_TEMP_NORMAL=%d, %d, %d\n",
 		chg->ibatmax[BATT_TEMP_NORMAL],
 		chg->vbatmax[BATT_TEMP_NORMAL],
 		chg->vbatdet[BATT_TEMP_NORMAL]);
-	pr_info("BATT_TEMP_WARM=%d, %d, %d\n",
+	pr_debug("BATT_TEMP_WARM=%d, %d, %d\n",
 		chg->ibatmax[BATT_TEMP_WARM],
 		chg->vbatmax[BATT_TEMP_WARM],
 		chg->vbatdet[BATT_TEMP_WARM]);
-	pr_info("cutoff_volt_with_charger=%d, disable-pd=%d\n",
+	pr_debug("cutoff_volt_with_charger=%d, disable-pd=%d\n",
 		smbchg_cutoff_volt_with_charger, chg->pd_disabled);
 
 	/* disable step_chg */
@@ -1739,7 +1738,7 @@ static int smb2_init_hw(struct smb2 *chip)
 				&chg->default_icl_ua);
 	if (chip->dt.usb_icl_ua < 0)
 		chip->dt.usb_icl_ua = chg->default_icl_ua;
-	pr_info("vbat_max=%d, ibat_max=%d, iusb_max=%d\n",
+	pr_debug("vbat_max=%d, ibat_max=%d, iusb_max=%d\n",
 		chg->batt_profile_fv_uv,
 		chg->batt_profile_fcc_ua, chip->dt.usb_icl_ua);
 	if (chip->dt.dc_icl_ua < 0)
@@ -2146,7 +2145,7 @@ static int smb2_chg_config_init(struct smb2 *chip)
 		return -EINVAL;
 	}
 
-	pr_info("PMI8998 Revision=0x%x\n", pmic_rev_id->rev4);
+	pr_debug("PMI8998 Revision=0x%x\n", pmic_rev_id->rev4);
 	return 0;
 }
 
@@ -2540,6 +2539,7 @@ static const struct file_operations proc_ship_mode_operations = {
 	.llseek		= noop_llseek,
 };
 #endif
+
 static int smb2_probe(struct platform_device *pdev)
 {
 	struct smb2 *chip;
@@ -2721,7 +2721,7 @@ static int smb2_probe(struct platform_device *pdev)
 
 	device_init_wakeup(chg->dev, true);
 
-	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
+	pr_debug("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
 		usb_present, chg->real_charger_type,
 		batt_present, batt_health, batt_charge_type);
 	return rc;

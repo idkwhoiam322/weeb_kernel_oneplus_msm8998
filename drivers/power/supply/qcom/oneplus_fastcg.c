@@ -222,7 +222,7 @@ static bool dashchg_fw_check(void)
 		}
 		/* compare recv_buf with dashchg_firmware_data[] end */
 	}
-	pr_info("result=success\n");
+	pr_debug("result=success\n");
 	return FW_CHECK_SUCCESS;
 i2c_err:
 	pr_err("result=fail\n");
@@ -278,7 +278,7 @@ static void reset_mcu_and_request_irq(struct fastchg_device_info *di)
 {
 	int ret;
 
-	pr_info("\n");
+	pr_debug("\n");
 	gpio_direction_output(di->ap_clk, 1);
 	usleep_range(10000, 10001);
 	gpio_direction_output(di->mcu_en_gpio, 1);
@@ -317,7 +317,7 @@ static void dashchg_fw_update(struct work_struct *work)
 		reset_mcu_and_request_irq(di);
 		wake_unlock(&di->fastchg_update_fireware_lock);
 		set_property_on_smbcharger(POWER_SUPPLY_PROP_SWITCH_DASH, true);
-		pr_info("FW check success\n");
+		pr_debug("FW check success\n"); /* david@bsp add log */
 		return;
 	}
 	pr_info("start erasing data.......\n");
@@ -1066,7 +1066,7 @@ static ssize_t dash_dev_write(struct file *filp, const char __user *buf,
 		kfree(dashchg_firmware_data);
 		return -EFAULT;
 	}
-	pr_info("fw_ver_count=%d\n", di->dashchg_fw_ver_count);
+	pr_debug("fw_ver_count=%d\n", di->dashchg_fw_ver_count);
 	return count;
 }
 
@@ -1218,7 +1218,7 @@ static int dash_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct fastchg_device_info *di;
 	int ret;
 
-	pr_info("dash_probe\n");
+	pr_debug("dash_probe\n");
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("i2c_func error\n");
 		goto err_check_functionality_failed;
@@ -1285,7 +1285,7 @@ static int dash_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			msecs_to_jiffies(SHOW_FW_VERSION_DELAY_MS));
 	snoc_clk = clk_get(&client->dev, "snoc");
 	cnoc_clk = clk_get(&client->dev, "cnoc");
-	pr_info("dash_probe success\n");
+	pr_debug("dash_probe success\n");
 
 	return 0;
 

@@ -457,7 +457,6 @@ int smblib_set_usb_suspend(struct smb_charger *chg, bool suspend)
 int smblib_set_dc_suspend(struct smb_charger *chg, bool suspend)
 {
 	int rc = 0;
-
 	rc = smblib_masked_write(chg, DCIN_CMD_IL_REG, DCIN_SUSPEND_BIT,
 				 suspend ? DCIN_SUSPEND_BIT : 0);
 	if (rc < 0)
@@ -1116,7 +1115,6 @@ static int smblib_dc_icl_vote_callback(struct votable *votable, void *data,
 	struct smb_charger *chg = data;
 	int rc = 0;
 	bool suspend;
-
 	if (icl_ua < 0) {
 		smblib_dbg(chg, PR_MISC, "No Voter hence suspending\n");
 		icl_ua = 0;
@@ -1175,7 +1173,7 @@ static int smblib_chg_disable_vote_callback(struct votable *votable, void *data,
 	struct smb_charger *chg = data;
 	int rc;
 
-	pr_info("set chg_disable=%d\n", chg_disable);
+	pr_debug("set chg_disable=%d\n", chg_disable);
 	rc = smblib_masked_write(chg, CHARGING_ENABLE_CMD_REG,
 				 CHARGING_ENABLE_CMD_BIT,
 				 chg_disable ? 0 : CHARGING_ENABLE_CMD_BIT);
@@ -3645,7 +3643,7 @@ void smblib_usb_plugin_locked(struct smb_charger *chg)
 		if (!vbus_rising) {
 			rc = smblib_get_prop_usb_voltage_now(chg, &vbus_val);
 			if (rc < 0) {
-				pr_err("V  fail rc=%d\n", rc);
+				pr_debug("V  fail rc=%d\n", rc);
 			} else {
 				if (vbus_val.intval > 3000) {
 					pr_err("unplg,Vbus=%d",
@@ -4798,7 +4796,7 @@ static int get_property_from_fg(struct smb_charger *chg,
 		}
 		*val = ret.intval;
 	} else {
-		pr_err("no bms psy found\n");
+		pr_debug("no bms psy found\n");
 		return -EINVAL;
 	}
 
@@ -5130,7 +5128,7 @@ int get_prop_fast_adapter_update(struct smb_charger *chg)
 	if (fast_charger && fast_charger->get_adapter_update)
 		update_status = fast_charger->get_adapter_update();
 	else {
-		pr_err("no fast_charger register found\n");
+		pr_debug("no fast_charger register found\n");
 		update_status = ADAPTER_FW_UPDATE_NONE;
 	}
 	return update_status;
@@ -5148,7 +5146,7 @@ bool op_get_fastchg_ing(struct smb_charger *chg)
 {
 	if (fast_charger && fast_charger->get_fast_chg_ing)
 		return fast_charger->get_fast_chg_ing();
-	pr_err("no fast_charger register found\n");
+	pr_debug("no fast_charger register found\n");
 	return false;
 }
 
@@ -5520,7 +5518,7 @@ static int get_prop_batt_capacity(struct smb_charger *chg)
 
 	rc = get_property_from_fg(chg, POWER_SUPPLY_PROP_CAPACITY, &capacity);
 	if (rc) {
-		pr_err("Couldn't get capacity rc=%d\n", rc);
+		pr_debug("Couldn't get capacity rc=%d\n", rc);
 		capacity = DEFAULT_BATT_CAPACITY;
 	}
 

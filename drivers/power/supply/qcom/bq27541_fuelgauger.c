@@ -1380,7 +1380,7 @@ static void bq27541_parse_dt(struct bq27541_device_info *di)
 
 	di->modify_soc_smooth = of_property_read_bool(node,
 				"qcom,modify-soc-smooth");
-	pr_err("di->modify_soc_smooth=%d\n", di->modify_soc_smooth);
+	pr_debug("di->modify_soc_smooth=%d\n", di->modify_soc_smooth);
 }
 static int sealed(void)
 {
@@ -1853,7 +1853,7 @@ static int bq27541_battery_probe(struct i2c_client *client,
                 &di->hw_config, BQ27541_INIT_DELAY);
 	queue_delayed_work(system_power_efficient_wq,
                 &di->battery_soc_work, BATTERY_SOC_UPDATE_MS);
-	pr_info("probe sucdess\n");
+	pr_debug("probe success\n");
 	check_bat_present(di);
 	return 0;
 
