@@ -658,6 +658,9 @@ static int nfcc_hw_check(struct i2c_client *client, struct nqx_dev *nqx_dev)
 
 reset_enable_gpio:
 	/* making sure that the NFCC starts in a clean state. */
+	gpio_set_value(enable_gpio, 1);/* HPD : Enable*/
+	/* hardware dependent delay */
+	usleep_range(10000, 10100);
 	gpio_set_value(enable_gpio, 0);/* ULPM: Disable */
 	/* hardware dependent delay */
 	usleep_range(10000, 10100);
@@ -673,8 +676,12 @@ reset_enable_gpio:
 		"%s: - i2c_master_send Error\n", __func__);
 		goto err_nfcc_hw_check;
 	}
-	/* hardware dependent delay */
-	msleep(30);
+	nqx_enable_irq(nqx_dev);
+	ret = wait_event_interruptible(nqx_dev->read_wq, !nqx_dev->irq_enabled);
+	if (ret < 0) {
+		nqx_disable_irq(nqx_dev);
+		goto err_nfcc_hw_check;
+	}
 
 	/* Read Response of RESET command */
 	ret = i2c_master_recv(client, nci_reset_rsp,
@@ -694,8 +701,13 @@ reset_enable_gpio:
 		"%s: - i2c_master_send Error\n", __func__);
 		goto err_nfcc_core_init_fail;
 	}
-	/* hardware dependent delay */
-	msleep(30);
+	nqx_enable_irq(nqx_dev);
+	ret = wait_event_interruptible(nqx_dev->read_wq, !nqx_dev->irq_enabled);
+	if (ret < 0) {
+		nqx_disable_irq(nqx_dev);
+		goto err_nfcc_hw_check;
+	}
+
 	/* Read Response of INIT command */
 	ret = i2c_master_recv(client, nci_init_rsp,
 		sizeof(nci_init_rsp));
