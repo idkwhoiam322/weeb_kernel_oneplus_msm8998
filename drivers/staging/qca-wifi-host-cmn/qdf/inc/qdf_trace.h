@@ -577,12 +577,14 @@ static inline
 uint32_t qdf_dpt_get_curr_pos_debugfs(qdf_debugfs_file_t file,
 				      enum qdf_dpt_debugfs_state state)
 {
+	return 0;
 }
 
 static inline
 QDF_STATUS qdf_dpt_dump_stats_debugfs(qdf_debugfs_file_t file,
 				      uint32_t curr_pos)
 {
+	return QDF_STATUS_SUCCESS;
 }
 
 static inline
