@@ -1455,21 +1455,17 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 	/* for each remote ibss peer, clear its keys */
 	if (wma_is_vdev_in_ibss_mode(wma, vdev_id) &&
 	    qdf_mem_cmp(peer_addr, mac_addr_raw, IEEE80211_ADDR_LEN)) {
-		tpSetStaKeyParams key_info;
+		tSetStaKeyParams key_info;
 
-		key_info = qdf_mem_malloc(sizeof(*key_info));
-		if (!key_info) {
-			return QDF_STATUS_E_NOMEM;
-		}
 		WMA_LOGD("%s: remote ibss peer %pM key clearing\n", __func__,
 			 peer_addr);
-		qdf_mem_set(key_info, sizeof(*key_info), 0);
-		key_info->smesessionId = vdev_id;
-		qdf_mem_copy(key_info->peer_macaddr.bytes, peer_addr,
+		qdf_mem_set(&key_info, sizeof(key_info), 0);
+		key_info.smesessionId = vdev_id;
+		qdf_mem_copy(key_info.peer_macaddr.bytes, peer_addr,
 				IEEE80211_ADDR_LEN);
-		key_info->sendRsp = false;
+		key_info.sendRsp = false;
 
-		wma_set_stakey(wma, key_info);
+		wma_set_stakey(wma, &key_info);
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -2023,7 +2019,7 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
 				req_msg->vdev_id);
 		} else {
-			wma->interfaces[resp_event->vdev_id].vdev_up = false;
+			iface->vdev_up = false;
 			WMA_LOGD(FL("Setting vdev_up flag to false"));
 		}
 
@@ -2215,23 +2211,6 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 		if (status != QDF_STATUS_SUCCESS)
 			WMA_LOGE("failed to set retry threshold(err=%d)",
 				 status);
-
-		if (cds_get_pktcap_mode_enable() &&
-		    wma_handle->is_pktcapture_enabled &&
-		    (cds_get_pktcapture_mode() != PKT_CAPTURE_MODE_DISABLE)) {
-			uint8_t val = cds_get_pktcapture_mode();
-
-			status = wma_set_packet_capture_mode(
-					wma_handle, vdev_id, val);
-
-			if (status != QDF_STATUS_SUCCESS)
-				WMA_LOGE("failed to set capture mode (err=%d)",
-					 status);
-			else if (status == QDF_STATUS_SUCCESS)
-				ol_cfg_set_pktcapture_mode(txrx_pdev->ctrl_pdev,
-							   val);
-		}
-
 		break;
 	}
 
@@ -3232,26 +3211,6 @@ void wma_remove_req(tp_wma_handle wma, uint8_t vdev_id,
 }
 
 /**
- * wma_set_packet_capture_mode() - set packet capture mode
- * @wma: wma handle
- * @vdev_id: vdev id
- * @val: mode to set
- *
- * Return: 0 on success, errno on failure
- */
-int wma_set_packet_capture_mode(tp_wma_handle wma_handle,
-				uint8_t vdev_id,
-				uint8_t val)
-{
-	int ret;
-
-	ret = wma_cli_set_command(vdev_id,
-				  WMI_VDEV_PARAM_PACKET_CAPTURE_MODE,
-				  val, VDEV_CMD);
-	return ret;
-}
-
-/**
  * wma_vdev_resp_timer() - wma response timeout function
  * @data: target request params
  *
@@ -3824,7 +3783,7 @@ static void wma_add_bss_ibss_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	struct wma_vdev_start_req req;
 	ol_txrx_peer_handle peer = NULL;
 	struct wma_target_req *msg;
-	uint8_t vdev_id, peer_id;
+	uint8_t vdev_id = 0, peer_id;
 	QDF_STATUS status;
 	tSetBssKeyParams key_info;
 	struct sir_hw_mode_params hw_mode = {0};

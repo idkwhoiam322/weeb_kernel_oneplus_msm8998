@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -804,7 +804,7 @@ QDF_STATUS wlan_hdd_remain_on_channel_callback(tHalHandle hHal, void *pCtx,
 	 */
 	/* If ssr is inprogress, do not schedule next roc req */
 	if (!hdd_ctx->is_ssr_in_progress)
-	queue_delayed_work(system_freezable_wq, &hdd_ctx->roc_req_work, 0);
+		schedule_delayed_work(&hdd_ctx->roc_req_work, 0);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1541,7 +1541,7 @@ static int wlan_hdd_request_remain_on_channel(struct wiphy *wiphy,
 						HDD_P2P_MAX_ROC_DURATION;
 
 			wlan_hdd_roc_request_enqueue(pAdapter, pRemainChanCtx);
-			queue_delayed_work(system_freezable_wq, &pHddCtx->roc_req_work,
+			schedule_delayed_work(&pHddCtx->roc_req_work,
 			msecs_to_jiffies(
 				pHddCtx->config->p2p_listen_defer_interval));
 			hdd_debug("Defer interval is %hu, pAdapter %pK",
@@ -1583,7 +1583,7 @@ static int wlan_hdd_request_remain_on_channel(struct wiphy *wiphy,
 	 */
 	if (isBusy == false && pAdapter->is_roc_inprogress == false) {
 		hdd_debug("scheduling delayed work: no connection/roc active");
-		queue_delayed_work(system_freezable_wq, &pHddCtx->roc_req_work, 0);
+		schedule_delayed_work(&pHddCtx->roc_req_work, 0);
 	}
 	return 0;
 }
@@ -2959,9 +2959,6 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (wlan_hdd_check_mon_concurrency())
-		return ERR_PTR(-EINVAL);
-
 	pAdapter = hdd_get_adapter(pHddCtx, QDF_STA_MODE);
 	if ((pAdapter != NULL) &&
 		!(wlan_hdd_validate_session_id(pAdapter->sessionId))) {
@@ -2972,15 +2969,6 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 					   eCSR_SCAN_ABORT_DEFAULT);
 			hdd_debug("Abort Scan while adding virtual interface");
 		}
-	}
-
-	ret = wlan_hdd_add_monitor_check(pHddCtx, &pAdapter, type, name,
-					 true, name_assign_type);
-	if (ret)
-		return ERR_PTR(-EINVAL);
-	if (pAdapter) {
-		EXIT();
-		return pAdapter->dev->ieee80211_ptr;
 	}
 
 	if (session_type == QDF_SAP_MODE) {
@@ -3191,10 +3179,6 @@ int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	if (pVirtAdapter->device_mode == QDF_SAP_MODE &&
 	    wlan_sap_is_pre_cac_active(pHddCtx->hHal)) {
 		hdd_clean_up_pre_cac_interface(pHddCtx);
-	} else if (wlan_hdd_is_session_type_monitor(
-				pVirtAdapter->device_mode)) {
-		wlan_hdd_del_monitor(pHddCtx, pVirtAdapter, TRUE);
-		hdd_reset_mon_mode_cb();
 	} else {
 		wlan_hdd_release_intf_addr(pHddCtx,
 					 pVirtAdapter->macAddressCurrent.bytes);

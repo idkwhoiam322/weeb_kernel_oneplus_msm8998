@@ -1251,6 +1251,10 @@ static void lim_process_mlm_auth_req(tpAniSirGlobal mac_ctx, uint32_t *msg)
 			goto end;
 		} else {
 			pe_debug("lim_process_mlm_auth_req_sae is successful");
+			lim_diag_event_report(mac_ctx,
+					      WLAN_PE_DIAG_AUTH_ALGO_NUM,
+					      session, eSIR_SUCCESS,
+					      eSIR_AUTH_TYPE_SAE);
 			return;
 		}
 	} else
@@ -1267,6 +1271,9 @@ static void lim_process_mlm_auth_req(tpAniSirGlobal mac_ctx, uint32_t *msg)
 		auth_frame_body.authAlgoNumber =
 		(uint8_t) mac_ctx->lim.gpLimMlmAuthReq->authType;
 	}
+	lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_AUTH_ALGO_NUM,
+			      session, eSIR_SUCCESS,
+			      auth_frame_body.authAlgoNumber);
 
 	/* Prepare & send Authentication frame */
 	auth_frame_body.authTransactionSeqNumber = SIR_MAC_AUTH_FRAME_1;
@@ -1382,6 +1389,19 @@ static void lim_process_mlm_assoc_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	/* map the session entry pointer to the AssocFailureTimer */
 	mac_ctx->lim.limTimers.gLimAssocFailureTimer.sessionId =
 		mlm_assoc_req->sessionId;
+#ifdef WLAN_FEATURE_11W
+	/*
+	 * Store current MLM state in case ASSOC response returns with
+	 * TRY_AGAIN_LATER return code.
+	 */
+	if (session_entry->limRmfEnabled) {
+		session_entry->pmfComebackTimerInfo.limPrevMlmState =
+			session_entry->limPrevMlmState;
+		session_entry->pmfComebackTimerInfo.limMlmState =
+			session_entry->limMlmState;
+	}
+#endif /* WLAN_FEATURE_11W */
+
 	session_entry->limPrevMlmState = session_entry->limMlmState;
 	session_entry->limMlmState = eLIM_MLM_WT_ASSOC_RSP_STATE;
 	MTRACE(mac_trace(mac_ctx, TRACE_CODE_MLM_STATE,

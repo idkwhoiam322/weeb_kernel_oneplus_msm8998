@@ -1260,7 +1260,6 @@ static void csr_packetdump_timer_handler(void *pv)
 {
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			"%s Invoking packetdump deregistration API", __func__);
-	wlan_deregister_txrx_packetdump();
 }
 
 /**
@@ -10773,7 +10772,7 @@ void csr_roam_joined_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 		pRoamInfo->ampdu = pUpperLayerAssocCnf->ampdu;
 		pRoamInfo->sgi_enable = pUpperLayerAssocCnf->sgi_enable;
 		pRoamInfo->tx_stbc = pUpperLayerAssocCnf->tx_stbc;
-		pRoamInfo->rx_stbc = pUpperLayerAssocCnf->rx_stbc;
+		pRoamInfo->tx_stbc = pUpperLayerAssocCnf->rx_stbc;
 		pRoamInfo->ch_width = pUpperLayerAssocCnf->ch_width;
 		pRoamInfo->mode = pUpperLayerAssocCnf->mode;
 		pRoamInfo->max_supp_idx = pUpperLayerAssocCnf->max_supp_idx;
@@ -16711,7 +16710,6 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		if (pProfile->csrPersona == QDF_STA_MODE) {
 			sme_debug("Invoking packetdump register API");
-			wlan_register_txrx_packetdump();
 			packetdump_timer_status = qdf_mc_timer_start(
 						&pMac->roam.packetdump_timer,
 						(PKT_DUMP_TIMER_DURATION *

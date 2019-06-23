@@ -6,8 +6,6 @@ else
 	KERNEL_BUILD := 0
 endif
 
-TARGET_BUILD_VARIANT := user
-
 ifeq ($(CONFIG_CLD_HL_SDIO_CORE), y)
 	CONFIG_QCA_WIFI_SDIO := 1
 endif
@@ -186,9 +184,6 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable offload packets feature
 	CONFIG_WLAN_OFFLOAD_PACKETS := y
 
-	#Flag to enable packet capture mode
-	CONFIG_WLAN_FEATURE_PKT_CAPTURE := y
-
 	#enable TSF get feature
 	CONFIG_WLAN_SYNC_TSF := y
 	#Enable DSRC feature
@@ -246,26 +241,6 @@ endif
 
 endif
 
-
-# As per target team, build is done as follows:
-# Defconfig : build with default flags
-# Slub      : defconfig  + CONFIG_SLUB_DEBUG=y +
-#	      CONFIG_SLUB_DEBUG_ON=y + CONFIG_PAGE_POISONING=y
-# Perf      : Using appropriate msmXXXX-perf_defconfig
-#
-# Shipment builds (user variants) should not have any debug feature
-# enabled. This is identified using 'TARGET_BUILD_VARIANT'. Slub builds
-# are identified using the CONFIG_SLUB_DEBUG_ON configuration. Since
-# there is no other way to identify defconfig builds, QCOMs internal
-# representation of perf builds (identified using the string 'perf'),
-# is used to identify if the build is a slub or defconfig one. This
-# way no critical debug feature will be enabled for perf and shipment
-# builds. Other OEMs are also protected using the TARGET_BUILD_VARIANT
-# config.
-ifneq ($(TARGET_BUILD_VARIANT),user)
-	CONFIG_FEATURE_PKTLOG := y
-endif
-
 #enable spectral scan feature
 CONFIG_WLAN_SPECTRAL_SCAN := y
 
@@ -308,7 +283,13 @@ BUILD_DEBUG_VERSION := 0
 BUILD_DIAG_VERSION := 0
 
 #Do we panic on bug?  default is to warn
-PANIC_ON_BUG := 0
+ifeq ($(CONFIG_SLUB_DEBUG), y)
+	PANIC_ON_BUG := 1
+else ifeq ($(CONFIG_PERF_DEBUG), y)
+	PANIC_ON_BUG := 1
+else
+	PANIC_ON_BUG := 0
+endif
 
 #Enable OL debug and wmi unified functions
 CONFIG_ATH_PERF_PWR_OFFLOAD := 1
@@ -1307,18 +1288,8 @@ CDEFINES :=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DCONFIG_HDD_INIT_WITH_RTNL_LOCK \
 		-DMWS_COEX
 
-ifneq ($(CONFIG_HIF_USB), 1)
-ifeq ($(BUILD_DEBUG_VERSION), 1)
-CDEFINES += -DWLAN_LOGGING_SOCK_SVC_ENABLE
-endif
-endif
-
 ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
 CDEFINES += -DWLAN_FEATURE_FILS_SK
-endif
-
-ifeq ($(CONFIG_WLAN_FEATURE_PKT_CAPTURE),y)
-CDEFINES += -DWLAN_FEATURE_PKT_CAPTURE
 endif
 
 ifeq ($(CONFIG_CNSS), y)
@@ -1498,7 +1469,7 @@ ifeq ($(CONFIG_WLAN_FEATURE_LPSS),y)
 CDEFINES += -DWLAN_FEATURE_LPSS
 endif
 
-ifneq ($(TARGET_BUILD_VARIANT),user)
+ifeq ($(CONFIG_QCA_CLD_DEBUG),y)
 CDEFINES += -DDESC_DUP_DETECT_DEBUG
 CDEFINES += -DDEBUG_RX_RING_BUFFER
 endif
@@ -1826,7 +1797,6 @@ ifeq (y,$(filter y,$(CONFIG_CNSS_EOS) $(CONFIG_ICNSS)))
 CONFIG_HELIUMPLUS := y
 CONFIG_64BIT_PADDR := y
 CONFIG_FEATURE_TSO := y
-CONFIG_FEATURE_TSO_DEBUG := y
 ifneq ($(CONFIG_FORCE_ALLOC_FROM_DMA_ZONE), y)
 CONFIG_ENABLE_DEBUG_ADDRESS_MARKING := y
 endif
@@ -1953,10 +1923,6 @@ ifeq ($(call cc-option-yn, -Wheader-guard),y)
 EXTRA_CFLAGS += -Wheader-guard
 endif
 
-# To build without debug just ignore not used code.
-EXTRA_CFLAGS += $(call cc-disable-warning,unused-variable,)
-EXTRA_CFLAGS += $(call cc-disable-warning,unused-function,)
-
 # If the module name is not "wlan", then the define MULTI_IF_NAME to be the
 # same a the QCA CHIP name. The host driver will then append MULTI_IF_NAME to
 # any string that must be unique for all instances of the driver on the system.
@@ -2001,6 +1967,3 @@ endif
 obj-$(CONFIG_QCA_CLD_WLAN) += $(MODNAME).o
 $(MODNAME)-y := $(OBJS)
 clean-files := $(CLEAN_FILES)
-
-EXTRA_CFLAGS += $(call cc-option, -g0)
-EXTRA_CFLAGS += $(call cc-option, -Os)

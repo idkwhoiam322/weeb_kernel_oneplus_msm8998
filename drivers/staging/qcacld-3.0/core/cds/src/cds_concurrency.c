@@ -5576,6 +5576,7 @@ static QDF_STATUS cds_modify_pcl_based_on_enabled_channels(
 			weight_list_org[pcl_len++] = weight_list_org[i];
 		}
 	}
+	*pcl_len_org = pcl_len;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -5935,13 +5936,6 @@ static QDF_STATUS cds_pcl_modification_for_p2p_go(
 		cds_err("failed to get enabled channel modified pcl for GO");
 		return status;
 	}
-	status = cds_modify_sap_pcl_based_on_srd(
-			pcl_channels, pcl_weight, len);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		cds_err("failed to get srd modified pcl for SAP");
-		return status;
-	}
-
 	cds_debug("enabled channel modified pcl len:%d", *len);
 	for (i = 0; i < *len; i++)
 		cds_debug("chan:%d weight:%d",
@@ -6144,14 +6138,6 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 		for (i = 0; i < *len; i++)
 			cds_debug("chan:%d weight:%d",
 			pcl_channels[i], pcl_weight[i]);
-	}
-
-	status = cds_mode_specific_modification_on_pcl(pcl_channels, pcl_weight,
-						       len, mode);
-
-	if (QDF_IS_STATUS_ERROR(status)) {
-		cds_err("failed to get modified pcl for mode %d", mode);
-		return status;
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -10433,6 +10419,7 @@ QDF_STATUS cds_modify_sap_pcl_based_on_mandatory_channel(uint8_t *pcl_list_org,
 			weight_list_org[pcl_len++] = weight_list_org[i];
 		}
 	}
+	*pcl_len_org = pcl_len;
 
 	return QDF_STATUS_SUCCESS;
 }

@@ -855,7 +855,7 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	struct sk_buff *skb = NULL;
 	hdd_context_t *pHddCtx = NULL;
 	struct qdf_mac_addr src_mac;
-	uint8_t staid = 0;
+	uint8_t staid;
 
 	/* Sanity check on inputs */
 	if (unlikely((NULL == context) || (NULL == rxBuf))) {
@@ -921,18 +921,6 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 				      0, QDF_RX));
 
 	skb->protocol = eth_type_trans(skb, skb->dev);
-
-	/* hold configurable wakelock for unicast traffic */
-	if (pHddCtx->config->rx_wakelock_timeout &&
-	    skb->pkt_type != PACKET_BROADCAST &&
-	    skb->pkt_type != PACKET_MULTICAST) {
-		cds_host_diag_log_work(&pHddCtx->rx_wake_lock,
-				       pHddCtx->config->rx_wakelock_timeout,
-				       WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
-		qdf_wake_lock_timeout_acquire(&pHddCtx->rx_wake_lock,
-					      pHddCtx->config->
-						      rx_wakelock_timeout);
-	}
 
 	/* Remove SKB from internal tracking table before submitting
 	 * it to stack

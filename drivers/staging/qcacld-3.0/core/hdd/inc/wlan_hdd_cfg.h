@@ -10833,12 +10833,6 @@ enum restart_beaconing_on_ch_avoid_rule {
 #define CFG_CRASH_FW_TIMEOUT_ENABLE     (1)
 #define CFG_CRASH_FW_TIMEOUT_DEFAULT    (1)
 
-/* Hold wakelock for unicast RX packets for the specified duration  */
-#define CFG_RX_WAKELOCK_TIMEOUT_NAME     "rx_wakelock_timeout"
-#define CFG_RX_WAKELOCK_TIMEOUT_DEFAULT  (5)
-#define CFG_RX_WAKELOCK_TIMEOUT_MIN      (0)
-#define CFG_RX_WAKELOCK_TIMEOUT_MAX      (10)
-
 /*
  * <ini>
  * enable_5g_band_pref - Enable preference for 5G from INI.
@@ -12015,11 +12009,10 @@ enum hw_filter_mode {
  *
  * Supported Feature: PACKET FILTERING
  */
-#define CFG_ENABLE_PACKET_FILTERS_NAME      "g_enable_packet_filter_bitmap"
-#define CFG_ENABLE_PACKET_FILTERS_NAME_NOOP "g_enable_packet_filter_bitmap_noop"
-#define CFG_ENABLE_PACKET_FILTERS_DEFAULT   (0)
-#define CFG_ENABLE_PACKET_FILTERS_MIN       (0)
-#define CFG_ENABLE_PACKET_FILTERS_MAX       (63)
+#define CFG_ENABLE_PACKET_FILTERS_NAME     "g_enable_packet_filter_bitmap"
+#define CFG_ENABLE_PACKET_FILTERS_DEFAULT  (0)
+#define CFG_ENABLE_PACKET_FILTERS_MIN      (0)
+#define CFG_ENABLE_PACKET_FILTERS_MAX      (63)
 
 /*
  * <ini>
@@ -15424,49 +15417,6 @@ enum hw_filter_mode {
 #define CFG_BTM_QUERY_BITMASK_DEFAULT (0x8)
 
 /*
- * <ini>
- * pktcap_mode_enable - Control to decide pktcapture mode enable/disable
- *
- * @Min: 0
- * @Max: 1
- *
- * @Default: 0 - disable
- *           1 - enable
- *
- * This ini is used to enable/disable pktcapture mode
- *
- * Usage: Internal
- *
- * </ini>
- */
-#define CFG_PKTCAP_MODE_ENABLE_NAME     "pktcap_mode_enable"
-#define CFG_PKTCAP_MODE_ENABLE_MIN      (0)
-#define CFG_PKTCAP_MODE_ENABLE_MAX      (1)
-#define CFG_PKTCAP_MODE_ENABLE_DEFAULT  (0)
-
-/*
- * pktcapture_mode - Control to decide pktcapture mode
- *
- * @Min: 0
- * @Max: 3
- *
- * @Default: 0 - Capture no packets
- *           1 - Capture Mgmt packets only
- *           2 - Capture Data packets only
- *           3 - Capture Both Data & Mgmt packets
- *
- * This ini is used to decide pktcapture mode
- *
- * Usage: Internal
- *
- * </ini>
- */
-#define CFG_PKTCAPTURE_MODE_NAME     "pktcapture_mode"
-#define CFG_PKTCAPTURE_MODE_MIN      (0)
-#define CFG_PKTCAPTURE_MODE_MAX      (3)
-#define CFG_PKTCAPTURE_MODE_DEFAULT  (0)
-
-/*
  * Type declarations
  */
 
@@ -16228,7 +16178,6 @@ struct hdd_config {
 	/* beacon count before channel switch */
 	uint8_t sap_chanswitch_beacon_cnt;
 	uint8_t sap_chanswitch_mode;
-	uint32_t rx_wakelock_timeout;
 #ifdef WLAN_FEATURE_WOW_PULSE
 	bool wow_pulse_support;
 	uint8_t wow_pulse_pin;
@@ -16266,7 +16215,6 @@ struct hdd_config {
 
 	uint8_t                     auto_pwr_save_fail_mode;
 	uint8_t packet_filters_bitmap;
-	uint8_t packet_filters_bitmap_noop;
 	uint32_t                    arp_ac_category;
 
 	bool probe_req_ie_whitelist;
@@ -16424,9 +16372,6 @@ struct hdd_config {
 	uint32_t btm_sticky_time;
 	uint32_t btm_query_bitmask;
 	uint16_t beacon_reporting;
-
-	bool pktcap_mode_enable;
-	uint8_t pktcapture_mode;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

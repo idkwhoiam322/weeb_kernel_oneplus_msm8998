@@ -56,21 +56,8 @@ static inline void wlan_logging_set_per_pkt_stats(void)
 static inline void wlan_logging_set_fw_flush_complete(void)
 {
 }
-static inline void wlan_logging_set_active(bool active)
-{
-}
-static inline void wlan_logging_set_log_to_console(bool log_to_console)
-{
-}
-static inline void wlan_pkt_stats_to_logger_thread(void *pl_hdr, void *pkt_dump, void *data)
-{
-}
-static inline void wlan_deregister_txrx_packetdump(void)
-{
-}
-static inline void wlan_register_txrx_packetdump(void)
-{
-}
+static inline void wlan_logging_set_active(bool active) {}
+static inline void wlan_logging_set_log_to_console(bool log_to_console) {}
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT

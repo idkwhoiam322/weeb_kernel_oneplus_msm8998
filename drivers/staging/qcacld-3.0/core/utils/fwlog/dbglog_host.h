@@ -179,6 +179,7 @@ int cnss_diag_activate_service(void);
  * Return: 0
  */
 int cnss_diag_deactivate_service(void);
+
 #else
 
 static inline int dbglog_parser_type_init(wmi_unified_t wmi_handle, int type)
@@ -246,7 +247,6 @@ static inline int cnss_diag_deactivate_service(void)
 {
 	return 0;
 }
-
 #endif /* WLAN_DEBUG */
 
 #ifdef __cplusplus
