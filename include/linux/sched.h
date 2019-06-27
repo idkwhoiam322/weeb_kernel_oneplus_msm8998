@@ -971,10 +971,6 @@ static inline int sched_info_on(void)
 #endif
 }
 
-#ifdef CONFIG_SCHEDSTATS
-void force_schedstat_enabled(void);
-#endif
-
 enum cpu_idle_type {
 	CPU_IDLE,
 	CPU_NOT_IDLE,
