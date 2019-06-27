@@ -4903,12 +4903,10 @@ static inline void update_overutilized_status(struct rq *rq)
 
 	rcu_read_lock();
 	sd = rcu_dereference(rq->sd);
-	if (cpu_overutilized(rq->cpu)) {
-		if (sd && (sd->flags & SD_LOAD_BALANCE))
-			set_sd_overutilized(sd);
-		else if (sd && sd->parent)
-			set_sd_overutilized(sd->parent);
-	}
+	if (sd && (sd->flags & SD_LOAD_BALANCE))
+		set_sd_overutilized(sd);
+	else if (sd && sd->parent)
+		set_sd_overutilized(sd->parent);
 	rcu_read_unlock();
 }
 #else
