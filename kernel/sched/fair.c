@@ -6958,28 +6958,6 @@ static int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
 	return min_cap * 1024 < task_util(p) * capacity_margin;
 }
 
-static inline bool
-task_is_boosted(struct task_struct *p) {
-#ifdef CONFIG_CGROUP_SCHEDTUNE
-	return schedtune_task_boost(p) > 0;
-#else
-	return get_sysctl_sched_cfs_boost() > 0;
-#endif
-}
-
- /*
- * Check whether cpu is in the fastest set of cpu's that p should run on.
- * If p is boosted, prefer that p runs on a faster cpu; otherwise, allow p
- * to run on any cpu.
- */
-static inline bool
-cpu_is_in_target_set(struct task_struct *p, int cpu)
-{
-	int first_cpu = start_cpu(task_is_boosted(p));
-	int next_usable_cpu = cpumask_next(first_cpu - 1, tsk_cpus_allowed(p));
-	return cpu >= next_usable_cpu || next_usable_cpu >= nr_cpu_ids;
-}
-
 static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu,
 				   int sync_boost)
 {
@@ -6992,10 +6970,11 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu,
 	schedstat_inc(p, se.statistics.nr_wakeups_secb_attempts);
 	schedstat_inc(this_rq(), eas_stats.secb_attempts);
 
-	boosted = task_is_boosted(p);
 #ifdef CONFIG_CGROUP_SCHEDTUNE
+	boosted = schedtune_task_boost(p) > 0;
 	prefer_idle = schedtune_prefer_idle(p) > 0;
 #else
+	boosted = get_sysctl_sched_cfs_boost() > 0;
 	prefer_idle = 0;
 #endif
 
@@ -7107,8 +7086,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 			bool about_to_idle = (cpu_rq(cpu)->nr_running < 2);
 
 			if (sysctl_sched_sync_hint_enable && sync &&
-			    !_wake_cap && about_to_idle &&
-			    cpu_is_in_target_set(p, cpu))
+			    !_wake_cap && about_to_idle)
 				return cpu;
 		}
 
