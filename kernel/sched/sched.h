@@ -33,10 +33,8 @@ extern long calc_load_fold_active(struct rq *this_rq);
 
 #ifdef CONFIG_SMP
 extern void update_cpu_load_active(struct rq *this_rq);
-extern void check_for_migration(struct rq *rq, struct task_struct *p);
 #else
 static inline void update_cpu_load_active(struct rq *this_rq) { }
-static inline void check_for_migration(struct rq *rq, struct task_struct *p) { }
 #endif
 
 /*
