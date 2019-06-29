@@ -4,8 +4,12 @@
 
 > This repository is for all the keks I do on msm8998, specifically cheeseburger and dumpling so feel free to spank me for all the times I fatten up your foods and overcook them
 
+## Drone CI Build Status
+[![Build Status](https://cloud.drone.io/api/badges/whoknowswhoiam/weebmsm8998-pie/status.svg)](https://cloud.drone.io/whoknowswhoiam/weebmsm8998-pie)
+
 ## Semaphore CI Build Status
 [![Build Status](https://semaphoreci.com/api/v1/whoknowswhoiam/weebmsm8998-pie/branches/9-0/badge.svg)](https://semaphoreci.com/whoknowswhoiam/weebmsm8998-pie)
+
 ## Branching, mechanics, and stuffs
 ```
 kernel-4.4: Staging Branch, feel free to kang and use for whatever but do know that `I love force pushing` and I really mean `love` so like you should know what to do to deal with it because I often drop commits even though I usually end up doing it on another branch.
