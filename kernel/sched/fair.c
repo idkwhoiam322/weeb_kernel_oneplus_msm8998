@@ -10448,7 +10448,6 @@ kick_active_balance(struct rq *rq, struct task_struct *p, int new_cpu)
 	return rc;
 }
 
-static DEFINE_RAW_SPINLOCK(migration_lock);
 void check_for_migration(struct rq *rq, struct task_struct *p)
 {
 	int new_cpu;
@@ -10460,19 +10459,14 @@ void check_for_migration(struct rq *rq, struct task_struct *p)
 		    rq->curr->nr_cpus_allowed == 1)
 			return;
 
-		raw_spin_lock(&migration_lock);
 		new_cpu = select_energy_cpu_brute(p, cpu, 0);
 		if (capacity_orig_of(new_cpu) > capacity_orig_of(cpu)) {
 			active_balance = kick_active_balance(rq, p, new_cpu);
-			if (active_balance) {
-				raw_spin_unlock(&migration_lock);
+			if (active_balance)
 				stop_one_cpu_nowait(cpu,
 						active_load_balance_cpu_stop,
 						rq, &rq->active_balance_work);
-				return;
-			}
 		}
-		raw_spin_unlock(&migration_lock);
 	}
 }
 
