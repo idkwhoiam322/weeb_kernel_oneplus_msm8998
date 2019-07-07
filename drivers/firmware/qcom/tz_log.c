@@ -641,6 +641,7 @@ static int _disp_log_stats(struct tzdbg_log_t *log,
 	return len;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int __disp_hyp_log_stats(uint8_t *log,
 			struct hypdbg_log_pos_t *log_start, uint32_t log_len,
 			size_t count, uint32_t buf_idx)
@@ -712,6 +713,7 @@ static int __disp_hyp_log_stats(uint8_t *log,
 	tzdbg.stat[buf_idx].data = tzdbg.disp_buf;
 	return len;
 }
+#endif
 
 static int _disp_tz_log_stats(size_t count)
 {
