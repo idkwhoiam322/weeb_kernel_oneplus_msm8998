@@ -224,7 +224,6 @@ static void do_idle(void)
 	 * reschedule.
 	 */
 	__current_set_polling();
-	quiet_vmstat();
 	tick_nohz_idle_enter();
 
 	while (!need_resched()) {
