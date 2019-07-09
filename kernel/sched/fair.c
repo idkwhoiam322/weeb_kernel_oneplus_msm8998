@@ -2642,21 +2642,12 @@ static inline void update_cfs_shares(struct sched_entity *se)
 #ifdef CONFIG_SMP
 u32 sched_get_wake_up_idle(struct task_struct *p)
 {
-	u32 enabled = p->flags & PF_WAKE_UP_IDLE;
-
-	return !!enabled;
+	return 0;
 }
 EXPORT_SYMBOL(sched_get_wake_up_idle);
 
 int sched_set_wake_up_idle(struct task_struct *p, int wake_up_idle)
 {
-	int enable = !!wake_up_idle;
-
-	if (enable)
-		p->flags |= PF_WAKE_UP_IDLE;
-	else
-		p->flags &= ~PF_WAKE_UP_IDLE;
-
 	return 0;
 }
 EXPORT_SYMBOL(sched_set_wake_up_idle);
