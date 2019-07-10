@@ -46,11 +46,12 @@ Current Android Version - 9/Pie
 
 
 ## Features
-Based on Weeb Kernel v2.314 Release - Codename: Behemoth
+Based on Weeb Kernel v2.45 Release - Codename: Quincy
 ```
-- Compiled using AOSP clang 9.0.3
-- Latest LTS merged from kernel.org - 4.4.180
-- Latest CAF and QCACLD tag - "LA.UM.7.4.r1-05100-8x98.0"
+- Compiled using GCC 9.1.0 bare metal compiled by kdrag0n
+- Latest LTS merged from kernel.org - 4.4.185
+- Latest CAF tag - "LA.UM.7.4.r1-05300-8x98.0"
+- Latest QCACLD tag - "LA.UM.7.3.r1-07900-sdm845.0"
 - Latest f2fs merge from kernel/common
 - Latest f2fs related commits ( like rapid gc ) from arter97 as per May 15 2019
 - Latest fixes for clang support
@@ -61,7 +62,6 @@ Based on Weeb Kernel v2.314 Release - Codename: Behemoth
 - Sweep2sleep
 - Hight Brightness Mode ( HBM )
 - Source unified for oos and custom ROMs
-- kanged pixel 3 cpusets
 - Redone EAS implementation - seems to work much better now as reported by users and seen by myself
 - Disabled CAF CPU_BOOST
 - Wireguard support
@@ -84,11 +84,20 @@ Based on Weeb Kernel v2.314 Release - Codename: Behemoth
 - Disabled a ton of unnecessary logging
 - top-app schedtune.boost locked at 1
 - Removed unused frequencies ( All frequencies below 518400 and 806400 have been removed )
-- Stune_assist v2 by YaroST12 ( used to set prefer_idle values to 1 for foreground and top-app )
+- Stune_assist by YaroST12
+- cpuset assist
+- Cpu Input Boost by kerneltoast
+- ufs ricing from wahoo and essential phone
 - cpuidle, kgsl, mdss, qos and ufs power efficiency improvements by kerneltoast
 - Fake sched_boost proc to fool userspace since I'm not using dynamic stune boost
 - Removed excessive debug bloat from qcacld
 - Dependency on Magisk removed. Kernel modifies a file in vendor to adjust cpusets ( defaults for most things hardcoded in kernel, users free to modify them )
+- Fixed several memory leaks
+- Added some build.prop tweaks and switched to the opengl renderer
+- Disabled DEBUG_FS
+- Disabled FTRACE
+- Disabled DEBUG_KERNEL
+- KLapse 5.0
 - Variants:
 	oos - OxygenOS
 	custom - Custom ROMs that aren't omni
