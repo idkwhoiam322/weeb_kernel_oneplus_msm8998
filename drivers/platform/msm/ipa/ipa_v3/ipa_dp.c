@@ -471,7 +471,6 @@ int ipa3_send(struct ipa3_sys_context *sys,
 	int i = 0;
 	int j;
 	int result;
-	uint size;
 	u32 mem_flag = GFP_ATOMIC;
 	int ipa_ep_idx;
 	struct ipa_gsi_ep_config *gsi_ep_cfg;
