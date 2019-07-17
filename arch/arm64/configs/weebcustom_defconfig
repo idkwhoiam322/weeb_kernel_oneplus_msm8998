@@ -3,6 +3,7 @@
 # Linux/arm64 4.4.185 Kernel Configuration
 #
 CONFIG_CUSTOM_ROM=y
+CONFIG_POCKET_JUDGE=y
 
 CONFIG_ARM64=y
 CONFIG_64BIT=y
