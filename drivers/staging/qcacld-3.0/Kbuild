@@ -253,6 +253,7 @@ CONFIG_WLAN_FEATURE_APF := y
 #Enable WLAN/Power debugfs feature only if debug_fs is enabled
 ifeq ($(CONFIG_ANDROID), y)
        CONFIG_WLAN_DEBUGFS := y
+       CFLAGS_wlan_hdd_debugfs.o += -DCONFIG_DEBUG_FS
 
        CONFIG_WLAN_POWER_DEBUGFS := y
 endif
