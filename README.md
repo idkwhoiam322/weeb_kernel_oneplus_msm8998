@@ -46,11 +46,11 @@ Current Android Version - 9/Pie
 
 
 ## Features
-Based on Weeb Kernel v2.45 Release - Codename: Quincy
+Based on Weeb Kernel v2.53 Release - Codename: Caesar
 ```
 - Compiled using GCC 9.1.0 bare metal compiled by kdrag0n
-- Latest LTS merged from kernel.org - 4.4.185
-- Latest CAF tag - "LA.UM.7.4.r1-05300-8x98.0"
+- Latest LTS merged from kernel.org - 4.4.186
+- Latest CAF tag - "LA.UM.7.4.r1-05400-8x98.0"
 - Latest QCACLD tag - "LA.UM.7.3.r1-07900-sdm845.0"
 - Latest f2fs merge from kernel/common
 - Latest f2fs related commits ( like rapid gc ) from arter97 as per May 15 2019
@@ -98,6 +98,12 @@ Based on Weeb Kernel v2.45 Release - Codename: Quincy
 - Disabled FTRACE
 - Disabled DEBUG_KERNEL
 - KLapse 5.0
+- Sultan's binder rewrite
+- adreno improvements
+- PELT for EAS
+- ext4,  genirq, glink, sdcardfs, qseecom ricing
+- POCKET_JUDGE ( custom only )
+- Wahoo irq balancer
 - Variants:
 	oos - OxygenOS
 	custom - Custom ROMs that aren't omni
