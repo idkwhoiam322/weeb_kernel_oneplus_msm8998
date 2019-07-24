@@ -739,8 +739,7 @@ static int calculate_residency(struct power_params *base_pwr,
 		((int32_t)(next_pwr->ss_power * next_pwr->time_overhead_us)
 		- (int32_t)(base_pwr->ss_power * base_pwr->time_overhead_us));
 
-	if (base_pwr->ss_power != next_pwr->ss_power)
-		residency /= (int32_t)(base_pwr->ss_power  - next_pwr->ss_power);
+	residency /= (int32_t)(base_pwr->ss_power  - next_pwr->ss_power);
 
 	if (residency < 0) {
 		pr_err("%s: residency < 0 for LPM\n",
@@ -871,7 +870,6 @@ struct lpm_cluster *parse_cluster(struct device_node *node,
 	if (ret)
 		goto failed_parse_params;
 
-	INIT_LIST_HEAD(&c->list);
 	INIT_LIST_HEAD(&c->child);
 	c->parent = parent;
 	spin_lock_init(&c->sync_lock);

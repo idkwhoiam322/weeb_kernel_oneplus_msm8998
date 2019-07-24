@@ -69,17 +69,15 @@ static bool lpm_prediction = true;
 module_param_named(lpm_prediction,
 	lpm_prediction, bool, S_IRUGO | S_IWUSR | S_IWGRP);
 
-static uint32_t ref_stddev = 500;
+static uint32_t ref_stddev = 100;
 module_param_named(
 	ref_stddev, ref_stddev, uint, S_IRUGO | S_IWUSR | S_IWGRP
 );
 
-static uint32_t tmr_add = 1000;
+static uint32_t tmr_add = 100;
 module_param_named(
 	tmr_add, tmr_add, uint, S_IRUGO | S_IWUSR | S_IWGRP
 );
-
-static uint32_t ref_premature_cnt = 1;
 
 struct lpm_history {
 	uint32_t resi[MAXSAMPLES];
@@ -96,7 +94,7 @@ static DEFINE_PER_CPU(struct lpm_history, hist);
 static DEFINE_PER_CPU(struct lpm_cluster*, cpu_cluster);
 static bool suspend_in_progress;
 static struct hrtimer lpm_hrtimer;
-static DEFINE_PER_CPU(struct hrtimer, histtimer);
+static struct hrtimer histtimer;
 static int lpm_cpu_callback(struct notifier_block *cpu_nb,
 				unsigned long action, void *hcpu);
 
@@ -165,7 +163,7 @@ static uint32_t least_cluster_latency(struct lpm_cluster *cluster,
 	uint32_t latency = 0;
 	int i;
 
-	if (list_empty(&cluster->list)) {
+	if (!cluster->list.next) {
 		for (i = 0; i < cluster->nlevels; i++) {
 			level = &cluster->levels[i];
 			pwr_params = &level->pwr;
@@ -335,15 +333,7 @@ static enum hrtimer_restart lpm_hrtimer_cb(struct hrtimer *h)
 
 static void histtimer_cancel(void)
 {
-	unsigned int cpu = raw_smp_processor_id();
-	struct hrtimer *cpu_histtimer = &per_cpu(histtimer, cpu);
-	ktime_t time_rem;
-
-	time_rem = hrtimer_get_remaining(cpu_histtimer);
-	if (ktime_to_us(time_rem) <= 0)
-		return;
-
-	hrtimer_try_to_cancel(cpu_histtimer);
+	hrtimer_try_to_cancel(&histtimer);
 }
 
 static enum hrtimer_restart histtimer_fn(struct hrtimer *h)
@@ -359,11 +349,9 @@ static void histtimer_start(uint32_t time_us)
 {
 	uint64_t time_ns = time_us * NSEC_PER_USEC;
 	ktime_t hist_ktime = ns_to_ktime(time_ns);
-	unsigned int cpu = raw_smp_processor_id();
-	struct hrtimer *cpu_histtimer = &per_cpu(histtimer, cpu);
 
-	cpu_histtimer->function = histtimer_fn;
-	hrtimer_start(cpu_histtimer, hist_ktime, HRTIMER_MODE_REL_PINNED);
+	histtimer.function = histtimer_fn;
+	hrtimer_start(&histtimer, hist_ktime, HRTIMER_MODE_REL_PINNED);
 }
 
 static void cluster_timer_init(struct lpm_cluster *cluster)
@@ -387,21 +375,9 @@ static void clusttimer_cancel(void)
 {
 	int cpu = raw_smp_processor_id();
 	struct lpm_cluster *cluster = per_cpu(cpu_cluster, cpu);
-	ktime_t time_rem;
 
-	time_rem = hrtimer_get_remaining(&cluster->histtimer);
-	if (ktime_to_us(time_rem) > 0)
-		hrtimer_try_to_cancel(&cluster->histtimer);
-
-	if (cluster->parent) {
-		time_rem = hrtimer_get_remaining(
-			&cluster->parent->histtimer);
-
-		if (ktime_to_us(time_rem) <= 0)
-			return;
-
-		hrtimer_try_to_cancel(&cluster->parent->histtimer);
-	}
+	hrtimer_try_to_cancel(&cluster->histtimer);
+	hrtimer_try_to_cancel(&cluster->parent->histtimer);
 }
 
 static enum hrtimer_restart clusttimer_fn(struct hrtimer *h)
@@ -521,7 +497,6 @@ static uint64_t lpm_cpuidle_predict(struct cpuidle_device *dev,
 	int64_t thresh = LLONG_MAX;
 	struct lpm_history *history = &per_cpu(hist, dev->cpu);
 	uint32_t *min_residency = get_per_cpu_min_residency(dev->cpu);
-	uint32_t *max_residency = get_per_cpu_max_residency(dev->cpu);
 
 	if (!lpm_prediction)
 		return 0;
@@ -608,17 +583,9 @@ again:
 					total += history->resi[i];
 				}
 			}
-			if (failed >= ref_premature_cnt) {
+			if (failed > (MAXSAMPLES/2)) {
 				*idx_restrict = j;
 				do_div(total, failed);
-				for (i = 0; i < j; i++) {
-					if (total < max_residency[i]) {
-						*idx_restrict = i+1;
-						total = max_residency[i];
-						break;
-					}
-				}
-
 				*idx_restrict_time = total;
 				history->stime = ktime_to_us(ktime_get())
 						+ *idx_restrict_time;
@@ -669,7 +636,7 @@ static void update_history(struct cpuidle_device *dev, int idx);
 static int cpu_power_select(struct cpuidle_device *dev,
 		struct lpm_cpu *cpu)
 {
-	int best_level = 0;
+	int best_level = -1;
 	uint32_t latency_us = pm_qos_request_for_cpu(PM_QOS_CPU_DMA_LATENCY,
 							dev->cpu);
 	s64 sleep_us = ktime_to_us(tick_nohz_get_sleep_length());
@@ -683,6 +650,8 @@ static int cpu_power_select(struct cpuidle_device *dev,
 	uint32_t *min_residency = get_per_cpu_min_residency(dev->cpu);
 	uint32_t *max_residency = get_per_cpu_max_residency(dev->cpu);
 
+	if (!cpu)
+		return -EINVAL;
 
 	if ((sleep_disabled && !cpu_isolated(dev->cpu)) || sleep_us  < 0)
 		return 0;
@@ -1491,11 +1460,17 @@ static int lpm_cpuidle_select(struct cpuidle_driver *drv,
 		struct cpuidle_device *dev)
 {
 	struct lpm_cluster *cluster = per_cpu(cpu_cluster, dev->cpu);
+	int idx;
 
 	if (!cluster)
 		return 0;
 
-	return cpu_power_select(dev, cluster->cpu);
+	idx = cpu_power_select(dev, cluster->cpu);
+
+	if (idx < 0)
+		return -EPERM;
+
+	return idx;
 }
 
 static void update_history(struct cpuidle_device *dev, int idx)
@@ -1540,6 +1515,9 @@ static int lpm_cpuidle_enter(struct cpuidle_device *dev,
 	int64_t start_time = ktime_to_ns(ktime_get()), end_time;
 	struct power_params *pwr_params;
 
+	if (idx < 0)
+		return -EINVAL;
+
 	pwr_params = &cluster->cpu->levels[idx].pwr;
 
 	cpu_prepare(cluster, idx, true);
@@ -1565,11 +1543,11 @@ exit:
 	dev->last_residency = end_time;
 	update_history(dev, idx);
 	trace_cpu_idle_exit(idx, success);
+	local_irq_enable();
 	if (lpm_prediction) {
 		histtimer_cancel();
 		clusttimer_cancel();
 	}
-	local_irq_enable();
 	return idx;
 }
 
@@ -1812,8 +1790,6 @@ static const struct platform_suspend_ops lpm_suspend_ops = {
 static int lpm_probe(struct platform_device *pdev)
 {
 	int ret;
-	unsigned int cpu;
-	struct hrtimer *cpu_histtimer;
 	struct kobject *module_kobj = NULL;
 
 	get_online_cpus();
@@ -1836,11 +1812,7 @@ static int lpm_probe(struct platform_device *pdev)
 	 */
 	suspend_set_ops(&lpm_suspend_ops);
 	hrtimer_init(&lpm_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	for_each_possible_cpu(cpu) {
-		cpu_histtimer = &per_cpu(histtimer, cpu);
-		hrtimer_init(cpu_histtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	}
-
+	hrtimer_init(&histtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	cluster_timer_init(lpm_root_node);
 
 	ret = remote_spin_lock_init(&scm_handoff_lock, SCM_HANDOFF_LOCK_ID);
@@ -1893,7 +1865,6 @@ static struct platform_driver lpm_driver = {
 	.driver = {
 		.name = "lpm-levels",
 		.owner = THIS_MODULE,
-		.suppress_bind_attrs = true,
 		.of_match_table = lpm_mtch_tbl,
 	},
 };

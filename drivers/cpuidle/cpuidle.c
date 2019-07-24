@@ -100,18 +100,7 @@ static int find_deepest_state(struct cpuidle_driver *drv,
 	return ret;
 }
 
-/* Set the current cpu to use the deepest idle state, override governors */
-void cpuidle_use_deepest_state(bool enable)
-{
-	struct cpuidle_device *dev;
-
-	preempt_disable();
-	dev = cpuidle_get_device();
-	if (dev)
-		dev->use_deepest_state = enable;
-	preempt_enable();
-}
-
+#ifdef CONFIG_SUSPEND
 /**
  * cpuidle_find_deepest_state - Find the deepest available idle state.
  * @drv: cpuidle driver for the given CPU.
@@ -123,7 +112,6 @@ int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
 	return find_deepest_state(drv, dev, UINT_MAX, 0, false);
 }
 
-#ifdef CONFIG_SUSPEND
 static void enter_freeze_proper(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev, int index)
 {
@@ -655,20 +643,28 @@ static void cpuidle_clear_idle_cpu(unsigned int cpu)
 static int cpuidle_latency_notify(struct notifier_block *b,
 		unsigned long l, void *v)
 {
-	static unsigned long prev_latency = ULONG_MAX;
+	static unsigned long prev_latency[NR_CPUS] = {
+		[0 ... NR_CPUS - 1] = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE
+	};
+	struct cpumask update_mask = CPU_MASK_NONE;
+	unsigned int cpu;
 
-	if (l < prev_latency) {
-		unsigned long idle_cpus = atomic_read(&idle_cpu_mask);
-		struct cpumask *update_mask = to_cpumask(&idle_cpus);
-
-		cpumask_and(update_mask, update_mask, v);
-		cpumask_andnot(update_mask, update_mask, cpu_isolated_mask);
-
-		/* Notifier is called with preemption disabled */
-		arch_send_call_function_ipi_mask(update_mask);
+	/* Only send an IPI when the CPU latency requirement is tightened */
+	for_each_cpu(cpu, v) {
+		if (l < prev_latency[cpu])
+			cpumask_set_cpu(cpu, &update_mask);
+		prev_latency[cpu] = l;
 	}
 
-	prev_latency = l;
+	if (!cpumask_empty(&update_mask)) {
+		unsigned long idle_cpus = atomic_read(&idle_cpu_mask);
+
+		cpumask_and(&update_mask, &update_mask, to_cpumask(&idle_cpus));
+		cpumask_andnot(&update_mask, &update_mask, cpu_isolated_mask);
+
+		/* Notifier is called with preemption disabled */
+		arch_send_call_function_ipi_mask(&update_mask);
+	}
 
 	return NOTIFY_OK;
 }
