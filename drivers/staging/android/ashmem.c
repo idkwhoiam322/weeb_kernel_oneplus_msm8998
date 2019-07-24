@@ -361,7 +361,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 	struct ashmem_area *asma = file->private_data;
 	unsigned long prot_mask;
 	size_t size;
-	int ret;
+	int ret = 0;
 
 	size = READ_ONCE(asma->size);
 
