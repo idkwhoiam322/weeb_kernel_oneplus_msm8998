@@ -193,6 +193,8 @@ struct smq_invoke_ctx {
 	struct smq_msg msg;
 	unsigned int magic;
 	uint64_t ctxid;
+	void *handle;
+	const void *ptr;
 };
 
 struct fastrpc_ctx_lst {
@@ -1760,6 +1762,9 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		if (err)
 			goto bail;
 	}
+	if (ctx->handle)
+		glink_rx_done(ctx->handle, ctx->ptr, true);
+
 	VERIFY(err, 0 == (err = ctx->retval));
 	if (err)
 		goto bail;
@@ -2440,11 +2445,13 @@ static void fastrpc_glink_notify_rx(void *handle, const void *priv,
 	if (err)
 		goto bail;
 
+	me->ctxtable[index]->handle = handle;
+	me->ctxtable[index]->ptr = ptr;
+
 	context_notify_user(me->ctxtable[index], rsp->retval);
 bail:
 	if (err)
 		pr_err("adsprpc: invalid response or context\n");
-	glink_rx_done(handle, ptr, true);
 }
 
 static void fastrpc_glink_notify_state(void *handle, const void *priv,
