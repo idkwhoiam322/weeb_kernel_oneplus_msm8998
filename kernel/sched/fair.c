@@ -7144,7 +7144,7 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 				 * IOW, prefer a deep IDLE LITTLE CPU vs a
 				 * shallow idle big CPU.
 				 */
-				if (capacity_orig >= target_capacity &&
+				if (capacity_orig == target_capacity &&
 				    sysctl_sched_cstate_aware &&
 				    best_idle_cstate <= idle_idx)
 					continue;
@@ -7187,7 +7187,7 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 				continue;
 
 			/* Favor CPUs with maximum spare capacity */
-			if (capacity_orig >= target_capacity &&
+			if (capacity_orig == target_capacity &&
 			    spare_cap < target_max_spare_cap)
 				continue;
 
