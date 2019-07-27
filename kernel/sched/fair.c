@@ -7841,7 +7841,7 @@ static void yield_task_fair(struct rq *rq)
 		 * so we don't do microscopic update in schedule()
 		 * and double the fastpath cost.
 		 */
-		rq_clock_skip_update(rq);
+		rq_clock_skip_update(rq, true);
 	}
 
 	set_skip_buddy(se);

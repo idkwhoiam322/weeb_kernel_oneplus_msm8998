@@ -815,20 +815,13 @@ static inline u64 rq_clock_task(struct rq *rq)
 #define RQCF_REQ_SKIP	0x01
 #define RQCF_ACT_SKIP	0x02
 
-static inline void rq_clock_skip_update(struct rq *rq)
+static inline void rq_clock_skip_update(struct rq *rq, bool skip)
 {
 	lockdep_assert_held(&rq->lock);
-	rq->clock_skip_update |= RQCF_REQ_SKIP;
-}
-
-/*
- * See rt task throttoling, which is the only time a skip
- * request is cancelled.
- */
-static inline void rq_clock_cancel_skipupdate(struct rq *rq)
-{
-	lockdep_assert_held(&rq->lock);
-	rq->clock_skip_update &= ~RQCF_REQ_SKIP;
+	if (skip)
+		rq->clock_skip_update |= RQCF_REQ_SKIP;
+	else
+		rq->clock_skip_update &= ~RQCF_REQ_SKIP;
 }
 
 #ifdef CONFIG_NUMA
