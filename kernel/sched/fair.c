@@ -9562,13 +9562,6 @@ static struct rq *find_busiest_queue(struct lb_env *env,
 		if (rt > env->fbq_type)
 			continue;
 
-		/*
-		 * Ignore cpu, which is undergoing active_balance and doesn't
-		 * have more than 2 tasks.
-		 */
-		if (rq->active_balance && rq->nr_running <= 2)
-			continue;
-
 		capacity = capacity_of(i);
 
 		/*
@@ -9797,14 +9790,8 @@ more_balance:
 		raw_spin_lock_irqsave(&busiest->lock, flags);
 		update_rq_clock(busiest);
 
-		/*
-		 * The world might have changed. Validate assumptions.
-		 * And also, if the busiest cpu is undergoing active_balance,
-		 * it doesn't need help if it has less than 2 tasks on it.
-		 */
-
-		if (busiest->nr_running <= 1 ||
-		    (busiest->active_balance && busiest->nr_running <= 2)) {
+		/* The world might have changed. Validate assumptions */
+		if (busiest->nr_running <= 1) {
 			raw_spin_unlock_irqrestore(&busiest->lock, flags);
 			env.flags &= ~LBF_ALL_PINNED;
 			goto no_move;
