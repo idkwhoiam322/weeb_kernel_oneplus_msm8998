@@ -2056,7 +2056,7 @@ struct task_struct {
 #endif /* CONFIG_TRACING */
 #ifdef CONFIG_KCOV
 	/* Coverage collection mode enabled for this task (0 if disabled). */
-        unsigned int                    kcov_mode;
+	enum kcov_mode kcov_mode;
 	/* Size of the kcov_area. */
 	unsigned	kcov_size;
 	/* Buffer for coverage collection. */
