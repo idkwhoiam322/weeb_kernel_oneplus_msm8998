@@ -6965,7 +6965,7 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 			unsigned long capacity_orig = capacity_orig_of(i);
 			unsigned long wake_util, new_util;
 
-			if (!cpu_online(i) || cpu_isolated(i))
+			if (!cpu_online(i))
 				continue;
 
 			if (walt_cpu_high_irqload(i))
