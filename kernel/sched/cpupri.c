@@ -242,6 +242,8 @@ int cpupri_init(struct cpupri *cp)
 {
 	int i;
 
+	memset(cp, 0, sizeof(*cp));
+
 	for (i = 0; i < CPUPRI_NR_PRIORITIES; i++) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[i];
 
