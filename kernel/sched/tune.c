@@ -192,7 +192,7 @@ struct schedtune {
 
 static inline struct schedtune *css_st(struct cgroup_subsys_state *css)
 {
-	return container_of(css, struct schedtune, css);
+	return css ? container_of(css, struct schedtune, css) : NULL;
 }
 
 static inline struct schedtune *task_schedtune(struct task_struct *tsk)
