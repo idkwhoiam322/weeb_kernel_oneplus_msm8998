@@ -22,8 +22,8 @@ steps:
       - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip
       - git clone https://github.com/whoknowswhoiam/scripts.git -b semaphore-pie script && cd script
       - bash dronesetup.sh --gcc
-      - export DEFCONFIG=weeb_defconfig && export BUILDFOR=oos && bash dronekernel.sh --gcc --oos --beta --post
-      - export DEFCONFIG=weebcustom_defconfig && export BUILDFOR=custom && bash dronekernel.sh --gcc --custom --beta
+      - export DEFCONFIG=weebcustom_defconfig && export BUILDFOR=custom && bash dronekernel.sh --gcc --custom --beta --post
+      - export DEFCONFIG=weeb_defconfig && export BUILDFOR=oos && bash dronekernel.sh --gcc --oos --beta
     when:
       branch:
         - kernel-4.4
@@ -44,8 +44,8 @@ steps:
       - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip
       - git clone https://github.com/whoknowswhoiam/scripts.git -b semaphore-pie script && cd script
       - bash dronesetup.sh --gcc
-      - export DEFCONFIG=weeb_defconfig && export BUILDFOR=oos && bash dronekernel.sh --gcc --oos --stable --post
-      - export DEFCONFIG=weebcustom_defconfig && export BUILDFOR=custom && bash dronekernel.sh --gcc --custom --stable
+      - export DEFCONFIG=weebcustom_defconfig && export BUILDFOR=custom && bash dronekernel.sh --gcc --custom --stable --post
+      - export DEFCONFIG=weeb_defconfig && export BUILDFOR=oos && bash dronekernel.sh --gcc --oos --stable
     when:
       branch:
         - pie
