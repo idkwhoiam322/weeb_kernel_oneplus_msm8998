@@ -5417,6 +5417,7 @@ void update_cpu_load_nohz(void)
 		 * We were idle, this means load 0, the current load might be
 		 * !0 due to remote wakeups and the sort.
 		 */
+		update_rq_clock(this_rq);
 		__update_cpu_load(this_rq, 0, pending_updates);
 	}
 	rq_unlock(this_rq, &rf);
