@@ -1846,9 +1846,6 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 			if (err)
 				goto bail;
 		}
-		if (!access_ok(1, (void const __user *)init->mem,
-				init->memlen))
-			goto bail;
 		inbuf.pageslen = 1;
 
 		VERIFY(err, !init->mem);
