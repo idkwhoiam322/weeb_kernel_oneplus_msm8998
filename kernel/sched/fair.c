@@ -9776,7 +9776,6 @@ redo:
 
 more_balance:
 		rq_lock_irqsave(busiest, &rf);
-		update_rq_clock(busiest);
 
 		/* The world might have changed. Validate assumptions */
 		if (busiest->nr_running <= 1) {
@@ -9784,6 +9783,8 @@ more_balance:
 			env.flags &= ~LBF_ALL_PINNED;
 			goto no_move;
 		}
+
+		update_rq_clock(busiest);
 
 		/*
 		 * cur_ld_moved - load moved in current iteration
