@@ -25,7 +25,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
-#include <linux/rcupdate_wait.h>
+#include <linux/rcupdate.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
@@ -49,17 +49,18 @@ static void __call_rcu(struct rcu_head *head,
 
 #include "tiny_plugin.h"
 
-void rcu_barrier_bh(void)
-{
-	wait_rcu_gp(call_rcu_bh);
-}
-EXPORT_SYMBOL(rcu_barrier_bh);
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
 
-void rcu_barrier_sched(void)
+/*
+ * Test whether RCU thinks that the current CPU is idle.
+ */
+bool notrace __rcu_is_watching(void)
 {
-	wait_rcu_gp(call_rcu_sched);
+	return true;
 }
-EXPORT_SYMBOL(rcu_barrier_sched);
+EXPORT_SYMBOL(__rcu_is_watching);
+
+#endif /* defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
 
 /*
  * Helper function for rcu_sched_qs() and rcu_bh_qs().

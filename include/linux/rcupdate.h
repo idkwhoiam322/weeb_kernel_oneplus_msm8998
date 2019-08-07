@@ -40,25 +40,18 @@
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 #include <linux/lockdep.h>
+#include <linux/completion.h>
 #include <linux/debugobjects.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/ktime.h>
-#include <linux/irqflags.h>
 
 #include <asm/barrier.h>
 
-#ifndef CONFIG_TINY_RCU
 extern int rcu_expedited; /* for sysctl */
-extern int rcu_normal;    /* also for sysctl */
-#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
-static inline bool rcu_gp_is_normal(void)  /* Internal RCU use. */
-{
-	return true;
-}
 static inline bool rcu_gp_is_expedited(void)  /* Internal RCU use. */
 {
 	return false;
@@ -72,7 +65,6 @@ static inline void rcu_unexpedite_gp(void)
 {
 }
 #else /* #ifdef CONFIG_TINY_RCU */
-bool rcu_gp_is_normal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
 void rcu_expedite_gp(void);
 void rcu_unexpedite_gp(void);
@@ -97,7 +89,6 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 			       unsigned long secs,
 			       unsigned long c_old,
 			       unsigned long c);
-bool rcu_irq_enter_disabled(void);
 #else
 static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
 					  int *flags,
@@ -113,10 +104,6 @@ static inline void rcutorture_record_test_transition(void)
 }
 static inline void rcutorture_record_progress(unsigned long vernum)
 {
-}
-static inline bool rcu_irq_enter_disabled(void)
-{
-	return false;
 }
 #ifdef CONFIG_RCU_TRACE
 void do_trace_rcu_torture_read(const char *rcutorturename,
@@ -230,6 +217,45 @@ void call_rcu_sched(struct rcu_head *head,
 
 void synchronize_sched(void);
 
+/*
+ * Structure allowing asynchronous waiting on RCU.
+ */
+struct rcu_synchronize {
+	struct rcu_head head;
+	struct completion completion;
+};
+void wakeme_after_rcu(struct rcu_head *head);
+
+void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
+		   struct rcu_synchronize *rs_array);
+
+#define _wait_rcu_gp(checktiny, ...) \
+do {									\
+	call_rcu_func_t __crcu_array[] = { __VA_ARGS__ };		\
+	struct rcu_synchronize __rs_array[ARRAY_SIZE(__crcu_array)];	\
+	__wait_rcu_gp(checktiny, ARRAY_SIZE(__crcu_array),		\
+			__crcu_array, __rs_array);			\
+} while (0)
+
+#define wait_rcu_gp(...) _wait_rcu_gp(false, __VA_ARGS__)
+
+/**
+ * synchronize_rcu_mult - Wait concurrently for multiple grace periods
+ * @...: List of call_rcu() functions for the flavors to wait on.
+ *
+ * This macro waits concurrently for multiple flavors of RCU grace periods.
+ * For example, synchronize_rcu_mult(call_rcu, call_rcu_bh) would wait
+ * on concurrent RCU and RCU-bh grace periods.  Waiting on a give SRCU
+ * domain requires you to write a wrapper function for that SRCU domain's
+ * call_srcu() function, supplying the corresponding srcu_struct.
+ *
+ * If Tiny RCU, tell _wait_rcu_gp() not to bother waiting for RCU
+ * or RCU-bh, given that anywhere synchronize_rcu_mult() can be called
+ * is automatically a grace period.
+ */
+#define synchronize_rcu_mult(...) \
+	_wait_rcu_gp(IS_ENABLED(CONFIG_TINY_RCU), __VA_ARGS__)
+
 /**
  * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
  * @head: structure to be used for queueing the RCU updates.
@@ -293,18 +319,13 @@ static inline int rcu_preempt_depth(void)
 
 /* Internal to kernel */
 void rcu_init(void);
+void rcu_end_inkernel_boot(void);
 void rcu_sched_qs(void);
 void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
 struct notifier_block;
 int rcu_cpu_notify(struct notifier_block *self,
 		   unsigned long action, void *hcpu);
-
-#ifndef CONFIG_TINY_RCU
-void rcu_end_inkernel_boot(void);
-#else /* #ifndef CONFIG_TINY_RCU */
-static inline void rcu_end_inkernel_boot(void) { }
-#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_RCU_STALL_COMMON
 void rcu_sysrq_start(void);
@@ -356,9 +377,9 @@ static inline void rcu_init_nohz(void)
  */
 #define RCU_NONIDLE(a) \
 	do { \
-		rcu_irq_enter_irqson(); \
+		rcu_irq_enter(); \
 		do { a; } while (0); \
-		rcu_irq_exit_irqson(); \
+		rcu_irq_exit(); \
 	} while (0)
 
 /*
@@ -366,23 +387,17 @@ static inline void rcu_init_nohz(void)
  * macro rather than an inline function to avoid #include hell.
  */
 #ifdef CONFIG_TASKS_RCU
-#define rcu_note_voluntary_context_switch_lite(t) \
-	do { \
-		if (READ_ONCE((t)->rcu_tasks_holdout)) \
-			WRITE_ONCE((t)->rcu_tasks_holdout, false); \
-	} while (0)
+#define TASKS_RCU(x) x
+extern struct srcu_struct tasks_rcu_exit_srcu;
 #define rcu_note_voluntary_context_switch(t) \
 	do { \
 		rcu_all_qs(); \
-		rcu_note_voluntary_context_switch_lite(t); \
+		if (READ_ONCE((t)->rcu_tasks_holdout)) \
+			WRITE_ONCE((t)->rcu_tasks_holdout, false); \
 	} while (0)
-void exit_tasks_rcu_start(void);
-void exit_tasks_rcu_finish(void);
 #else /* #ifdef CONFIG_TASKS_RCU */
-#define rcu_note_voluntary_context_switch_lite(t)	do { } while (0)
-#define rcu_note_voluntary_context_switch(t)		rcu_all_qs()
-static inline void exit_tasks_rcu_start(void) { }
-static inline void exit_tasks_rcu_finish(void) { }
+#define TASKS_RCU(x) do { } while (0)
+#define rcu_note_voluntary_context_switch(t)	rcu_all_qs()
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /**
@@ -397,6 +412,10 @@ do { \
 	if (!cond_resched()) \
 		rcu_note_voluntary_context_switch(current); \
 } while (0)
+
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) || defined(CONFIG_SMP)
+bool __rcu_is_watching(void);
+#endif /* #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) || defined(CONFIG_SMP) */
 
 /*
  * Infrastructure to implement the synchronize_() primitives in
@@ -1112,31 +1131,6 @@ static inline void rcu_sysidle_force_exit(void)
 }
 
 #endif /* #else #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
-
-
-/*
- * Place this after a lock-acquisition primitive to guarantee that
- * an UNLOCK+LOCK pair acts as a full barrier.  This guarantee applies
- * if the UNLOCK and LOCK are executed by the same CPU or if the
- * UNLOCK and LOCK operate on the same lock variable.
- */
-#ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE
-#define smp_mb__after_unlock_lock()	smp_mb()  /* Full ordering for lock. */
-#else /* #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
-#define smp_mb__after_unlock_lock()	do { } while (0)
-#endif /* #else #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
-
-/*
- * Place this after a lock-acquisition primitive to guarantee that
- * an UNLOCK+LOCK pair acts as a full barrier.  This guarantee applies
- * if the UNLOCK and LOCK are executed by the same CPU or if the
- * UNLOCK and LOCK operate on the same lock variable.
- */
-#ifdef CONFIG_PPC
-#define smp_mb__after_unlock_lock()	smp_mb()  /* Full ordering for lock. */
-#else /* #ifdef CONFIG_PPC */
-#define smp_mb__after_unlock_lock()	do { } while (0)
-#endif /* #else #ifdef CONFIG_PPC */
 
 
 #endif /* __LINUX_RCUPDATE_H */
