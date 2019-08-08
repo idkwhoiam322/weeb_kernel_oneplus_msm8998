@@ -11067,8 +11067,7 @@ static inline bool vruntime_normalized(struct task_struct *p)
 	 * - A task which has been woken up by try_to_wake_up() and
 	 *   waiting for actually being woken up by sched_ttwu_pending().
 	 */
-	if (!se->sum_exec_runtime ||
-	    (p->state == TASK_WAKING && p->sched_class == &fair_sched_class))
+	if (!se->sum_exec_runtime || p->state == TASK_WAKING)
 		return true;
 
 	return false;
