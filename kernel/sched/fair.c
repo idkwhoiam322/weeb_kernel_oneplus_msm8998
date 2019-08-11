@@ -6746,6 +6746,15 @@ static inline unsigned long cpu_util(int cpu)
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
 
+#ifdef CONFIG_SCHED_WALT
+	if (likely(!walt_disabled && sysctl_sched_use_walt_cpu_util)) {
+		util = div64_u64(cpu_rq(cpu)->cfs->cumulative_runnable_avg,
+				 walt_ravg_window >> SCHED_LOAD_SHIFT);
+
+ 		return min_t(unsigned long, util, capacity_orig_of(cpu));
+	}
+#endif
+
 	cfs_rq = &cpu_rq(cpu)->cfs;
 	util = READ_ONCE(cfs_rq->avg.util_avg);
 
@@ -6773,10 +6782,25 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
 
+#ifdef CONFIG_SCHED_WALT
+	/*
+	 * WALT does not decay idle tasks in the same manner
+	 * as PELT, so it makes little sense to subtract task
+	 * utilization from cpu utilization. Instead just use
+	 * cpu_util for this case.
+	 */
+	if (likely(!walt_disabled && sysctl_sched_use_walt_cpu_util) &&
+						p->state == TASK_WAKING)
+		return cpu_util(cpu);
+#endif
+
 	/* Task has no contribution or is new */
 	if (cpu != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
 		return cpu_util(cpu);
 
+#ifdef CONFIG_SCHED_WALT
+	util = max_t(long, cpu_util(cpu) - task_util(p), 0);
+#else
 	cfs_rq = &cpu_rq(cpu)->cfs;
 	util = READ_ONCE(cfs_rq->avg.util_avg);
 
@@ -6812,6 +6836,7 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	if (sched_feat(UTIL_EST)) {
 		unsigned int estimated =
 			READ_ONCE(cfs_rq->avg.util_est.enqueued);
+#endif
 
 		/*
 		 * Despite the following checks we still have a small window
