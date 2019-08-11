@@ -167,4 +167,8 @@ config WLAN_FEATURE_PKT_CAPTURE
 	bool "Enable packet capture feature"
 	default y
 
+config WLAN_ARTER_MOD
+	bool "Enable to load wlan module inline for ROMs that load it as a module"
+	default n
+
 endif # QCA_CLD_WLAN
