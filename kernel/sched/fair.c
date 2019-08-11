@@ -5015,6 +5015,7 @@ unsigned long boosted_cpu_util(int cpu);
 #endif
 
 static unsigned long cpu_util_without(int cpu, struct task_struct *p);
+static inline unsigned long cpu_util_freq(int cpu);
 
 /*
  * The enqueue_task method is called before nr_running is
@@ -6859,6 +6860,25 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	 */
 	return min_t(unsigned long, util, capacity_orig_of(cpu));
 }
+
+#ifdef CONFIG_SCHED_WALT
+static inline unsigned long cpu_util_freq(int cpu)
+{
+	unsigned long util = cpu_rq(cpu)->cfs.avg.util_avg;
+	unsigned long capacity = capacity_orig_of(cpu);
+
+ 	if (unlikely(walt_disabled || !sysctl_sched_use_walt_cpu_util))
+		return cpu_util(cpu);
+
+ 	return (util >= capacity) ? capacity : util;
+}
+#else
+static inline unsigned long
+cpu_util_freq(int cpu)
+{
+	return cpu_util(cpu);
+}
+#endif
 
 static int start_cpu(bool boosted)
 {
