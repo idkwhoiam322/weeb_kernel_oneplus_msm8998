@@ -167,6 +167,10 @@ static struct attribute *attrs[] = {
 #define MODULE_INITIALIZED 1
 #endif
 
+#ifdef CONFIG_WLAN_ARTER_MOD
+static bool hdd_loaded = false;
+#endif
+
 #define HDD_OPS_INACTIVITY_TIMEOUT (120000)
 #define MAX_OPS_NAME_STRING_SIZE 20
 #define RATE_LIMIT_ERROR_LOG (256)
@@ -12549,6 +12553,9 @@ static int wlan_hdd_state_ctrl_param_open(struct inode *inode,
 	return 0;
 }
 
+#ifdef CONFIG_WLAN_ARTER_MOD
+static int __hdd_module_init(void);
+#endif
 static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 						const char __user *user_buf,
 						size_t count,
@@ -12579,6 +12586,14 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 		goto exit;
 	}
 
+#ifdef CONFIG_WLAN_ARTER_MOD
+		if (!hdd_loaded) {
+		if (__hdd_module_init()) {
+			pr_err("%s: Failed to init hdd module\n", __func__);
+			goto exit;
+		}
+	}
+#endif
 	if (!cds_is_driver_loaded()) {
 		init_completion(&wlan_start_comp);
 		rc = wait_for_completion_timeout(&wlan_start_comp,
@@ -12697,11 +12712,15 @@ static int __hdd_module_init(void)
 		goto out;
 	}
 
+#ifdef CONFIG_WLAN_ARTER_MOD
+	hdd_loaded = true;
+#else
 	ret = wlan_hdd_state_ctrl_param_create();
 	if (ret) {
 		pr_err("wlan_hdd_state_create:%x\n", ret);
 		goto out;
 	}
+#endif
 
 	pr_info("%s: driver loaded\n", WLAN_MODULE_NAME);
 
@@ -12882,12 +12901,21 @@ static int wlan_deinit_sysfs(void)
  */
 static int hdd_module_init(void)
 {
+#ifdef CONFIG_WLAN_ARTER_MOD
+	int ret;
+	ret = wlan_hdd_state_ctrl_param_create();
+	if (ret)
+		pr_err("wlan_hdd_state_create:%x\n", ret);
+
+	return ret;
+#else
 	if (__hdd_module_init()) {
 		pr_err("%s: Failed to register handler\n", __func__);
 		return -EINVAL;
 	}
 
 	return 0;
+#endif
 }
 #endif
 #if !defined(MODULE) && !defined(CONFIG_WLAN_ARTER_MOD)
