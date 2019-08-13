@@ -2084,7 +2084,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 	       int sibling_count_hint)
 {
 	unsigned long flags;
-	int cpu, src_cpu, success = 0;
+	int cpu, success = 0;
 #ifdef CONFIG_SCHED_WALT
 	struct rq *rq;
 	u64 wallclock;
@@ -2123,7 +2123,6 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
         smp_mb__after_spinlock();
 
-	src_cpu = cpu = task_cpu(p);
 
 	if (!(p->state & state))
 		goto unlock;
@@ -2131,6 +2130,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 	trace_sched_waking(p);
 
 	success = 1; /* we're going to change ->state */
+	cpu = task_cpu(p);
 
 	/*
 	 * Ensure we load p->on_rq _after_ p->state, otherwise it would
@@ -2211,9 +2211,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 	cpu = select_task_rq(p, p->wake_cpu, SD_BALANCE_WAKE, wake_flags,
 			     sibling_count_hint);
 
-	/* Refresh src_cpu as it could have changed since we last read it */
-	src_cpu = task_cpu(p);
-	if (src_cpu != cpu) {
+	if (task_cpu(p) != cpu) {
 		wake_flags |= WF_MIGRATED;
 		set_task_cpu(p, cpu);
 	}
