@@ -2085,7 +2085,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 {
 	unsigned long flags;
 	int cpu, src_cpu, success = 0;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_SCHED_WALT
 	struct rq *rq;
 	u64 wallclock;
 #endif
@@ -2193,13 +2193,14 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 	 */
 	smp_rmb();
 
+#ifdef CONFIG_SCHED_WALT
 	rq = cpu_rq(task_cpu(p));
-
 	raw_spin_lock(&rq->lock);
 	wallclock = walt_ktime_clock();
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE, wallclock, 0);
 	walt_update_task_ravg(p, rq, TASK_WAKE, wallclock, 0);
 	raw_spin_unlock(&rq->lock);
+#endif
 
 	p->sched_contributes_to_load = !!task_contributes_to_load(p);
 	p->state = TASK_WAKING;
@@ -2268,10 +2269,13 @@ static void try_to_wake_up_local(struct task_struct *p, struct rq_flags *rf)
 	trace_sched_waking(p);
 
 	if (!task_on_rq_queued(p)) {
+#ifdef CONFIG_SCHED_WALT
 		u64 wallclock = walt_ktime_clock();
 
 		walt_update_task_ravg(rq->curr, rq, TASK_UPDATE, wallclock, 0);
 		walt_update_task_ravg(p, rq, TASK_WAKE, wallclock, 0);
+#endif
+
 		ttwu_activate(rq, p, ENQUEUE_WAKEUP | ENQUEUE_NOCLOCK);
 	}
 
@@ -3482,7 +3486,9 @@ static void __sched notrace __schedule(bool preempt)
 	struct rq_flags rf;
 	struct rq *rq;
 	int cpu;
+#ifdef CONFIG_SCHED_WALT
 	u64 wallclock;
+#endif
 
 	cpu = smp_processor_id();
 	rq = cpu_rq(cpu);
@@ -3543,9 +3549,11 @@ static void __sched notrace __schedule(bool preempt)
 	}
 
         next = pick_next_task(rq, prev, &rf);
+#ifdef CONFIG_SCHED_WALT
 	wallclock = walt_ktime_clock();
 	walt_update_task_ravg(prev, rq, PUT_PREV_TASK, wallclock, 0);
 	walt_update_task_ravg(next, rq, PICK_NEXT_TASK, wallclock, 0);
+#endif
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
 
@@ -6051,9 +6059,11 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	switch (action & ~CPU_TASKS_FROZEN) {
 
 	case CPU_UP_PREPARE:
+#ifdef CONFIG_SCHED_WALT
 		rq_lock_irqsave(rq, &rf);
 		walt_set_window_start(rq);
 		rq_unlock_irqrestore(rq, &rf);
+#endif
 		rq->calc_load_update = calc_load_update;
 		break;
 
