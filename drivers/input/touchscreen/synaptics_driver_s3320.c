@@ -4733,6 +4733,7 @@ static int synaptics_ts_probe(struct i2c_client *client,
 	}
 
 	ctrl = client->dev.parent->driver_data;
+	irq_set_perf_affinity(ctrl->rsrcs.irq);
 
 	ts->pm_i2c_req.type = PM_QOS_REQ_AFFINE_IRQ;
 	ts->pm_i2c_req.irq = ctrl->rsrcs.irq;
