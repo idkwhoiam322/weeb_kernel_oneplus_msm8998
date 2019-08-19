@@ -35,8 +35,6 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
-#define L(l) .L ## l
-
 /* Parameters and result.  */
 #define src1		x0
 #define src2		x1
@@ -46,12 +44,9 @@
 /* Internal variables.  */
 #define data1		x3
 #define data1w		w3
-#define data1h		x4
-#define data2		x5
-#define data2w		w5
-#define data2h		x6
-#define tmp1		x7
-#define tmp2		x8
+#define data2		x4
+#define data2w		w4
+#define tmp1		x5
 
 /* Small inputs of less than 8 bytes are handled separately.  This allows the
    main code to be sped up using unaligned loads since there are now at least
@@ -64,104 +59,73 @@
 .p2align 6
 ENTRY(memcmp)
 	subs	limit, limit, 8
-	b.lo	L(less8)
+	b.lo	.Lless8
 
+	/* Limit >= 8, so check first 8 bytes using unaligned loads.  */
 	ldr	data1, [src1], 8
 	ldr	data2, [src2], 8
+	and	tmp1, src1, 7
+	add	limit, limit, tmp1
 	cmp	data1, data2
-	b.ne	L(return)
-
-	subs	limit, limit, 8
-	b.gt	L(more16)
-
-	ldr	data1, [src1, limit]
-	ldr	data2, [src2, limit]
-	b	L(return)
-
-L(more16):
-	ldr	data1, [src1], 8
-	ldr	data2, [src2], 8
-	cmp	data1, data2
-	bne	L(return)
-
-	/* Jump directly to comparing the last 16 bytes for 32 byte (or less)
-	   strings.  */
-	subs	limit, limit, 16
-	b.ls	L(last_bytes)
-
-	/* We overlap loads between 0-32 bytes at either side of SRC1 when we
-	   try to align, so limit it only to strings larger than 128 bytes.  */
-	cmp	limit, 96
-	b.ls	L(loop16)
+	bne	.Lreturn
 
 	/* Align src1 and adjust src2 with bytes not yet done.  */
-	and	tmp1, src1, 15
-	add	limit, limit, tmp1
 	sub	src1, src1, tmp1
 	sub	src2, src2, tmp1
 
-	/* Loop performing 16 bytes per iteration using aligned src1.
-	   Limit is pre-decremented by 16 and must be larger than zero.
-	   Exit if <= 16 bytes left to do or if the data is not equal.  */
+	subs	limit, limit, 8
+	b.ls	.Llast_bytes
+
+	/* Loop performing 8 bytes per iteration using aligned src1.
+	   Limit is pre-decremented by 8 and must be larger than zero.
+	   Exit if <= 8 bytes left to do or if the data is not equal.  */
 	.p2align 4
-L(loop16):
-	ldp	data1, data1h, [src1], 16
-	ldp	data2, data2h, [src2], 16
-	subs	limit, limit, 16
-	ccmp	data1, data2, 0, hi
-	ccmp	data1h, data2h, 0, eq
-	b.eq	L(loop16)
+.Lloop8:
+	ldr	data1, [src1], 8
+	ldr	data2, [src2], 8
+	subs	limit, limit, 8
+	ccmp	data1, data2, 0, hi  /* NZCV = 0b0000.  */
+	b.eq	.Lloop8
 
 	cmp	data1, data2
-	bne	L(return)
-	mov	data1, data1h
-	mov	data2, data2h
-	cmp	data1, data2
-	bne	L(return)
+	bne	.Lreturn
 
-	/* Compare last 1-16 bytes using unaligned access.  */
-L(last_bytes):
-	add	src1, src1, limit
-	add	src2, src2, limit
-	ldp	data1, data1h, [src1]
-	ldp	data2, data2h, [src2]
-	cmp     data1, data2
-	bne	L(return)
-	mov	data1, data1h
-	mov	data2, data2h
-	cmp	data1, data2
+	/* Compare last 1-8 bytes using unaligned access.  */
+.Llast_bytes:
+	ldr	data1, [src1, limit]
+	ldr	data2, [src2, limit]
 
 	/* Compare data bytes and set return value to 0, -1 or 1.  */
-L(return):
+.Lreturn:
 #ifndef __AARCH64EB__
 	rev	data1, data1
 	rev	data2, data2
 #endif
 	cmp     data1, data2
-L(ret_eq):
+.Lret_eq:
 	cset	result, ne
 	cneg	result, result, lo
-	ret
+        ret
 
 	.p2align 4
 	/* Compare up to 8 bytes.  Limit is [-8..-1].  */
-L(less8):
+.Lless8:
 	adds	limit, limit, 4
-	b.lo	L(less4)
+	b.lo	.Lless4
 	ldr	data1w, [src1], 4
 	ldr	data2w, [src2], 4
 	cmp	data1w, data2w
-	b.ne	L(return)
+	b.ne	.Lreturn
 	sub	limit, limit, 4
-L(less4):
+.Lless4:
 	adds	limit, limit, 4
-	beq	L(ret_eq)
-L(byte_loop):
+	beq	.Lret_eq
+.Lbyte_loop:
 	ldrb	data1w, [src1], 1
 	ldrb	data2w, [src2], 1
 	subs	limit, limit, 1
 	ccmp	data1w, data2w, 0, ne	/* NZCV = 0b0000.  */
-	b.eq	L(byte_loop)
+	b.eq	.Lbyte_loop
 	sub	result, data1w, data2w
 	ret
 ENDPIPROC(memcmp)
