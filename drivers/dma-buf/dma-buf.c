@@ -302,7 +302,6 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	struct reservation_object *resv = exp_info->resv;
 	struct file *file;
 	size_t alloc_size = sizeof(struct dma_buf);
-	int ret;
 	bool from_kmem;
 
 	if (!exp_info->resv)
@@ -336,8 +335,8 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	}
 
 	if (!dmabuf) {
-		ret = -ENOMEM;
-		goto err_module;
+		module_put(exp_info->owner);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	dmabuf->priv = exp_info->priv;
@@ -357,10 +356,8 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	file = anon_inode_getfile("dmabuf", &dma_buf_fops, dmabuf,
 					exp_info->flags);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
+	if (IS_ERR(file))
 		goto err_dmabuf;
-	}
 
 	file->f_mode |= FMODE_LSEEK;
 	dmabuf->file = file;
@@ -375,13 +372,12 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	return dmabuf;
 
 err_dmabuf:
-	if (from_kmem)
-		kmem_cache_free(kmem_dma_buf_pool, dmabuf);
-	else
-		kfree(dmabuf);
-err_module:
-	module_put(exp_info->owner);
-	return ERR_PTR(ret);
+        if (from_kmem)
+                kmem_cache_free(kmem_dma_buf_pool, dmabuf);
+        else
+                kfree(dmabuf);
+
+        return ERR_CAST(file);
 }
 EXPORT_SYMBOL_GPL(dma_buf_export);
 
