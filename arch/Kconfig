@@ -421,6 +421,13 @@ config CC_STACKPROTECTOR_STRONG
 	  about 20% of all kernel functions, which increases the kernel code
 	  size by about 2%.
 
+config CC_STACKPROTECTOR_ALL
+        bool "All"
+        select CC_STACKPROTECTOR
+        help
+          This feature requires gcc version above 4.9, or a distribution
+          gcc with the feature backported ("-fstack-protector-all").
+
 endchoice
 
 config HAVE_ARCH_WITHIN_STACK_FRAMES

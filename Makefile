@@ -726,8 +726,16 @@ ifdef CONFIG_CC_STACKPROTECTOR_STRONG
 	      -fstack-protector-strong not supported by compiler)
   endif
 else
+ifdef CONFIG_CC_STACKPROTECTOR_ALL
+  stackp-flag := -fstack-protector-all
+  ifeq ($(call cc-option, $(stackp-flag)),)
+    $(warning Cannot use CONFIG_CC_STACKPROTECTOR_ALL: \
+              -fstack-protector-all not supported by compiler)
+  endif
+else
   # Force off for distro compilers that enable stack protector by default.
   stackp-flag := $(call cc-option, -fno-stack-protector)
+endif
 endif
 endif
 KBUILD_CFLAGS += $(stackp-flag)
