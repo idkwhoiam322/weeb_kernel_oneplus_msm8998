@@ -319,6 +319,7 @@ static void msm_restart_prepare(const char *cmd)
 		__raw_writel(0x77665501, restart_reason);
 		cmd = NULL;
 		in_panic = false;
+		oem_panic_record = true;
 	}
 
 	if (!download_mode &&
