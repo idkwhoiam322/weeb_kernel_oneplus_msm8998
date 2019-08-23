@@ -1137,10 +1137,6 @@ struct sched_domain_shared {
 };
 
 struct eas_stats {
-	/* select_idle_sibling() stats */
-	u64 sis_cache_affine;
-	u64 sis_idle_cpu;
-
 	/* select_energy_cpu_brute() stats */
 	u64 secb_attempts;
 	u64 secb_idle_bt;
@@ -1387,9 +1383,6 @@ struct sched_statistics {
 	u64			nr_wakeups_affine_attempts;
 	u64			nr_wakeups_passive;
 	u64			nr_wakeups_idle;
-
-	/* select_idle_sibling() */
-	u64			nr_wakeups_sis_cache_affine;
 
 	/* energy_aware_wake_cpu() */
 	u64			nr_wakeups_secb_attempts;
