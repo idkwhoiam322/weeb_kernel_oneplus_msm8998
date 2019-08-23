@@ -607,8 +607,6 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	P(se.statistics.nr_wakeups_passive);
 	P(se.statistics.nr_wakeups_idle);
 	/* eas */
-	/* select_idle_sibling() */
-	P(se.statistics.nr_wakeups_sis_cache_affine);
 	/* select_energy_cpu_brute() */
 	P(se.statistics.nr_wakeups_secb_attempts);
 	P(se.statistics.nr_wakeups_secb_idle_bt);
