@@ -330,9 +330,6 @@ module_param_named(pm_qos_enable, glink_pm_qos,
 
 static LIST_HEAD(transport_list);
 
-static struct kmem_cache *kmem_rx_pool;
-static struct kmem_cache *kmem_tx_pool;
-
 /*
  * Used while notifying the clients about link state events. Since the clients
  * need to store the callback information temporarily and since all the
@@ -1253,7 +1250,7 @@ int ch_pop_remote_rx_intent(struct channel_ctx *ctx, size_t size,
 		*riid_ptr = best_intent->id;
 		*intent_size = best_intent->intent_size;
 		*cookie = best_intent->cookie;
-		kmem_cache_free(kmem_rx_pool, best_intent);
+		kfree(best_intent);
 		spin_unlock_irqrestore(
 			&ctx->rmt_rx_intent_lst_lock_lhc2, flags);
 		return 0;
@@ -1292,7 +1289,7 @@ void ch_push_remote_rx_intent(struct channel_ctx *ctx, size_t size,
 
 	gfp_flag = (ctx->transport_ptr->capabilities & GCAP_AUTO_QUEUE_RX_INT) ?
 							GFP_ATOMIC : GFP_KERNEL;
-	intent = kmem_cache_zalloc(kmem_rx_pool, gfp_flag);
+	intent = kzalloc(sizeof(struct glink_core_rx_intent), gfp_flag);
 	if (!intent) {
 		GLINK_ERR_CH(ctx,
 			"%s: R[%u]:%zu Memory allocation for intent failed\n",
@@ -1346,7 +1343,8 @@ struct glink_core_rx_intent *ch_push_local_rx_intent(struct channel_ctx *ctx,
 			return NULL;
 		}
 
-		intent = kmem_cache_zalloc(kmem_rx_pool, GFP_KERNEL);
+		intent = kzalloc(sizeof(struct glink_core_rx_intent),
+								GFP_KERNEL);
 		if (!intent) {
 			GLINK_ERR_CH(ctx,
 			"%s: Memory Allocation for local rx_intent failed",
@@ -1458,7 +1456,8 @@ struct glink_core_rx_intent *ch_get_dummy_rx_intent(struct channel_ctx *ctx,
 
 	intent = ch_get_free_local_rx_intent(ctx);
 	if (!intent) {
-		intent = kmem_cache_zalloc(kmem_rx_pool, GFP_ATOMIC);
+		intent = kzalloc(sizeof(struct glink_core_rx_intent),
+								GFP_ATOMIC);
 		if (!intent) {
 			GLINK_ERR_CH(ctx,
 			"%s: Memory Allocation for local rx_intent failed",
@@ -1707,7 +1706,7 @@ void ch_purge_intent_lists(struct channel_ctx *ctx)
 		ctx->transport_ptr->ops->deallocate_rx_intent(
 					ctx->transport_ptr->ops, ptr_intent);
 		list_del(&ptr_intent->list);
-		kmem_cache_free(kmem_rx_pool, ptr_intent);
+		kfree(ptr_intent);
 	}
 
 	if (!list_empty(&ctx->local_rx_intent_ntfy_list))
@@ -1724,7 +1723,7 @@ void ch_purge_intent_lists(struct channel_ctx *ctx)
 	list_for_each_entry_safe(ptr_intent, tmp_intent,
 				&ctx->local_rx_intent_free_list, list) {
 		list_del(&ptr_intent->list);
-		kmem_cache_free(kmem_rx_pool, ptr_intent);
+		kfree(ptr_intent);
 	}
 	ctx->max_used_liid = 0;
 	spin_unlock_irqrestore(&ctx->local_rx_intent_lst_lock_lhc1, flags);
@@ -1733,7 +1732,7 @@ void ch_purge_intent_lists(struct channel_ctx *ctx)
 	list_for_each_entry_safe(ptr_intent, tmp_intent,
 			&ctx->rmt_rx_intent_list, list) {
 		list_del(&ptr_intent->list);
-		kmem_cache_free(kmem_rx_pool, ptr_intent);
+		kfree(ptr_intent);
 	}
 	spin_unlock_irqrestore(&ctx->rmt_rx_intent_lst_lock_lhc2, flags);
 }
@@ -2907,7 +2906,7 @@ static void glink_tx_pkt_release(struct rwref_lock *tx_pkt_ref)
 		list_del_init(&tx_info->list_done);
 	if (!list_empty(&tx_info->list_node))
 		list_del_init(&tx_info->list_node);
-	kmem_cache_free(kmem_tx_pool, tx_info);
+	kfree(tx_info);
 }
 
 /**
@@ -2951,7 +2950,7 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 		return ret;
 
 	rwref_read_get_atomic(&ctx->ch_state_lhb2, is_atomic);
-	tx_info = kmem_cache_zalloc(kmem_tx_pool,
+	tx_info = kzalloc(sizeof(struct glink_core_tx_pkt),
 				is_atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!tx_info) {
 		GLINK_ERR_CH(ctx, "%s: No memory for allocation\n", __func__);
@@ -3111,7 +3110,7 @@ glink_tx_common_err:
 	rwref_read_put(&ctx->ch_state_lhb2);
 glink_tx_common_err_2:
 	glink_put_ch_ctx(ctx);
-	kmem_cache_free(kmem_tx_pool, tx_info);
+	kfree(tx_info);
 	return ret;
 }
 
@@ -5439,7 +5438,7 @@ static void xprt_schedule_tx(struct glink_core_xprt_ctx *xprt_ptr,
 
 	if (unlikely(xprt_ptr->local_state == GLINK_XPRT_DOWN)) {
 		GLINK_ERR_CH(ch_ptr, "%s: Error XPRT is down\n", __func__);
-		kmem_cache_free(kmem_tx_pool, tx_info);
+		kfree(tx_info);
 		return;
 	}
 
@@ -5448,7 +5447,7 @@ static void xprt_schedule_tx(struct glink_core_xprt_ctx *xprt_ptr,
 		spin_unlock_irqrestore(&xprt_ptr->tx_ready_lock_lhb3, flags);
 		GLINK_ERR_CH(ch_ptr, "%s: Channel closed before tx\n",
 			     __func__);
-		kmem_cache_free(kmem_tx_pool, tx_info);
+		kfree(tx_info);
 		return;
 	}
 	if (list_empty(&ch_ptr->tx_ready_list_node))
@@ -5489,7 +5488,7 @@ static int xprt_single_threaded_tx(struct glink_core_xprt_ctx *xprt_ptr,
 	if (ret < 0 || tx_info->size_remaining) {
 		GLINK_ERR_CH(ch_ptr, "%s: Error %d writing data\n",
 			     __func__, ret);
-		kmem_cache_free(kmem_tx_pool, tx_info);
+		kfree(tx_info);
 	} else {
 		list_add_tail(&tx_info->list_done,
 			      &ch_ptr->tx_pending_remote_done);
@@ -6331,9 +6330,6 @@ static int glink_init(void)
 		GLINK_ERR("%s: unable to create log context\n", __func__);
 #endif
 	glink_debugfs_init();
-
-	kmem_rx_pool = KMEM_CACHE(glink_core_rx_intent, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-	kmem_tx_pool = KMEM_CACHE(glink_core_tx_pkt, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
 
 	return 0;
 }
