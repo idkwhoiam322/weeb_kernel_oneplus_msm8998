@@ -43,7 +43,9 @@ enum freezer_state_flags {
 struct freezer {
 	struct cgroup_subsys_state	css;
 	unsigned int			state;
+#ifndef CONFIG_CUSTOM_ROM
 	unsigned int			oem_freeze_flag;
+#endif
 };
 
 static DEFINE_MUTEX(freezer_mutex);
@@ -323,7 +325,11 @@ static void freeze_cgroup(struct freezer *freezer)
 
 	css_task_iter_start(&freezer->css, &it);
 	while ((task = css_task_iter_next(&it)))
+#ifndef CONFIG_CUSTOM_ROM
 		freeze_cgroup_task(task);
+#else
+		freeze_task(task);
+#endif
 	css_task_iter_end(&it);
 }
 
@@ -331,15 +337,20 @@ static void unfreeze_cgroup(struct freezer *freezer)
 {
 	struct css_task_iter it;
 	struct task_struct *task;
+#ifndef CONFIG_CUSTOM_ROM
 	struct task_struct *tmp_tsk = NULL;
 	struct task_struct *g, *p;
+#endif
 
 	css_task_iter_start(&freezer->css, &it);
 	while ((task = css_task_iter_next(&it))) {
+#ifndef CONFIG_CUSTOM_ROM
 		tmp_tsk = task;
+#endif
 		__thaw_task(task);
 	}
 	css_task_iter_end(&it);
+#ifndef CONFIG_CUSTOM_ROM
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		if (tmp_tsk && tmp_tsk->real_cred && p->real_cred &&
@@ -347,6 +358,7 @@ static void unfreeze_cgroup(struct freezer *freezer)
 			__thaw_task(p);
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
+#endif
 }
 
 /**
@@ -404,7 +416,9 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 	 * CGROUP_FREEZING_PARENT.
 	 */
 	mutex_lock(&freezer_mutex);
+#ifndef CONFIG_CUSTOM_ROM
 	freezer->oem_freeze_flag = freeze ? 1 : 0;
+#endif
 	rcu_read_lock();
 	css_for_each_descendant_pre(pos, &freezer->css) {
 		struct freezer *pos_f = css_freezer(pos);
@@ -429,6 +443,8 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 	mutex_unlock(&freezer_mutex);
 }
 
+
+#ifndef CONFIG_CUSTOM_ROM
 void unfreezer_fork(struct task_struct *task)
 {
 	struct freezer *freezer = NULL;
@@ -451,6 +467,7 @@ void unfreezer_fork(struct task_struct *task)
 	pr_debug("%s:%s(%d)try to unfreeze\n", __func__, task->comm, task->pid);
 	freezer_change_state(freezer, 0);
 }
+#endif
 
 static ssize_t freezer_write(struct kernfs_open_file *of,
 			     char *buf, size_t nbytes, loff_t off)
