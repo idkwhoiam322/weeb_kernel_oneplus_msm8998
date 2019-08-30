@@ -72,11 +72,7 @@ static void scm_disable_sdi(void);
 
 static int in_panic;
 static int dload_type = SCM_DLOAD_FULLDUMP;
-#ifdef CONFIG_DLOAD_MODE_DEFAULT
-static int download_mode = -1;
-#else
 static int download_mode = 1;
-#endif
 static struct kobject dload_kobj;
 static void *dload_mode_addr, *dload_type_addr;
 static bool dload_mode_enabled;
@@ -141,7 +137,6 @@ int scm_set_dload_mode(int arg1, int arg2)
 static void set_dload_mode(int on)
 {
 	int ret;
-	pr_err("set_dload_mode %s\n", on ? "ON" : "OFF");
 	if (dload_mode_addr) {
 		__raw_writel(on ? 0xE47B337D : 0, dload_mode_addr);
 		__raw_writel(on ? 0xCE14091A : 0,
@@ -152,12 +147,6 @@ static void set_dload_mode(int on)
 	ret = scm_set_dload_mode(on ? dload_type : 0, 0);
 	if (ret)
 		pr_err("Failed to set secure DLOAD mode: %d\n", ret);
-	if (on)
-		qpnp_pon_set_restart_reason(0x00);
-	else
-		qpnp_pon_set_restart_reason(PON_RESTART_REASON_PANIC);
-	if (!on)
-		scm_disable_sdi();
 
 	dload_mode_enabled = on;
 }
