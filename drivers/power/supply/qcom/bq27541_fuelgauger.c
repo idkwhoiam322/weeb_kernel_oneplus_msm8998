@@ -1074,7 +1074,7 @@ static void update_battery_soc_work(struct work_struct *work)
 	dash = is_dash_started();
 
 	if (plugged || dash) {
-		queue_delayed_work(system_power_efficient_wq,
+		schedule_delayed_work(
 				&bq27541_di->battery_soc_work,
 				msecs_to_jiffies(BATTERY_SOC_UPDATE_MS));
 		if (dash)
@@ -1095,11 +1095,9 @@ static void update_battery_soc_work(struct work_struct *work)
 				bq27541_get_batt_health());
 	bq27541_set_allow_reading(false);
 	if (!bq27541_di->already_modify_smooth)
-		queue_delayed_work(system_power_efficient_wq,
-		&bq27541_di->modify_soc_smooth_parameter,
+		schedule_delayed_work(&bq27541_di->modify_soc_smooth_parameter,
 				msecs_to_jiffies(10000));
-	queue_delayed_work(system_power_efficient_wq,
-		&bq27541_di->battery_soc_work,
+	schedule_delayed_work(&bq27541_di->battery_soc_work,
 			msecs_to_jiffies(vbat < 3600 ?
 				LOW_BAT_SOC_UPDATE_MS : BATTERY_SOC_UPDATE_MS));
 }
@@ -1181,8 +1179,7 @@ static void bq27541_hw_config(struct work_struct *work)
 		/* Add for retry when config fail */
 		di->retry_count--;
 		if (di->retry_count > 0)
-			queue_delayed_work(system_power_efficient_wq,
-                                &di->hw_config, HZ);
+			schedule_delayed_work(&di->hw_config, HZ);
 		else
 			bq27541_registered = true;
 
@@ -1216,7 +1213,7 @@ static void bq27541_hw_config(struct work_struct *work)
 	pr_info("DEVICE_TYPE is 0x%02X, FIRMWARE_VERSION is 0x%02X\n",
 			type, fw_ver);
 	pr_info("Complete bq27541 configuration 0x%02X\n", flags);
-	queue_delayed_work(system_power_efficient_wq,
+	schedule_delayed_work(
 		&di->modify_soc_smooth_parameter,
 		msecs_to_jiffies(SET_BQ_PARAM_DELAY_MS * 10));
 }
@@ -1852,10 +1849,8 @@ static int bq27541_battery_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&di->modify_soc_smooth_parameter,
 		bq_modify_soc_smooth_parameter);
 	INIT_DELAYED_WORK(&di->battery_soc_work, update_battery_soc_work);
-	queue_delayed_work(system_power_efficient_wq,
-				&di->hw_config, msecs_to_jiffies(BQ27541_INIT_DELAY_MS));
-	queue_delayed_work(system_power_efficient_wq,
-				&di->battery_soc_work, msecs_to_jiffies(BATTERY_SOC_UPDATE_MS * 10));
+	schedule_delayed_work(&di->hw_config, msecs_to_jiffies(BQ27541_INIT_DELAY_MS));
+	schedule_delayed_work(&di->battery_soc_work, msecs_to_jiffies(BATTERY_SOC_UPDATE_MS * 10));
 	pr_debug("probe success\n");
 	check_bat_present(di);
 	return 0;
@@ -1938,8 +1933,7 @@ static int bq27541_battery_resume(struct device *dev)
 		queue_delayed_work(update_pre_capacity_data.workqueue,
 				&(update_pre_capacity_data.work), msecs_to_jiffies(1000));
 	}
-	queue_delayed_work(system_power_efficient_wq,
-                &bq27541_di->battery_soc_work,
+	schedule_delayed_work(&bq27541_di->battery_soc_work,
 			msecs_to_jiffies(RESUME_SCHDULE_SOC_UPDATE_WORK_MS));
 	return 0;
 }
