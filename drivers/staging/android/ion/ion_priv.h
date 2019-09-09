@@ -2,7 +2,7 @@
  * drivers/staging/android/ion/ion_priv.h
  *
  * Copyright (C) 2011 Google, Inc.
- * Copyright (c) 2011-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -34,7 +34,7 @@
 #include <asm/cacheflush.h>
 #endif
 #include <linux/device.h>
-#include <linux/msm_dma_iommu_mapping.h>
+#include <linux/miscdevice.h>
 
 #include "ion.h"
 
@@ -71,25 +71,107 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
  *			handle, used for debugging
 */
 struct ion_buffer {
-	struct list_head list;
+	struct kref ref;
+	union {
+		struct rb_node node;
+		struct list_head list;
+	};
 	struct ion_device *dev;
 	struct ion_heap *heap;
 	unsigned long flags;
 	unsigned long private_flags;
 	size_t size;
-	void *priv_virt;
-	struct mutex kmap_lock;
-	struct mutex page_lock;
-	struct mutex vma_lock;
-	struct kref ref;
+	union {
+		void *priv_virt;
+		ion_phys_addr_t priv_phys;
+	};
+	struct mutex lock;
 	int kmap_cnt;
 	void *vaddr;
 	struct sg_table *sg_table;
 	struct page **pages;
 	struct list_head vmas;
-	struct msm_iommu_data iommu_data;
+	/* used to track orphaned buffers */
+	int handle_count;
+	char task_comm[TASK_COMM_LEN];
+	pid_t pid;
 };
 void ion_buffer_destroy(struct ion_buffer *buffer);
+
+/**
+ * struct ion_device - the metadata of the ion device node
+ * @dev:		the actual misc device
+ * @buffers:		an rb tree of all the existing buffers
+ * @buffer_lock:	lock protecting the tree of buffers
+ * @lock:		rwsem protecting the tree of heaps and clients
+ * @heaps:		list of all the heaps in the system
+ * @user_clients:	list of all the clients created from userspace
+ */
+struct ion_device {
+	struct miscdevice dev;
+	struct rb_root buffers;
+	struct mutex buffer_lock;
+	struct rw_semaphore lock;
+	struct plist_head heaps;
+	long (*custom_ioctl)(struct ion_client *client, unsigned int cmd,
+			     unsigned long arg);
+	struct rb_root clients;
+	struct dentry *debug_root;
+	struct dentry *heaps_debug_root;
+	struct dentry *clients_debug_root;
+};
+
+/**
+ * struct ion_client - a process/hw block local address space
+ * @node:		node in the tree of all clients
+ * @dev:		backpointer to ion device
+ * @handles:		an rb tree of all the handles in this client
+ * @idr:		an idr space for allocating handle ids
+ * @lock:		lock protecting the tree of handles
+ * @name:		used for debugging
+ * @display_name:	used for debugging (unique version of @name)
+ * @display_serial:	used for debugging (to make display_name unique)
+ * @task:		used for debugging
+ *
+ * A client represents a list of buffers this client may access.
+ * The mutex stored here is used to protect both handles tree
+ * as well as the handles themselves, and should be held while modifying either.
+ */
+struct ion_client {
+	struct rb_node node;
+	struct ion_device *dev;
+	struct rb_root handles;
+	struct idr idr;
+	struct mutex lock;
+	char *name;
+	char *display_name;
+	int display_serial;
+	struct task_struct *task;
+	pid_t pid;
+	struct dentry *debug_root;
+};
+
+/**
+ * ion_handle - a client local reference to a buffer
+ * @ref:		reference count
+ * @client:		back pointer to the client the buffer resides in
+ * @buffer:		pointer to the buffer
+ * @node:		node in the client's handle rbtree
+ * @kmap_cnt:		count of times this client has mapped to kernel
+ * @id:			client-unique id allocated by client->idr
+ *
+ * Modifications to node, map_cnt or mapping should be protected by the
+ * lock in the client.  Other fields are never changed after initialization.
+ */
+struct ion_handle {
+	struct kref ref;
+	unsigned int user_ref_count;
+	struct ion_client *client;
+	struct ion_buffer *buffer;
+	struct rb_node node;
+	unsigned int kmap_cnt;
+	int id;
+};
 
 /**
  * struct ion_heap_ops - ops to operate on a given heap
@@ -191,7 +273,29 @@ struct ion_heap {
 	size_t free_list_size;
 	spinlock_t free_lock;
 	wait_queue_head_t waitqueue;
+	struct task_struct *task;
+
+	int (*debug_show)(struct ion_heap *heap, struct seq_file *, void *);
+	atomic_long_t total_allocated;
+	atomic_long_t total_handles;
 };
+
+/**
+ * ion_buffer_cached - this ion buffer is cached
+ * @buffer:		buffer
+ *
+ * indicates whether this ion buffer is cached
+ */
+bool ion_buffer_cached(struct ion_buffer *buffer);
+
+/**
+ * ion_buffer_fault_user_mappings - fault in user mappings of this buffer
+ * @buffer:		buffer
+ *
+ * indicates whether userspace mappings of this buffer will be faulted
+ * in, this can affect how buffers are allocated from the heap.
+ */
+bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer);
 
 /**
  * ion_device_create - allocates and returns an ion device
@@ -394,6 +498,7 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
  * @gfp_mask:		gfp_mask to use from alloc
  * @order:		order of pages in the pool
  * @list:		plist node for list of pools
+ * @inode:		inode for ion_pool pseudo filesystem
  *
  * Allows you to keep a pool of pre allocated pages to use from your heap.
  * Keeping a pool of pages that is ready for dma, ie any cached mapping have
@@ -405,15 +510,16 @@ struct ion_page_pool {
 	int low_count;
 	struct list_head high_items;
 	struct list_head low_items;
-	spinlock_t lock;
+	struct mutex mutex;
 	struct device *dev;
 	gfp_t gfp_mask;
 	unsigned int order;
 	struct plist_node list;
+	struct inode *inode;
 };
 
 struct ion_page_pool *ion_page_pool_create(struct device *dev, gfp_t gfp_mask,
-					   unsigned int order);
+					   unsigned int order, bool movable);
 void ion_page_pool_destroy(struct ion_page_pool *);
 void *ion_page_pool_alloc(struct ion_page_pool *, bool *from_pool);
 void *ion_page_pool_alloc_pool_only(struct ion_page_pool *);
@@ -477,15 +583,9 @@ int ion_walk_heaps(struct ion_client *client, int heap_id,
 			enum ion_heap_type type, void *data,
 			int (*f)(struct ion_heap *heap, void *data));
 
-struct ion_handle *ion_handle_find_by_id(struct ion_client *client, int id);
+struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
+					       int id);
 
-void ion_handle_put(struct ion_handle *handle);
-
-struct ion_buffer *get_buffer(struct ion_handle *handle);
-
-static inline bool ion_buffer_cached(struct ion_buffer *buffer)
-{
-	return buffer->flags & ION_FLAG_CACHED;
-}
+int ion_handle_put(struct ion_handle *handle);
 
 #endif /* _ION_PRIV_H */
