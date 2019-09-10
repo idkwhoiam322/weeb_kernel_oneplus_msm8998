@@ -32,14 +32,6 @@
 #define TK_MIRROR		(1 << 1)
 #define TK_CLOCK_WAS_SET	(1 << 2)
 
-enum timekeeping_adv_mode {
-	/* Update timekeeper when a tick has passed */
-	TK_ADV_TICK,
-
-	/* Update timekeeper on a direct frequency change */
-	TK_ADV_FREQ
-};
-
 /*
  * The most important data for readout fits into a single 64 byte
  * cache line.
@@ -1841,11 +1833,11 @@ static cycle_t logarithmic_accumulation(struct timekeeper *tk, cycle_t offset,
 	return offset;
 }
 
-/*
- * timekeeping_advance - Updates the timekeeper to the current time and
- * current NTP tick length
+/**
+ * update_wall_time - Uses the current clocksource to increment the wall time
+ *
  */
-static void timekeeping_advance(enum timekeeping_adv_mode mode)
+void update_wall_time(void)
 {
 	struct timekeeper *real_tk = &tk_core.timekeeper;
 	struct timekeeper *tk = &shadow_timekeeper;
@@ -1862,17 +1854,14 @@ static void timekeeping_advance(enum timekeeping_adv_mode mode)
 
 #ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
 	offset = real_tk->cycle_interval;
-
-	if (mode != TK_ADV_TICK)
-		goto out;
 #else
 	offset = clocksource_delta(tk_clock_read(&tk->tkr_mono),
 				   tk->tkr_mono.cycle_last, tk->tkr_mono.mask);
+#endif
 
 	/* Check if there's really nothing to do */
-	if (offset < real_tk->cycle_interval && mode == TK_ADV_TICK)
+	if (offset < real_tk->cycle_interval)
 		goto out;
-#endif
 
 	/* Do some additional sanity checking */
 	timekeeping_check_update(real_tk, offset);
@@ -1932,15 +1921,6 @@ out:
 	if (clock_set)
 		/* Have to call _delayed version, since in irq context*/
 		clock_was_set_delayed();
-}
-
-/**
- * update_wall_time - Uses the current clocksource to increment the wall time
- *
- */
-void update_wall_time(void)
-{
-	timekeeping_advance(TK_ADV_TICK);
 }
 
 /**
@@ -2109,10 +2089,6 @@ int do_adjtimex(struct timex *txc)
 
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
-
-	/* Update the multiplier immediately if frequency was set directly */
-	if (txc->modes & (ADJ_FREQUENCY | ADJ_TICK))
-		timekeeping_advance(TK_ADV_FREQ);
 
 	if (tai != orig_tai)
 		clock_was_set();
