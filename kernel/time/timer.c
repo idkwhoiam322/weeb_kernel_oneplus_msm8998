@@ -509,14 +509,6 @@ static void *timer_debug_hint(void *addr)
 	return ((struct timer_list *) addr)->function;
 }
 
-static bool timer_is_static_object(void *addr)
-{
-	struct timer_list *timer = addr;
-
-	return (timer->entry.pprev == NULL &&
-		timer->entry.next == TIMER_ENTRY_STATIC);
-}
-
 /*
  * fixup_init is called when:
  * - an active object is initialized
@@ -544,16 +536,30 @@ static void stub_timer(unsigned long data)
 /*
  * fixup_activate is called when:
  * - an active object is activated
- * - an unknown non-static object is activated
+ * - an unknown object is activated (might be a statically initialized object)
  */
 static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
 
 	switch (state) {
+
 	case ODEBUG_STATE_NOTAVAILABLE:
-		setup_timer(timer, stub_timer, 0);
-		return true;
+		/*
+		 * This is not really a fixup. The timer was
+		 * statically initialized. We just make sure that it
+		 * is tracked in the object tracker.
+		 */
+		if (timer->entry.pprev == NULL &&
+		    timer->entry.next == TIMER_ENTRY_STATIC) {
+			debug_object_init(timer, &timer_debug_descr);
+			debug_object_activate(timer, &timer_debug_descr);
+			return false;
+		} else {
+			setup_timer(timer, stub_timer, 0);
+			return true;
+		}
+		return false;
 
 	case ODEBUG_STATE_ACTIVE:
 		WARN_ON(1);
@@ -591,8 +597,18 @@ static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_NOTAVAILABLE:
-		setup_timer(timer, stub_timer, 0);
-		return true;
+		if (timer->entry.next == TIMER_ENTRY_STATIC) {
+			/*
+			 * This is not really a fixup. The timer was
+			 * statically initialized. We just make sure that it
+			 * is tracked in the object tracker.
+			 */
+			debug_object_init(timer, &timer_debug_descr);
+			return false;
+		} else {
+			setup_timer(timer, stub_timer, 0);
+			return true;
+		}
 	default:
 		return false;
 	}
@@ -601,7 +617,6 @@ static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 static struct debug_obj_descr timer_debug_descr = {
 	.name			= "timer_list",
 	.debug_hint		= timer_debug_hint,
-	.is_static_object	= timer_is_static_object,
 	.fixup_init		= timer_fixup_init,
 	.fixup_activate		= timer_fixup_activate,
 	.fixup_free		= timer_fixup_free,
