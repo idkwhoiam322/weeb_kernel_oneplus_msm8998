@@ -703,8 +703,8 @@ static void hrtimer_switch_to_hres(void)
 	struct hrtimer_cpu_base *base = this_cpu_ptr(&hrtimer_bases);
 
 	if (tick_init_highres()) {
-		pr_warn("Could not switch to high resolution mode on CPU %u\n",
-			base->cpu);
+		printk(KERN_WARNING "Could not switch to high resolution "
+				    "mode on CPU %d\n", base->cpu);
 		return;
 	}
 	base->hres_active = 1;
@@ -1392,7 +1392,8 @@ retry:
 	else
 		expires_next = ktime_add(now, delta);
 	tick_program_event(expires_next, 1);
-	pr_warn_once("hrtimer: interrupt took %llu ns\n", ktime_to_ns(delta));
+	printk_once(KERN_WARNING "hrtimer: interrupt took %llu ns\n",
+		    ktime_to_ns(delta));
 }
 
 /*
