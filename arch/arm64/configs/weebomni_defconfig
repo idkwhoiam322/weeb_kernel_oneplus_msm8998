@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.4.191 Kernel Configuration
+# Linux/arm64 4.4.192 Kernel Configuration
 #
 CONFIG_CUSTOM_ROM=y
 
