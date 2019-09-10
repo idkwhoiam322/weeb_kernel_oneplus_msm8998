@@ -2190,11 +2190,8 @@ static int qpnp_adc_tm_disable_rearm_high_thresholds(
 		return rc;
 	}
 
-	if (!queue_work(chip->sensor[sensor_num].req_wq,
-				&chip->sensor[sensor_num].work)) {
-		/* The item is already queued, reduce the count */
-		atomic_dec(&chip->wq_cnt);
-	}
+	queue_work(chip->sensor[sensor_num].req_wq,
+				&chip->sensor[sensor_num].work);
 
 	return rc;
 }
@@ -2292,11 +2289,9 @@ static int qpnp_adc_tm_disable_rearm_low_thresholds(
 		return rc;
 	}
 
-	if (!queue_work(chip->sensor[sensor_num].req_wq,
-				&chip->sensor[sensor_num].work)) {
-		/* The item is already queued, reduce the count */
-		atomic_dec(&chip->wq_cnt);
-	}
+	queue_work(chip->sensor[sensor_num].req_wq,
+				&chip->sensor[sensor_num].work);
+
 	return rc;
 }
 
@@ -2687,14 +2682,13 @@ static irqreturn_t qpnp_adc_tm_rc_thr_isr(int irq, void *data)
 	}
 
 	if (sensor_low_notify_num) {
-		if (queue_work(chip->low_thr_wq, &chip->trigger_low_thr_work))
-			atomic_inc(&chip->wq_cnt);
+		atomic_inc(&chip->wq_cnt);
+		queue_work(chip->low_thr_wq, &chip->trigger_low_thr_work);
 	}
 
 	if (sensor_high_notify_num) {
-		if (queue_work(chip->high_thr_wq,
-				&chip->trigger_high_thr_work))
-			atomic_inc(&chip->wq_cnt);
+		atomic_inc(&chip->wq_cnt);
+		queue_work(chip->high_thr_wq, &chip->trigger_high_thr_work);
 	}
 
 	return IRQ_HANDLED;
