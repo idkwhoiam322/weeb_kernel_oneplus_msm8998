@@ -888,8 +888,6 @@ struct ufs_hba {
 	/* Number of requests aborts */
 	int req_abort_count;
 
-	u32 security_in;
-
 	/* Number of lanes available (1 or 2) for Rx/Tx */
 	u32 lanes_per_direction;
 
@@ -944,7 +942,6 @@ struct ufs_hba {
 
 	/* sync b/w diff contexts */
 	struct rw_semaphore lock;
-	struct rw_semaphore query_lock;
 	unsigned long shutdown_in_prog;
 
 	struct reset_control *core_reset;
@@ -960,7 +957,6 @@ struct ufs_hba {
 	struct io_latency_state io_lat_read;
 	struct io_latency_state io_lat_write;
 	bool restore_needed;
-
 };
 
 static inline void ufshcd_mark_shutdown_ongoing(struct ufs_hba *hba)
