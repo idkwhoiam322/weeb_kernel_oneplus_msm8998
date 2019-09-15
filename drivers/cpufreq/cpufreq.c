@@ -2371,9 +2371,6 @@ int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_get_policy);
 
-#define LP_MIN_FREQUENCY 518400
-#define HP_MIN_FREQUENCY 806400
-
 /*
  * policy : current policy.
  * new_policy: policy to be set.
@@ -2383,16 +2380,6 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 {
 	struct cpufreq_governor *old_gov;
 	int ret;
-
-/* Set CPU min frequencies for small and large clusters */
-	if (new_policy->cpu > 3) {
-		if (new_policy->min != HP_MIN_FREQUENCY)
-			new_policy->min = HP_MIN_FREQUENCY;
-	}
-	else {
-		if (new_policy->min != LP_MIN_FREQUENCY)
-			new_policy->min = LP_MIN_FREQUENCY;		
-	}
 
 	pr_debug("setting new policy for CPU %u: %u - %u kHz\n",
 		 new_policy->cpu, new_policy->min, new_policy->max);
