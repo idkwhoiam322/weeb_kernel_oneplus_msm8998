@@ -4985,6 +4985,7 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 	struct mdss_overlay_private *mdp5_data = NULL;
 	struct mdp_destination_scaler_data ds_data[2];
 	struct mdp_scale_data_v2 scale_data[2];
+	struct mdss_data_type *mdata;
 
 	ret = copy_from_user(&commit, argp, sizeof(struct mdp_layer_commit));
 	if (ret) {
@@ -5073,6 +5074,13 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 	ds_data_user = commit.commit_v1.dest_scaler;
 	if ((ds_data_user) &&
 		(commit.commit_v1.dest_scaler_cnt)) {
+		mdata = mfd_to_mdata(mfd);
+		if (!mdata || !mdata->scaler_off ||
+				 !mdata->scaler_off->has_dest_scaler) {
+			pr_err("dest scaler not supported\n");
+			ret = -EPERM;
+			goto err;
+		}
 		ret = __mdss_fb_copy_destscaler_data(info, &commit, ds_data,
 						     scale_data);
 		if (ret) {

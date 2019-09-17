@@ -2868,19 +2868,6 @@ err_late_init:
 	return ret;
 }
 
-static int etm4_remove(struct amba_device *adev)
-{
-	struct etmv4_drvdata *drvdata = amba_get_drvdata(adev);
-
-	coresight_unregister(drvdata->csdev);
-	if (--etm4_count == 0) {
-		unregister_hotcpu_notifier(&etm4_cpu_notifier);
-		unregister_hotcpu_notifier(&etm4_cpu_dying_notifier);
-	}
-
-	return 0;
-}
-
 static struct amba_id etm4_ids[] = {
 	{       /* ETM 4.0 - Qualcomm */
 		.id	= 0x0003b95d,

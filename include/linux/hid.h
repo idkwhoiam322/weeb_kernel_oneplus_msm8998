@@ -345,6 +345,12 @@ struct hid_item {
 #define HID_GROUP_LOGITECH_DJ_DEVICE		0x0102
 
 /*
+ * HID protocol status
+ */
+#define HID_REPORT_PROTOCOL	1
+#define HID_BOOT_PROTOCOL	0
+
+/*
  * This is the global environment of the parser. This information is
  * persistent for main-items. The global environment can be saved and
  * restored with PUSH/POP statements.
@@ -372,7 +378,6 @@ struct hid_global {
 
 struct hid_local {
 	unsigned usage[HID_MAX_USAGES]; /* usage array */
-	u8 usage_size[HID_MAX_USAGES]; /* usage size array */
 	unsigned collection_index[HID_MAX_USAGES]; /* collection index array */
 	unsigned usage_index;
 	unsigned usage_minimum;
