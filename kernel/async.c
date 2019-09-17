@@ -78,8 +78,6 @@ struct async_entry {
 	struct async_domain	*domain;
 };
 
-static struct kmem_cache *async_entry_pool;
-
 static DECLARE_WAIT_QUEUE_HEAD(async_done);
 
 static atomic_t entry_count;
@@ -142,7 +140,7 @@ static void async_run_entry_fn(struct work_struct *work)
 	list_del_init(&entry->global_list);
 
 	/* 3) free the entry */
-	kmem_cache_free(async_entry_pool, entry);
+	kfree(entry);
 	atomic_dec(&entry_count);
 
 	spin_unlock_irqrestore(&async_lock, flags);
@@ -158,14 +156,14 @@ static async_cookie_t __async_schedule(async_func_t func, void *data, struct asy
 	async_cookie_t newcookie;
 
 	/* allow irq-off callers */
-	entry = kmem_cache_zalloc(async_entry_pool, GFP_ATOMIC);
+	entry = kzalloc(sizeof(struct async_entry), GFP_ATOMIC);
 
 	/*
 	 * If we're out of memory or if there's too much work
 	 * pending already, we execute synchronously.
 	 */
 	if (!entry || atomic_read(&entry_count) > MAX_WORK) {
-		kmem_cache_free(async_entry_pool, entry);
+		kfree(entry);
 		spin_lock_irqsave(&async_lock, flags);
 		newcookie = next_cookie++;
 		spin_unlock_irqrestore(&async_lock, flags);
@@ -332,11 +330,3 @@ bool current_is_async(void)
 
 	return worker && worker->current_func == async_run_entry_fn;
 }
-
-static int __init init_entry_pool(void)
-{
-	async_entry_pool = KMEM_CACHE(async_entry, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-
-	return 0;
-}
-early_initcall(init_entry_pool);

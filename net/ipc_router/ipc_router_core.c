@@ -41,9 +41,6 @@
 #include "ipc_router_private.h"
 #include "ipc_router_security.h"
 
-static struct kmem_cache *kmem_pkt_pool;
-static struct kmem_cache *kmem_pkt_fragment_q_pool;
-
 enum {
 	SMEM_LOG = 1U << 0,
 	RTR_DBG = 1U << 1,
@@ -579,7 +576,7 @@ struct rr_packet *clone_pkt(struct rr_packet *pkt)
 	struct sk_buff *temp_skb, *cloned_skb;
 	struct sk_buff_head *pkt_fragment_q;
 
-	cloned_pkt = kmem_cache_zalloc(kmem_pkt_pool, GFP_KERNEL);
+	cloned_pkt = kzalloc(sizeof(struct rr_packet), GFP_KERNEL);
 	if (!cloned_pkt) {
 		IPC_RTR_ERR("%s: failure\n", __func__);
 		return NULL;
@@ -597,10 +594,10 @@ struct rr_packet *clone_pkt(struct rr_packet *pkt)
 		}
 	}
 
-	pkt_fragment_q = kmem_cache_zalloc(kmem_pkt_fragment_q_pool, GFP_KERNEL);
+	pkt_fragment_q = kmalloc(sizeof(struct sk_buff_head), GFP_KERNEL);
 	if (!pkt_fragment_q) {
 		IPC_RTR_ERR("%s: pkt_frag_q alloc failure\n", __func__);
-		kmem_cache_free(kmem_pkt_pool, cloned_pkt);
+		kfree(cloned_pkt);
 		return NULL;
 	}
 	skb_queue_head_init(pkt_fragment_q);
@@ -622,10 +619,10 @@ fail_clone:
 		temp_skb = skb_dequeue(pkt_fragment_q);
 		kfree_skb(temp_skb);
 	}
-	kmem_cache_free(kmem_pkt_fragment_q_pool, pkt_fragment_q);
+	kfree(pkt_fragment_q);
 	if (cloned_pkt->opt_hdr.len > 0)
 		kfree(cloned_pkt->opt_hdr.data);
-	kmem_cache_free(kmem_pkt_pool, cloned_pkt);
+	kfree(cloned_pkt);
 	return NULL;
 }
 
@@ -640,7 +637,7 @@ struct rr_packet *create_pkt(struct sk_buff_head *data)
 	struct rr_packet *pkt;
 	struct sk_buff *temp_skb;
 
-	pkt = kmem_cache_zalloc(kmem_pkt_pool, GFP_KERNEL);
+	pkt = kzalloc(sizeof(struct rr_packet), GFP_KERNEL);
 	if (!pkt) {
 		IPC_RTR_ERR("%s: failure\n", __func__);
 		return NULL;
@@ -651,12 +648,12 @@ struct rr_packet *create_pkt(struct sk_buff_head *data)
 		skb_queue_walk(pkt->pkt_fragment_q, temp_skb)
 			pkt->length += temp_skb->len;
 	} else {
-		pkt->pkt_fragment_q =
-			kmem_cache_zalloc(kmem_pkt_fragment_q_pool, GFP_KERNEL);
+		pkt->pkt_fragment_q = kmalloc(sizeof(struct sk_buff_head),
+					      GFP_KERNEL);
 		if (!pkt->pkt_fragment_q) {
 			IPC_RTR_ERR("%s: Couldn't alloc pkt_fragment_q\n",
 				    __func__);
-			kmem_cache_free(kmem_pkt_pool, pkt);
+			kfree(pkt);
 			return NULL;
 		}
 		skb_queue_head_init(pkt->pkt_fragment_q);
@@ -673,7 +670,7 @@ void release_pkt(struct rr_packet *pkt)
 		return;
 
 	if (!pkt->pkt_fragment_q) {
-		kmem_cache_free(kmem_pkt_pool, pkt);
+		kfree(pkt);
 		return;
 	}
 
@@ -681,10 +678,11 @@ void release_pkt(struct rr_packet *pkt)
 		temp_skb = skb_dequeue(pkt->pkt_fragment_q);
 		kfree_skb(temp_skb);
 	}
-	kmem_cache_free(kmem_pkt_fragment_q_pool, pkt->pkt_fragment_q);
+	kfree(pkt->pkt_fragment_q);
 	if (pkt->opt_hdr.len > 0)
 		kfree(pkt->opt_hdr.data);
-	kmem_cache_free(kmem_pkt_pool, pkt);
+	kfree(pkt);
+	return;
 }
 
 static struct sk_buff_head *msm_ipc_router_buf_to_skb(void *buf,
@@ -4394,9 +4392,6 @@ static int ipc_router_core_init(void)
 		mutex_unlock(&ipc_router_init_lock);
 		return 0;
 	}
-
-	kmem_pkt_pool = KMEM_CACHE(rr_packet, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-	kmem_pkt_fragment_q_pool = KMEM_CACHE(sk_buff_head, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
 
 	debugfs_init();
 

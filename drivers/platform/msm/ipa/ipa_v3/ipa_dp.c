@@ -467,14 +467,13 @@ int ipa3_send(struct ipa3_sys_context *sys,
 	struct sps_iovec *iovec;
 	struct gsi_xfer_elem *gsi_xfer_elem_array = NULL;
 	dma_addr_t dma_addr;
-	struct gsi_xfer_elem gsi_xfer_elem_array_onstack[16] __aligned(8);
 	int i = 0;
 	int j;
 	int result;
+	uint size;
 	u32 mem_flag = GFP_ATOMIC;
 	int ipa_ep_idx;
 	struct ipa_gsi_ep_config *gsi_ep_cfg;
-	u32 size;
 
 	if (unlikely(!in_atomic))
 		mem_flag = GFP_KERNEL;
@@ -501,16 +500,12 @@ int ipa3_send(struct ipa3_sys_context *sys,
 			return -EPERM;
 		}
 
-		size = num_desc * sizeof(struct gsi_xfer_elem);
-		if (likely(size <= sizeof(gsi_xfer_elem_array_onstack))) {
-			memset(gsi_xfer_elem_array_onstack, 0, size);
-			gsi_xfer_elem_array = gsi_xfer_elem_array_onstack;
-		} else {
-			gsi_xfer_elem_array = kzalloc(size, mem_flag);
-			if (!gsi_xfer_elem_array) {
-				IPAERR("Failed to alloc mem for gsi xfer array.\n");
-				return -ENOMEM;
-			}
+		gsi_xfer_elem_array =
+			kzalloc(num_desc * sizeof(struct gsi_xfer_elem),
+			mem_flag);
+		if (!gsi_xfer_elem_array) {
+			IPAERR("Failed to alloc mem for gsi xfer array.\n");
+			return -EFAULT;
 		}
 	} else {
 		if (num_desc == IPA_NUM_DESC_PER_SW_TX) {
@@ -689,8 +684,7 @@ int ipa3_send(struct ipa3_sys_context *sys,
 			IPAERR("GSI xfer failed.\n");
 			goto failure;
 		}
-	if (unlikely(gsi_xfer_elem_array != gsi_xfer_elem_array_onstack))
-			kfree(gsi_xfer_elem_array);
+		kfree(gsi_xfer_elem_array);
 	} else {
 		result = sps_transfer(sys->ep->ep_hdl, &transfer);
 		if (result) {
@@ -728,8 +722,7 @@ failure:
 		tx_pkt = next_pkt;
 	}
 	if (ipa3_ctx->transport_prototype == IPA_TRANSPORT_TYPE_GSI) {
-		if (unlikely(gsi_xfer_elem_array != gsi_xfer_elem_array_onstack))
-			kfree(gsi_xfer_elem_array);
+		kfree(gsi_xfer_elem_array);
 	} else {
 		if (transfer.iovec_phys) {
 			if (num_desc == IPA_NUM_DESC_PER_SW_TX) {
