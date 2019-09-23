@@ -126,7 +126,7 @@ static inline bool task_is_booster(struct task_struct *tsk)
 
 	get_task_comm(comm, tsk);
 	return !strcmp(comm, "init") || !strcmp(comm, "NodeLooperThrea") ||
-	       !strcmp(comm, "power@") ||
+	       !strcmp(comm, "power@1.2-servi") ||
 	       !strcmp(comm, "perf@1.0-servic") ||
 	       !strcmp(comm, "init.qcom.post_");
 }
