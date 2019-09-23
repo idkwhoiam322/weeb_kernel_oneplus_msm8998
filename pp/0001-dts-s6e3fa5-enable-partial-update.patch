@@ -1,0 +1,25 @@
+From 9a4c82da31911f7bb0dc34920e24b64e846a9a4d Mon Sep 17 00:00:00 2001
+From: Park Ju Hyung <qkrwngud825@gmail.com>
+Date: Tue, 30 Jan 2018 04:27:36 +0900
+Subject: [PATCH] dts: s6e3fa5: enable partial update
+
+Signed-off-by: Park Ju Hyung <qkrwngud825@gmail.com>
+---
+ arch/arm/boot/dts/qcom/dsi-panel-samsung_s6e3fa5_1080p_cmd.dtsi | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm/boot/dts/qcom/dsi-panel-samsung_s6e3fa5_1080p_cmd.dtsi b/arch/arm/boot/dts/qcom/dsi-panel-samsung_s6e3fa5_1080p_cmd.dtsi
+index e3596fd3deb3..6ff95b9fa8d7 100644
+--- a/arch/arm/boot/dts/qcom/dsi-panel-samsung_s6e3fa5_1080p_cmd.dtsi
++++ b/arch/arm/boot/dts/qcom/dsi-panel-samsung_s6e3fa5_1080p_cmd.dtsi
+@@ -172,5 +172,7 @@
+ 				qcom,mdss-dsi-night-mode-command-state = "dsi_hs_mode";	
+ 			qcom,ulps-enabled;
+ 			qcom,panel-allow-phy-poweroff;
++			qcom,partial-update-enabled = "single_roi";
++			qcom,panel-roi-alignment = <1080 8 1080 8 1080 8>;
+ 	};
+ };
+-- 
+2.17.1
+
