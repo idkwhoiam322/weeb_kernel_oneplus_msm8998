@@ -37,11 +37,7 @@ static gfp_t high_order_gfp_flags = (GFP_HIGHUSER | __GFP_NOWARN |
 static gfp_t low_order_gfp_flags  = (GFP_HIGHUSER | __GFP_NOWARN);
 
 #ifndef CONFIG_ALLOC_BUFFERS_IN_4K_CHUNKS
-#if defined(CONFIG_IOMMU_IO_PGTABLE_ARMV7S)
-static const unsigned int orders[] = {8, 4, 0};
-#else
-static const unsigned int orders[] = {9, 4, 0};
-#endif
+static const unsigned int orders[] = {4, 0};
 #else
 static const unsigned int orders[] = {0};
 #endif
@@ -101,11 +97,6 @@ size_t ion_system_heap_secure_page_pool_total(struct ion_heap *heap,
 	}
 
 	return total << PAGE_SHIFT;
-}
-
-static int ion_heap_is_system_heap_type(enum ion_heap_type type)
-{
-	return type == ((enum ion_heap_type)ION_HEAP_TYPE_SYSTEM);
 }
 
 static struct page *alloc_buffer_page(struct ion_system_heap *heap,
@@ -365,13 +356,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	int vmid = get_secure_vmid(buffer->flags);
 	struct device *dev = heap->priv;
 
-	if (ion_heap_is_system_heap_type(buffer->heap->type) &&
-	    is_secure_vmid_valid(vmid)) {
-		pr_info("%s: System heap doesn't support secure allocations\n",
-			__func__);
-		return -EINVAL;
-	}
-
 	if (align > PAGE_SIZE)
 		return -EINVAL;
 
@@ -486,7 +470,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 
 err_free_sg2:
 	/* We failed to zero buffers. Bypass pool */
-	buffer->private_flags |= ION_PRIV_FLAG_SHRINKER_FREE;
+	buffer->flags |= ION_PRIV_FLAG_SHRINKER_FREE;
 
 	if (vmid > 0)
 		ion_system_secure_heap_unassign_sg(table, vmid);
@@ -788,8 +772,7 @@ static void ion_system_heap_destroy_pools(struct ion_page_pool **pools)
  * ion_system_heap_destroy_pools to destroy the pools.
  */
 static int ion_system_heap_create_pools(struct device *dev,
-					struct ion_page_pool **pools,
-					bool movable)
+					struct ion_page_pool **pools)
 {
 	int i;
 	for (i = 0; i < num_orders; i++) {
@@ -798,8 +781,7 @@ static int ion_system_heap_create_pools(struct device *dev,
 
 		if (orders[i])
 			gfp_flags = high_order_gfp_flags;
-		pool = ion_page_pool_create(dev, gfp_flags, orders[i],
-					movable);
+		pool = ion_page_pool_create(dev, gfp_flags, orders[i]);
 		if (!pool)
 			goto err_create_pool;
 		pools[i] = pool;
@@ -838,15 +820,15 @@ struct ion_heap *ion_system_heap_create(struct ion_platform_heap *data)
 			if (!heap->secure_pools[i])
 				goto err_create_secure_pools;
 			if (ion_system_heap_create_pools(
-					dev, heap->secure_pools[i], false))
+					dev, heap->secure_pools[i]))
 				goto err_create_secure_pools;
 		}
 	}
 
-	if (ion_system_heap_create_pools(dev, heap->uncached_pools, false))
+	if (ion_system_heap_create_pools(dev, heap->uncached_pools))
 		goto err_create_uncached_pools;
 
-	if (ion_system_heap_create_pools(dev, heap->cached_pools, true))
+	if (ion_system_heap_create_pools(dev, heap->cached_pools))
 		goto err_create_cached_pools;
 
 	mutex_init(&heap->split_page_mutex);
