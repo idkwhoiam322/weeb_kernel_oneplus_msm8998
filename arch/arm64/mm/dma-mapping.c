@@ -3,7 +3,6 @@
  *
  * Copyright (C) 2012 ARM Ltd.
  * Author: Catalin Marinas <catalin.marinas@arm.com>
- * Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -47,6 +46,17 @@ static pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot,
 		return pgprot_noncached(prot);
 	else if (!coherent || dma_get_attr(DMA_ATTR_WRITE_COMBINE, attrs))
 		return pgprot_writecombine(prot);
+	return prot;
+}
+
+static int __get_iommu_pgprot(struct dma_attrs *attrs, int prot,
+			      bool coherent)
+{
+	if (!dma_get_attr(DMA_ATTR_EXEC_MAPPING, attrs))
+		prot |= IOMMU_NOEXEC;
+	if (coherent)
+		prot |= IOMMU_CACHE;
+
 	return prot;
 }
 
@@ -154,8 +164,6 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flags,
 				  struct dma_attrs *attrs)
 {
-	void *addr;
-
 	if (dev == NULL) {
 		WARN_ONCE(1, "Use an actual device structure for DMA allocation\n");
 		return NULL;
@@ -166,6 +174,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 		flags |= GFP_DMA;
 	if (dev_get_cma_area(dev) && gfpflags_allow_blocking(flags)) {
 		struct page *page;
+		void *addr;
 
 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
 							get_order(size));
@@ -175,20 +184,20 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 		*dma_handle = phys_to_dma(dev, page_to_phys(page));
 		addr = page_address(page);
 		memset(addr, 0, size);
+
+		if (dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs) ||
+		    dma_get_attr(DMA_ATTR_STRONGLY_ORDERED, attrs)) {
+			/*
+			 * flush the caches here because we can't later
+			 */
+			__dma_flush_range(addr, addr + size);
+			__dma_remap(page, size, 0, true);
+		}
+
+		return addr;
 	} else {
-		addr = swiotlb_alloc_coherent(dev, size, dma_handle, flags);
+		return swiotlb_alloc_coherent(dev, size, dma_handle, flags);
 	}
-
-	if (addr && (dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs) ||
-		dma_get_attr(DMA_ATTR_STRONGLY_ORDERED, attrs))) {
-		/*
-		 * flush the caches here because we can't later
-		 */
-		__dma_flush_range(addr, addr + size);
-		__dma_remap(virt_to_page(addr), size, 0, true);
-	}
-
-	return addr;
 }
 
 static void __dma_free_coherent(struct device *dev, size_t size,
@@ -920,6 +929,7 @@ static struct dma_map_ops iommu_dma_ops = {
 	.sync_single_for_device = __iommu_sync_single_for_device,
 	.sync_sg_for_cpu = __iommu_sync_sg_for_cpu,
 	.sync_sg_for_device = __iommu_sync_sg_for_device,
+	.dma_supported = iommu_dma_supported,
 	.mapping_error = iommu_dma_mapping_error,
 };
 
@@ -1133,17 +1143,6 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 EXPORT_SYMBOL(arch_setup_dma_ops);
 
 #ifdef CONFIG_ARM64_DMA_USE_IOMMU
-
-static int __get_iommu_pgprot(struct dma_attrs *attrs, int prot,
-			      bool coherent)
-{
-	if (!dma_get_attr(DMA_ATTR_EXEC_MAPPING, attrs))
-		prot |= IOMMU_NOEXEC;
-	if (coherent)
-		prot |= IOMMU_CACHE;
-
-	return prot;
-}
 
 /*
  * Make an area consistent for devices.
