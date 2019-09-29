@@ -666,7 +666,7 @@ static void handle_rx(struct vhost_net *net)
 	mergeable = vhost_has_feature(vq, VIRTIO_NET_F_MRG_RXBUF);
 
 	do {
-		sock_len = vhost_net_rx_peek_head_len(net, sock->sk
+		sock_len = vhost_net_rx_peek_head_len(net, sock->sk);
 		if (!sock_len)
 			break;
 		sock_len += sock_hlen;
