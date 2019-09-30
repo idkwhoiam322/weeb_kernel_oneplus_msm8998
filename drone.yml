@@ -29,7 +29,7 @@ steps:
       - export DEFCONFIG=weeb_defconfig && export BUILDFOR=oos && bash dronekernel.sh --gcc --oos --beta
     when:
       branch:
-        - kernel-4.4
+        - android10-4.4
 
 
   - name: build_stable_kernel
