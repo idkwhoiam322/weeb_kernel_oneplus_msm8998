@@ -1258,7 +1258,8 @@ out:
 		    !strcmp(task_comm, "eaurora.snapcam") ||
 		    !strcmp(task_comm, "android.gallery") ||
 		    !strcmp(task_comm, "mnirom.omnijaws") ||
-		    !strcmp(task_comm, ".oneplus.camera")) {
+		    !strcmp(task_comm, ".oneplus.camera") ||
+		    !strcmp(task_comm, "rdog.challegram")) {
 			struct task_kill_info *kinfo;
 
 			kinfo = kmalloc(sizeof(*kinfo), GFP_KERNEL);
