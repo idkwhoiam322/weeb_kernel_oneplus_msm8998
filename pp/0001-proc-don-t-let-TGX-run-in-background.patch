@@ -1,17 +1,18 @@
-From fba2550ba1b3c48d38acb63eb11093c46a45bd3e Mon Sep 17 00:00:00 2001
+From d889490bf703e285e4ffcbe09eec82f3ccf2d351 Mon Sep 17 00:00:00 2001
 From: idkwhoiam322 <idkwhoiam322@raphielgang.org>
-Date: Mon, 23 Sep 2019 23:32:31 +0530
+Date: Wed, 2 Oct 2019 17:09:44 +0530
 Subject: [PATCH] proc: don't let TGX run in background
 
+Signed-off-by: idkwhoiam322 <idkwhoiam322@raphielgang.org>
 ---
  fs/proc/base.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index b098093fb1a5..5123fd5676d8 100644
+index c3dd09056ea3..0c7d301bca4d 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
-@@ -1259,7 +1259,8 @@ out:
+@@ -1258,7 +1258,8 @@ out:
  		    !strcmp(task_comm, "eaurora.snapcam") ||
  		    !strcmp(task_comm, "android.gallery") ||
  		    !strcmp(task_comm, "mnirom.omnijaws") ||
