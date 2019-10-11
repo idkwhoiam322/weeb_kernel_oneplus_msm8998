@@ -11,6 +11,7 @@
 #include <linux/input.h>
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
+#include <linux/sched.h>
 
 static unsigned int input_boost_freq_lp __read_mostly =
 	CONFIG_INPUT_BOOST_FREQ_LP;
@@ -264,7 +265,9 @@ static int fb_notifier_cb(struct notifier_block *nb, unsigned long action,
 	if (*blank == FB_BLANK_UNBLANK) {
 		clear_bit(SCREEN_OFF, &b->state);
 		__cpu_input_boost_kick_max(b, wake_boost_duration);
+		disable_schedtune_boost(0);
 	} else {
+		disable_schedtune_boost(1);
 		set_bit(SCREEN_OFF, &b->state);
 		wake_up(&b->boost_waitq);
 	}
