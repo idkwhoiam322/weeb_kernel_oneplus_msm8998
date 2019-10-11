@@ -6350,10 +6350,20 @@ static bool cpu_overutilized(int cpu)
 
 struct reciprocal_value schedtune_spc_rdiv;
 
+static int disable_boost = 0;
+
+void disable_schedtune_boost(int disable)
+{
+	disable_boost = disable;
+}
+
 static long
 schedtune_margin(unsigned long signal, long boost)
 {
 	long long margin = 0;
+
+	if (disable_boost)
+		boost = 0;
 
 	/*
 	 * Signal proportional compensation (SPC)
