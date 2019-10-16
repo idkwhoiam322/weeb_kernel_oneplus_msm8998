@@ -6376,9 +6376,6 @@ schedtune_margin(unsigned long signal, long boost)
 {
 	long long margin = 0;
 
-	if (disable_boost)
-		boost = 0;
-
 	/*
 	 * Signal proportional compensation (SPC)
 	 *
@@ -6406,7 +6403,7 @@ schedtune_cpu_margin(unsigned long util, int cpu)
 {
 	int boost = schedtune_cpu_boost(cpu);
 
-	if (boost == 0 || boost == 2)
+	if (boost == 0 || boost == 2 || disable_boost)
 		return 0;
 
 	return schedtune_margin(util, boost);
@@ -6419,7 +6416,7 @@ schedtune_task_margin(struct task_struct *task)
 	unsigned long util;
 	long margin;
 
-	if (boost == 0 || boost == 2)
+	if (boost == 0 || boost == 2 || disable_boost)
 		return 0;
 
 	util = task_util_est(task);
