@@ -1298,7 +1298,7 @@ static int tfa98xx_info_vstep(struct snd_kcontrol *kcontrol,
 	uinfo->count = 1;// TODO handles_local[dev_idx].spkr_count
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = tfacont_get_max_vstep(tfa98xx->handle, profile) - 1;
-	pr_err("vsteps count: %d [prof=%d]\n", tfacont_get_max_vstep(tfa98xx->handle, profile),
+	pr_debug("vsteps count: %d [prof=%d]\n", tfacont_get_max_vstep(tfa98xx->handle, profile),
 			profile);
 	return 0;
 }
@@ -1584,7 +1584,7 @@ static int tfa98xx_set_stop_ctl(struct snd_kcontrol *kcontrol,
 static int tfa98xx_info_rivision_ctl(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
-	pr_err("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 5;
 	uinfo->value.integer.min = 0;
