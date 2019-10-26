@@ -282,9 +282,9 @@ static struct device_attribute tfa98xx_Log_state_attr =
 
 
 /* Wrapper for tfa start */
-static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profile, int *vstep)
+static enum Tfa98xx_Error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profile, int *vstep)
 {
-	enum tfa_error err;
+	enum Tfa98xx_Error err;
 
 	err = tfa_start(next_profile, vstep);
 
