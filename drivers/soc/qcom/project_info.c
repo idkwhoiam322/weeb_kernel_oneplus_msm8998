@@ -103,9 +103,6 @@ static ssize_t project_info_get(struct device *dev,
 		if (attr == &dev_attr_platform_id)
 			return snprintf(buf, BUF_SIZE, "%d\n",
 			project_info_desc->platform_id);
-		if (attr == &dev_attr_serialno)
-			return snprintf(buf, BUF_SIZE, "0x%x\n",
-			chip_serial_num);
 		if (attr == &dev_attr_feature_id)
 			return snprintf(buf, BUF_SIZE, "%d\n",
 			project_info_desc->feature_id);

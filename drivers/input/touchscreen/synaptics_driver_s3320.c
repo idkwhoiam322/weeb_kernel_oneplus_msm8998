@@ -55,7 +55,6 @@
 
 #include <linux/input/mt.h>
 
-#include "synaptics_redremote.h"
 #include <linux/project_info.h>
 #include "synaptics_baseline.h"
 
@@ -102,9 +101,6 @@ struct test_header {
 	unsigned int array_limitcbc_offset;
 	unsigned int array_limitcbc_size;
 };
-
-/******************for Red function*****************/
-#define CONFIG_SYNAPTIC_RED
 
 /*********************for gesture*******************/
 #ifdef SUPPORT_GESTURE
@@ -4558,9 +4554,6 @@ static int synaptics_ts_init_virtual_key(struct synaptics_ts_data *ts)
 static int synaptics_ts_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-#ifdef CONFIG_SYNAPTIC_RED
-	struct remotepanel_data *premote_data = NULL;
-#endif
 	struct synaptics_ts_data *ts = NULL;
 	int ret = -1;
 	uint8_t buf[4];
@@ -4787,19 +4780,6 @@ static int synaptics_ts_probe(struct i2c_client *client,
 #ifdef SUPPORT_VIRTUAL_KEY
 	synaptics_ts_init_virtual_key(ts);
 #endif
-#ifdef CONFIG_SYNAPTIC_RED
-	premote_data = remote_alloc_panel_data();
-	if (premote_data) {
-		premote_data->client        = client;
-		premote_data->input_dev		= ts->input_dev;
-		premote_data->pmutex		= &ts->mutex;
-		premote_data->irq_gpio      = ts->irq_gpio;
-		premote_data->irq			= client->irq;
-		premote_data->enable_remote = &(ts->enable_remote);
-		register_remote_device(premote_data);
-
-	}
-#endif
 	init_synaptics_proc(ts);
 
 	TPDTM_DMESG("synaptics_ts_probe 3203: normal end\n");
@@ -4831,9 +4811,6 @@ static int synaptics_ts_remove(struct i2c_client *client)
 	struct synaptics_ts_data *ts = i2c_get_clientdata(client);
 
 	TPD_ERR("%s is called\n", __func__);
-#ifdef CONFIG_SYNAPTIC_RED
-	unregister_remote_device();
-#endif
 
 #if defined(CONFIG_FB)
 	if (fb_unregister_client(&ts->fb_notif))
