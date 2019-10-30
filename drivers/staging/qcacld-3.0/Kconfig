@@ -52,7 +52,7 @@ config QCACLD_FEATURE_GREEN_AP
 
 config QCACLD_FEATURE_METERING
 	bool "Enable feature metering"
-	default n
+	default y
 
 config HELIUMPLUS
 	bool "Enable Beeliner based descriptor structures for Helium"
