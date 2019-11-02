@@ -169,6 +169,7 @@ void cpu_input_boost_kick_max(unsigned int duration_ms)
 {
 	struct boost_drv *b = &boost_drv_g;
 
+	energy_aware_enable = false;
 	__cpu_input_boost_kick_max(b, duration_ms);
 }
 
@@ -185,6 +186,8 @@ static void max_unboost_worker(struct work_struct *work)
 {
 	struct boost_drv *b = container_of(to_delayed_work(work),
 					   typeof(*b), max_unboost);
+
+	energy_aware_enable = true;
 
 	clear_bit(MAX_BOOST, &b->state);
 	wake_up(&b->boost_waitq);
