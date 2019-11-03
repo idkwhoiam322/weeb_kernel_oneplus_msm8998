@@ -84,7 +84,7 @@ struct generic_get_data_ {
 };
 static struct generic_get_data_ *generic_get_data;
 
-static int parse_fwk_version_info(uint32_t *payload, uint16_t payload_size)
+static int parse_fwk_version_info(uint32_t *payload)
 {
 	size_t ver_size;
 	int num_services;
@@ -97,11 +97,6 @@ static int parse_fwk_version_info(uint32_t *payload, uint16_t payload_size)
 	 * Based on this info, we copy the payload into core
 	 * avcs version info structure.
 	 */
-	if (payload_size < 5 * sizeof(uint32_t)) {
-		pr_err("%s: payload has invalid size %d\n",
-			__func__, payload_size);
-		return -EINVAL;
-	}
 	num_services = payload[4];
 	if (num_services > VSS_MAX_AVCS_NUM_SERVICES) {
 		pr_err("%s: num_services: %d greater than max services: %d\n",
@@ -116,11 +111,6 @@ static int parse_fwk_version_info(uint32_t *payload, uint16_t payload_size)
 	ver_size = sizeof(struct avcs_get_fwk_version) +
 		   num_services * sizeof(struct avs_svc_api_info);
 
-	if (payload_size < ver_size) {
-		pr_err("%s: payload has invalid size %d, expected size %zu\n",
-			__func__, payload_size, ver_size);
-		return -EINVAL;
-	}
 	q6core_lcl.q6core_avcs_ver_info.ver_info =
 		kzalloc(ver_size, GFP_ATOMIC);
 	if (q6core_lcl.q6core_avcs_ver_info.ver_info == NULL)
@@ -156,12 +146,6 @@ static int32_t aprv2_core_fn_q(struct apr_client_data *data, void *priv)
 		}
 
 		payload1 = data->payload;
-
-		if (data->payload_size < 2 * sizeof(uint32_t)) {
-			pr_err("%s: payload has invalid size %d\n",
-				__func__, data->payload_size);
-			return -EINVAL;
-		}
 
 		switch (payload1[0]) {
 
@@ -231,11 +215,6 @@ static int32_t aprv2_core_fn_q(struct apr_client_data *data, void *priv)
 		break;
 	}
 	case AVCS_CMDRSP_SHARED_MEM_MAP_REGIONS:
-		if (data->payload_size < sizeof(uint32_t)) {
-			pr_err("%s: payload has invalid size %d\n",
-				__func__, data->payload_size);
-			return -EINVAL;
-		}
 		payload1 = data->payload;
 		pr_debug("%s: AVCS_CMDRSP_SHARED_MEM_MAP_REGIONS handle %d\n",
 			__func__, payload1[0]);
@@ -244,11 +223,6 @@ static int32_t aprv2_core_fn_q(struct apr_client_data *data, void *priv)
 		wake_up(&q6core_lcl.bus_bw_req_wait);
 		break;
 	case AVCS_CMDRSP_ADSP_EVENT_GET_STATE:
-		if (data->payload_size < sizeof(uint32_t)) {
-			pr_err("%s: payload has invalid size %d\n",
-				__func__, data->payload_size);
-			return -EINVAL;
-		}
 		payload1 = data->payload;
 		q6core_lcl.param = payload1[0];
 		pr_debug("%s: Received ADSP get state response 0x%x\n",
@@ -259,11 +233,6 @@ static int32_t aprv2_core_fn_q(struct apr_client_data *data, void *priv)
 		wake_up(&q6core_lcl.bus_bw_req_wait);
 		break;
 	case AVCS_GET_VERSIONS_RSP:
-		if (data->payload_size < 4 * sizeof(uint32_t)) {
-			pr_err("%s: payload has invalid size %d\n",
-				__func__, data->payload_size);
-			return -EINVAL;
-		}
 		payload1 = data->payload;
 		pr_debug("%s: Received ADSP version response[3]0x%x\n",
 					 __func__, payload1[3]);
@@ -290,11 +259,6 @@ static int32_t aprv2_core_fn_q(struct apr_client_data *data, void *priv)
 		break;
 
 	 case AVCS_CMDRSP_GET_LICENSE_VALIDATION_RESULT:
-		if (data->payload_size < sizeof(uint32_t)) {
-			pr_err("%s: payload has invalid size %d\n",
-				__func__, data->payload_size);
-			return -EINVAL;
-		}
 		payload1 = data->payload;
 		pr_debug("%s: cmd = LICENSE_VALIDATION_RESULT, result = 0x%x\n",
 				__func__, payload1[0]);
@@ -307,7 +271,7 @@ static int32_t aprv2_core_fn_q(struct apr_client_data *data, void *priv)
 		pr_debug("%s: Received AVCS_CMDRSP_GET_FWK_VERSION\n",
 			 __func__);
 		payload1 = data->payload;
-		ret = parse_fwk_version_info(payload1, data->payload_size);
+		ret = parse_fwk_version_info(payload1);
 		if (ret < 0) {
 			q6core_lcl.adsp_status = ret;
 			pr_err("%s: Failed to parse payload:%d\n",
