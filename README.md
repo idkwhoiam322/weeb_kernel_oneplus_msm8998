@@ -45,68 +45,53 @@ Current Android Version - 9/Pie
 
 
 ## Features
-Based on Weeb Kernel v2.53 Release - Codename: Caesar
+Based on Weeb Kernel v3.00 Release - Codename: Ricardo
 ```
 - Compiled using GCC 9.1.0 bare metal compiled by kdrag0n
-- Latest LTS merged from kernel.org - 4.4.186
-- Latest CAF tag - "LA.UM.7.4.r1-05400-8x98.0"
-- Latest QCACLD tag - "LA.UM.7.3.r1-07900-sdm845.0"
+- Support for Custom ROMs on android 9 and 10 only
+- Linux 4.4.196
+- Cleaned up OnePlus changes as much as possible and brought bringup as close to CAF as I could
+- Use latest [ at time of release ] public CAF tag for 8x98 - LA.UM.8.4.r1-04500-8x98.0
+- Use qcacld-3.0 from wahoo android10-release [ CAF Q qcacld-3.0 is bugged ]
+- PELT for EAS
+- Replicate pixel's powerHAL behaviour to disable EAS behaviour on app launch
+- Disable schedtune boost and bias on screen off
+- disable debugfs
 - Latest f2fs merge from kernel/common
-- Latest f2fs related commits ( like rapid gc ) from arter97 as per May 15 2019
 - Latest fixes for clang support
-- Up to date with latest OnePlus changes
 - Used latest GCC and clang to fix several code issues detected
 - KCAL support
+- KLAPSE support
 - Sound control
-- Sweep2sleep
 - Hight Brightness Mode ( HBM )
-- Source unified for oos and custom ROMs
-- Redone EAS implementation - seems to work much better now as reported by users and seen by myself
-- Disabled CAF CPU_BOOST
-- Wireguard support
 - CFQ upstreamed
-- ZRAM disabled
 - increased kgsl priority
 - vdso32 support
 - ULPS mode for display
 - Disabled audit
-- HZ 100
 - Lower touch latency
 - kerneltoast's ( aka sultanxda ) devfreq boost driver
-- Removed qos code added by oneplus
+- Removed QoS code treewide added by OnePlus
 - Several EAS backports from higher kernel versions ( 4.9, 4.14, 4.19, some from mainline too )
 - schedutil updated with several patches from higher kernel versions
-- Some softirq backports from mainline that improved jitter
-- CRC32 backports by arter97
-- RCU and cpufreq backports by celtare21
-- Several improvements from p2 and p3/a Q tag
+- cpufreq backports by celtare21
+- Several improvements from p2, p3/a, p4 Q tag
 - Disabled a ton of unnecessary logging
-- top-app schedtune.boost locked at 1
-- Removed unused frequencies ( All frequencies below 518400 and 806400 have been removed )
-- Stune_assist by YaroST12
-- cpuset assist
+- top-app schedtune boost default at 5, configurable by the user
 - Cpu Input Boost by kerneltoast
-- ufs ricing from wahoo and essential phone
-- cpuidle, kgsl, mdss, qos and ufs power efficiency improvements by kerneltoast
+- UFS ricing from wahoo
+- cpuidle, kgsl, mdss, QoS and UFS power efficiency improvements by kerneltoast
 - Fake sched_boost proc to fool userspace since I'm not using dynamic stune boost
 - Removed excessive debug bloat from qcacld
-- Dependency on Magisk removed. Kernel modifies a file in vendor to adjust cpusets ( defaults for most things hardcoded in kernel, users free to modify them )
 - Fixed several memory leaks
-- Added some build.prop tweaks and switched to the opengl renderer
-- Disabled DEBUG_FS
-- Disabled FTRACE
-- Disabled DEBUG_KERNEL
-- KLapse 5.0
 - Sultan's binder rewrite
-- adreno improvements
-- PELT for EAS
-- ext4,  genirq, glink, sdcardfs, qseecom ricing
-- POCKET_JUDGE ( custom only )
-- Wahoo irq balancer
-- Variants:
-	oos - OxygenOS
-	custom - Custom ROMs that aren't omni
-	omni - Omni based custom ROMs
+- Sultan's ion rewrite
+- Sultan's iommu rewrite
+- Adreno improvements
+- improvements to sdcardfs, qseecom
+- use rcu normal
+- Some changes from pixel and google guidelines to boot faster
+- tons of more small changes throughout
 ```
 
 ## Features you will never see
