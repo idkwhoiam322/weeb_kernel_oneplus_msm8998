@@ -1,4 +1,4 @@
-	#include <linux/gpio.h>
+#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -537,28 +537,6 @@ update_err:
 	pr_err("%s err\n", __func__);
 	return false;
 }
-
-bool dash_adapter_update_is_tx_gpio(unsigned long gpio_num)
-{
-	if (!the_chip)
-		return false;
-	if (the_chip->adapter_update_ing && gpio_num == the_chip->uart_tx_gpio)
-		return true;
-	else
-		return false;
-}
-
-bool dash_adapter_update_is_rx_gpio(unsigned long gpio_num)
-{
-	if (!the_chip)
-		return false;
-
-	if (the_chip->adapter_update_ing && gpio_num == the_chip->uart_rx_gpio)
-		return true;
-	else
-		return false;
-}
-
 
 struct op_adapter_operations op_adapter_ops = {
 		.adapter_update = dash_adapter_update_handle,
