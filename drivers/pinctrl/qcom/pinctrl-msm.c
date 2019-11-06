@@ -448,19 +448,6 @@ static int msm_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(val & BIT(g->in_bit));
 }
 
-static int msm_gpio_get_dash(struct gpio_chip *chip, unsigned offset)
-{
-	const struct msm_pingroup *g;
-	struct msm_pinctrl *pctrl = container_of(chip,
-		struct msm_pinctrl, chip);
-	u32 val;
-
-	/*pr_err("%s enter\n", __func__);*/
-	g = &pctrl->soc->groups[offset];
-
-	val = readl(pctrl->regs + g->io_reg);
-	return !!(val & BIT(g->in_bit));
-}
 static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	const struct msm_pingroup *g;
@@ -480,27 +467,6 @@ static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	writel(val, pctrl->regs + g->io_reg);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
-}
-
-static void msm_gpio_set_dash(struct gpio_chip *chip,
-			unsigned offset, int value)
-{
-	const struct msm_pingroup *g;
-	struct msm_pinctrl *pctrl = container_of(chip,
-						struct msm_pinctrl, chip);
-	u32 val;
-
-	/*pr_err("%s enter\n", __func__);*/
-	g = &pctrl->soc->groups[offset];
-
-	/*spin_lock_irqsave(&pctrl->lock, flags);*/
-	if (value)
-		val = BIT(g->out_bit);
-	else
-		val = ~BIT(g->out_bit);
-	writel(val, pctrl->regs + g->io_reg);
-
-	/*spin_unlock_irqrestore(&pctrl->lock, flags);*/
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -564,9 +530,7 @@ static struct gpio_chip msm_gpio_template = {
 	.direction_input  = msm_gpio_direction_input,
 	.direction_output = msm_gpio_direction_output,
 	.get              = msm_gpio_get,
-	.get_dash	  = msm_gpio_get_dash,
 	.set              = msm_gpio_set,
-	.set_dash	  = msm_gpio_set_dash,
 	.request          = gpiochip_generic_request,
 	.free             = gpiochip_generic_free,
 	.dbg_show         = msm_gpio_dbg_show,
