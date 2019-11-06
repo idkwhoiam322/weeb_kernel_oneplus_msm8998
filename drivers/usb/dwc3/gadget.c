@@ -3510,7 +3510,7 @@ irqreturn_t dwc3_interrupt(int irq, void *_dwc)
 	dwc->irq_cnt++;
 
 	/* controller reset is still pending */
-	if (dwc->err_evt_seen || (dwc->ev_buffs == NULL))
+	if (dwc->err_evt_seen)
 		return IRQ_HANDLED;
 
 	for (i = 0; i < dwc->num_normal_event_buffers; i++) {
