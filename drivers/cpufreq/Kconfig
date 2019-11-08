@@ -266,6 +266,12 @@ config CPU_INPUT_BOOST
 
 if CPU_INPUT_BOOST
 
+config POWERHAL_BOOST_DURATION_MS
+	int "powerHAL boost duration"
+	default "100"
+	help
+	 powerHAL boost duration in milliseconds.
+
 config INPUT_BOOST_DURATION_MS
 	int "Input boost duration"
 	default "100"
