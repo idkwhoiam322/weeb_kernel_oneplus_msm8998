@@ -318,6 +318,10 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 		policy->min = get_min_freq(policy);
 		/* Enable EAS behaviour */
 		energy_aware_enable = true;
+		/* CPUBW unboost */
+		set_hyst_trigger_count_val(3);
+		set_hist_memory_val(20);
+		set_hyst_length_val(10);
 		return NOTIFY_OK;
 	}
 
@@ -329,6 +333,11 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	if (test_bit(POWERHAL_MAX_BOOST, &b->state)) {
 		/* Disable EAS behaviour */
 		energy_aware_enable = false;
+
+		/* CPUBW boost */
+		set_hyst_trigger_count_val(0);
+		set_hist_memory_val(0);
+		set_hyst_length_val(0);
 	} else {
 		/* Enable EAS behaviour */
 		energy_aware_enable = true;
@@ -349,7 +358,15 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 		policy->min = get_min_freq(policy);
 
 	if (test_bit(POWERHAL_BOOST, &b->state)) {
-		/* Do nothing for now */
+		/* CPUBW boost */
+		set_hyst_trigger_count_val(0);
+		set_hist_memory_val(0);
+		set_hyst_length_val(0);
+	} else {
+		/* CPUBW unboost */
+		set_hyst_trigger_count_val(3);
+		set_hist_memory_val(20);
+		set_hyst_length_val(10);
 	}
 
 	return NOTIFY_OK;
