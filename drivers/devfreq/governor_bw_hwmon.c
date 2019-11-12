@@ -33,6 +33,26 @@
 #include "governor.h"
 #include "governor_bw_hwmon.h"
 
+#include <linux/power_hal.h>
+unsigned int hyst_trigger_count_val = 3;
+unsigned int hist_memory_val = 20;
+unsigned int hyst_length_val = 10;
+
+void set_hyst_trigger_count_val(int val)
+{
+	hyst_trigger_count_val = val;
+}
+
+void set_hist_memory_val(int val)
+{
+	hist_memory_val = val;
+}
+
+void set_hyst_length_val(int val)
+{
+	hyst_length_val = val;
+}
+
 #define NUM_MBPS_ZONES		10
 struct hwmon_node {
 	unsigned int guard_band_mbps;
@@ -726,6 +746,11 @@ static int devfreq_bw_hwmon_get_freq(struct devfreq *df,
 		*node->dev_ab = node->resume_ab;
 		return 0;
 	}
+
+	/* Set new values */
+	node->hyst_trigger_count = hyst_trigger_count_val;
+	node->hist_memory = hist_memory_val;
+	node->hyst_length = hyst_length_val;
 
 	get_bw_and_set_irq(node, freq, node->dev_ab);
 
