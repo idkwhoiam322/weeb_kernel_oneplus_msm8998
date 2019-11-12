@@ -237,7 +237,6 @@ void cpu_input_boost_kick_max(unsigned int duration_ms)
 {
 	struct boost_drv *b = &boost_drv_g;
 
-	energy_aware_enable = false;
 	__cpu_input_boost_kick_max(b, duration_ms);
 }
 
@@ -272,8 +271,6 @@ static void max_unboost_worker(struct work_struct *work)
 {
 	struct boost_drv *b = container_of(to_delayed_work(work),
 					   typeof(*b), max_unboost);
-
-	energy_aware_enable = true;
 
 	clear_bit(MAX_BOOST, &b->state);
 	wake_up(&b->boost_waitq);
@@ -319,6 +316,8 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	/* Unboost when the screen is off */
 	if (test_bit(SCREEN_OFF, &b->state)) {
 		policy->min = get_min_freq(policy);
+		/* Enable EAS behaviour */
+		energy_aware_enable = true;
 		return NOTIFY_OK;
 	}
 
@@ -328,7 +327,11 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 
 	/* Do powerhal boost for powerhal_max_boost */
 	if (test_bit(POWERHAL_MAX_BOOST, &b->state)) {
-		/* Do nothing for now */
+		/* Disable EAS behaviour */
+		energy_aware_enable = false;
+	} else {
+		/* Enable EAS behaviour */
+		energy_aware_enable = true;
 	}
 
 	/* return early if being max bosted */
