@@ -16,4 +16,15 @@ static inline void powerhal_boost_kick(void) { }
 static inline void powerhal_boost_kick_max(unsigned int duration_ms) { }
 #endif
 
+/* CPUBW management */
+#ifdef CONFIG_DEVFREQ_GOV_QCOM_BW_HWMON
+void set_hyst_trigger_count_val(int val);
+void set_hist_memory_val(int val);
+void set_hyst_length_val(int val);
+#else
+static inline void set_hyst_trigger_count_val(int val) { }
+static inline void set_hist_memory_val(int val) { }
+static inline void set_hyst_length_val(int val) { }
+#endif
+
 #endif /* _POWER_HAL_H */
