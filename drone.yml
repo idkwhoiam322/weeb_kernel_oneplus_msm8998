@@ -22,7 +22,7 @@ steps:
         from_secret: bot_api_key
     commands:
       - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip python
-      - git clone https://github.com/whoknowswhoiam/scripts.git -b semaphore-pie script && cd script
+      - git clone https://github.com/idkwhoiam322/scripts.git -b build_kernel script && cd script
       - bash dronesetup.sh --gcc
       - export DEFCONFIG=weebcustom_defconfig && export BUILDFOR=custom && bash dronepersonal.sh --gcc --beta
       - export DEFCONFIG=weebcustom_defconfig && export BUILDFOR=custom && bash dronekernel.sh --gcc --custom --beta --post
@@ -45,7 +45,7 @@ steps:
       RELEASE_CODENAME: "CAESAR"
     commands:
       - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip
-      - git clone https://github.com/whoknowswhoiam/scripts.git -b semaphore-pie script && cd script
+      - git clone https://github.com/idkwhoiam322/scripts.git -b build_kernel script && cd script
       - bash dronesetup.sh --gcc
       - export DEFCONFIG=weebcustom_defconfig && export BUILDFOR=custom && bash dronekernel.sh --gcc --custom --stable --post
       - export DEFCONFIG=weeb_defconfig && export BUILDFOR=oos && bash dronekernel.sh --gcc --oos --stable
