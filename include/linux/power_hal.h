@@ -27,4 +27,7 @@ static inline void set_hist_memory_val(int val) { }
 static inline void set_hyst_length_val(int val) { }
 #endif
 
+/* UFS Boosting */
+void set_ufshcd_clkgate_enable_status(u32 value);
+
 #endif /* _POWER_HAL_H */
