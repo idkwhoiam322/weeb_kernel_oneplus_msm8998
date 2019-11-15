@@ -536,4 +536,4 @@ unregister_cpu_notif:
 	cpufreq_unregister_notifier(&b->cpu_notif, CPUFREQ_POLICY_NOTIFIER);
 	return ret;
 }
-subsys_initcall(cpu_input_boost_init);
+late_initcall(cpu_input_boost_init);
