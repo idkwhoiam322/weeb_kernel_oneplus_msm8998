@@ -2949,7 +2949,7 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 	struct snd_soc_codec *codec = dai->codec;
 	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
 
-	dev_dbg(&tfa98xx->i2c->dev, "state: %d\n", mute);
+//	dev_dbg(&tfa98xx->i2c->dev, "state: %d\n", mute);
 
 	if (!(tfa98xx->flags & TFA98XX_FLAG_DSP_START_ON_MUTE))
 		return 0;
