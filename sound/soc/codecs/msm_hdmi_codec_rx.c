@@ -130,7 +130,7 @@ static int msm_ext_disp_audio_type_get(struct snd_kcontrol *kcontrol,
 	if (!codec_data ||
 	    !codec_data->ext_disp_ops.get_audio_edid_blk ||
 	    !codec_data->ext_disp_ops.get_intf_id) {
-		dev_err(codec->dev, "%s: codec_data, get_audio_edid_blk() or get_intf_id is NULL\n",
+		dev_dbg(codec->dev, "%s: codec_data, get_audio_edid_blk() or get_intf_id is NULL\n",
 			__func__);
 		return -EINVAL;
 	}

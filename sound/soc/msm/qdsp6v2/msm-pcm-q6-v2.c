@@ -227,7 +227,7 @@ static void event_handler(uint32_t opcode,
 				atomic_inc(&prtd->in_count);
 			}
 			if (atomic_read(&prtd->in_count) == prtd->periods) {
-				pr_info("%s: reclaimed all bufs\n", __func__);
+				pr_debug("%s: reclaimed all bufs\n", __func__);
 				if (atomic_read(&prtd->start))
 					snd_pcm_period_elapsed(substream);
 				wake_up(&the_locks.read_wait);
