@@ -30,4 +30,8 @@ static inline void set_hyst_length_val(int val) { }
 /* UFS Boosting */
 void set_ufshcd_clkgate_enable_status(u32 value);
 
+/* Video Playback detection */
+extern bool video_streaming;
+void video_streaming_disable_schedtune(void);
+
 #endif /* _POWER_HAL_H */
