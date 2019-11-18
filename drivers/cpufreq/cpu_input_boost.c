@@ -367,6 +367,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	/* Unboost when the screen is off */
 	if (test_bit(SCREEN_OFF, &b->state)) {
 		policy->min = get_min_freq(policy);
+		disable_schedtune_boost(1);
 		/* Enable EAS behaviour */
 		energy_aware_enable = true;
 		/* UFS unboost */
@@ -456,7 +457,6 @@ static int fb_notifier_cb(struct notifier_block *nb, unsigned long action,
 		__cpu_input_boost_kick_max(b, wake_boost_duration);
 		disable_schedtune_boost(0);
 	} else {
-		disable_schedtune_boost(1);
 		set_bit(SCREEN_OFF, &b->state);
 		wake_up(&b->boost_waitq);
 	}
