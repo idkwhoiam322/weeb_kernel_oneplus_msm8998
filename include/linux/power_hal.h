@@ -32,4 +32,8 @@ extern struct Scsi_Host *ph_host;
 
 void set_ufshcd_clkgate_enable_status(u32 value);
 
+/* Video Playback detection */
+extern bool video_streaming;
+void video_streaming_disable_schedtune(void);
+
 #endif /* _POWER_HAL_H */

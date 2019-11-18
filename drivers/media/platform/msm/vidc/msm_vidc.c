@@ -25,6 +25,9 @@
 #include "vidc_hfi_api.h"
 #include "msm_vidc_dcvs.h"
 
+#include <linux/power_hal.h>
+bool video_streaming = false;
+
 #define MAX_EVENTS 30
 
 static int get_poll_flags(void *instance)
@@ -1437,6 +1440,8 @@ void *msm_vidc_open(int core_id, int session_type)
 		msm_vidc_debugfs_init_inst(inst, core->debugfs_root);
 #endif
 
+	disable_schedtune_boost(1);
+	video_streaming = true;
 	return inst;
 fail_init:
 	v4l2_fh_del(&inst->event_handler);
@@ -1600,6 +1605,8 @@ int msm_vidc_close(void *instance)
 	}
 
 	kref_put(&inst->kref, close_helper);
+	disable_schedtune_boost(0);
+	video_streaming = false;
 	return 0;
 }
 EXPORT_SYMBOL(msm_vidc_close);
