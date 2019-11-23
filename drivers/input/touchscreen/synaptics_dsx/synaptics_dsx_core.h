@@ -314,7 +314,6 @@ struct synaptics_rmi4_data {
 	struct clk *core_clk;
 	struct clk *iface_clk;
 #endif
-	ktime_t timestamp;
 };
 
 struct synaptics_dsx_bus_access {
