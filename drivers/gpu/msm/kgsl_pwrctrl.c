@@ -28,6 +28,8 @@
 #include "kgsl_device.h"
 #include "kgsl_trace.h"
 
+struct device *ph_dev;
+
 #define KGSL_PWRFLAGS_POWER_ON 0
 #define KGSL_PWRFLAGS_CLK_ON   1
 #define KGSL_PWRFLAGS_AXI_ON   2
@@ -882,6 +884,31 @@ static ssize_t __timer_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+void __timer_store_ph(unsigned int val,
+					enum kgsl_pwrctrl_timer_type timer)
+{
+	struct kgsl_device *device = kgsl_device_from_dev(ph_dev);
+
+	if (device == NULL)
+		return;
+
+	/*
+	 * We don't quite accept a maximum of 0xFFFFFFFF due to internal jiffy
+	 * math, so make sure the value falls within the largest offset we can
+	 * deal with
+	 */
+
+	if (val > jiffies_to_usecs(MAX_JIFFY_OFFSET))
+		return;
+
+	mutex_lock(&device->mutex);
+	/* Let the timeout be requested in ms, but convert to jiffies. */
+	if (timer == KGSL_PWR_IDLE_TIMER)
+		device->pwrctrl.interval_timeout = msecs_to_jiffies(val);
+
+	mutex_unlock(&device->mutex);
+}
+
 static ssize_t kgsl_pwrctrl_idle_timer_store(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
@@ -1068,6 +1095,18 @@ static ssize_t __force_on_store(struct device *dev,
 	mutex_unlock(&device->mutex);
 
 	return count;
+}
+
+void __force_on_store_ph(unsigned int val, int flag)
+{
+	struct kgsl_device *device = kgsl_device_from_dev(ph_dev);
+
+	if (device == NULL)
+		return;
+
+	mutex_lock(&device->mutex);
+	__force_on(device, flag, val);
+	mutex_unlock(&device->mutex);
 }
 
 static ssize_t kgsl_pwrctrl_force_clk_on_show(struct device *dev,
@@ -2133,6 +2172,8 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	struct msm_bus_scale_pdata *bus_scale_table;
 	struct device_node *gpubw_dev_node = NULL;
 	struct platform_device *p2dev;
+
+	ph_dev = device->dev;
 
 	bus_scale_table = msm_bus_cl_get_pdata(device->pdev);
 	if (bus_scale_table == NULL)

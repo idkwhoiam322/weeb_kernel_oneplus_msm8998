@@ -34,4 +34,13 @@ void set_ufshcd_clkgate_enable_status(u32 value);
 extern bool video_streaming;
 void video_streaming_disable_schedtune(void);
 
+/* GPU Boosting */
+enum kgsl_pwrctrl_timer_type {
+	KGSL_PWR_IDLE_TIMER,
+};
+
+void __force_on_store_ph(unsigned int val, int flag);
+void __timer_store_ph(unsigned int val,
+				enum kgsl_pwrctrl_timer_type timer);
+
 #endif /* _POWER_HAL_H */
