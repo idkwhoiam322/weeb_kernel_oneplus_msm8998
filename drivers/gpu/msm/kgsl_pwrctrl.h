@@ -15,6 +15,7 @@
 
 #include <linux/pm_qos.h>
 #include <soc/qcom/cx_ipeak.h>
+#include <linux/power_hal.h>
 
 /*****************************************************************************
 ** power flags
@@ -63,10 +64,6 @@
  * After timeout, qos request is cancelled automatically.
  */
 #define KGSL_L2PC_WAKEUP_TIMEOUT (10 * 1000)
-
-enum kgsl_pwrctrl_timer_type {
-	KGSL_PWR_IDLE_TIMER,
-};
 
 /*
  * States for thermal cycling.  _DISABLE means that no cycling has been
