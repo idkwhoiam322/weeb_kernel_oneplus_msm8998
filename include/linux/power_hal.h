@@ -28,8 +28,6 @@ static inline void set_hyst_length_val(int val) { }
 #endif
 
 /* UFS Boosting */
-extern struct Scsi_Host *ph_host;
-
 void set_ufshcd_clkgate_enable_status(u32 value);
 
 /* Video Playback detection */
