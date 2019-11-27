@@ -31,6 +31,9 @@ static unsigned short input_boost_duration __read_mostly =
 static unsigned short wake_boost_duration __read_mostly =
 	CONFIG_WAKE_BOOST_DURATION_MS;
 
+unsigned short cib_max_boost_duration __read_mostly =
+	CONFIG_MAX_BOOST_DURATION_MS;
+
 module_param(input_boost_freq_lp, uint, 0644);
 module_param(input_boost_freq_hp, uint, 0644);
 module_param_named(remove_input_boost_freq_lp,
@@ -42,6 +45,7 @@ module_param(max_boost_freq_hp, uint, 0644);
 
 module_param(input_boost_duration, short, 0644);
 module_param(wake_boost_duration, short, 0644);
+module_param(cib_max_boost_duration, short, 0644);
 
 enum {
 	SCREEN_OFF,
