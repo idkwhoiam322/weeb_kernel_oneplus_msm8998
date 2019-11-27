@@ -284,6 +284,12 @@ config WAKE_BOOST_DURATION_MS
 	help
 	  Wake boost duration in milliseconds.
 
+config MAX_BOOST_DURATION_MS
+	int "Max boost duration"
+	default "2500"
+	help
+	 Max boost duration in milliseconds.
+
 config BASE_BOOST_FREQ_LP
 	int "Low-power cluster base frequency"
 	default "0"
