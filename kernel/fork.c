@@ -1798,11 +1798,11 @@ long _do_fork(unsigned long clone_flags,
 	int trace = 0;
 	long nr;
 
-	/* Boost to max for 2500 ms when userspace launches an app */
+	/* Boost to max for ${cib_max_boost_duration} ms when userspace launches an app */
 	if (task_is_zygote(current)) {
-		cpu_input_boost_kick_max(2500);
-		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 2500);
-		powerhal_boost_kick_max(2500);
+		cpu_input_boost_kick_max(cib_max_boost_duration);
+		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, cib_max_boost_duration);
+		powerhal_boost_kick_max(cib_max_boost_duration);
 	}
 
 	/*
