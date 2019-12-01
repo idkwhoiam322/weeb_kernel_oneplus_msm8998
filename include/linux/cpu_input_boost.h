@@ -5,6 +5,8 @@
 #ifndef _CPU_INPUT_BOOST_H_
 #define _CPU_INPUT_BOOST_H_
 
+#include "power_hal.h"
+
 #ifdef CONFIG_CPU_INPUT_BOOST
 void cpu_input_boost_kick(void);
 void cpu_input_boost_kick_max(unsigned int duration_ms);

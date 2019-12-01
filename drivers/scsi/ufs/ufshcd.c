@@ -54,7 +54,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ufs.h>
 
-#include <linux/power_hal.h>
+#include <linux/cpu_input_boost.h>
 #include <linux/binfmts.h>
 
 struct Scsi_Host *ph_host;

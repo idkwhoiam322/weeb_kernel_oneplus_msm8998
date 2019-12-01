@@ -34,7 +34,7 @@
 #include "governor_bw_hwmon.h"
 #include <linux/binfmts.h>
 
-#include <linux/power_hal.h>
+#include <linux/cpu_input_boost.h>
 unsigned int hyst_trigger_count_val = 3;
 unsigned int hist_memory_val = 20;
 unsigned int hyst_length_val = 10;

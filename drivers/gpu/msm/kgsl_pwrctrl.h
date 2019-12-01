@@ -15,7 +15,7 @@
 
 #include <linux/pm_qos.h>
 #include <soc/qcom/cx_ipeak.h>
-#include <linux/power_hal.h>
+#include <linux/cpu_input_boost.h>
 
 /*****************************************************************************
 ** power flags
