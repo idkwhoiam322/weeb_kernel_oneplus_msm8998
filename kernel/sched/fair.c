@@ -6310,9 +6310,13 @@ struct reciprocal_value schedtune_spc_rdiv;
 
 static int disable_boost = 0;
 
+static DEFINE_MUTEX(disable_stune);
+
 void disable_schedtune_boost(int disable)
 {
+	mutex_lock(&disable_stune);
 	disable_boost = disable;
+	mutex_unlock(&disable_stune);
 }
 
 static long
