@@ -371,7 +371,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	/* Unboost when the screen is off */
 	if (test_bit(SCREEN_OFF, &b->state)) {
 		policy->min = get_min_freq(policy);
-		disable_schedtune_boost(1);
+		disable_schedtune_boost("top-app", true);
 		/* Enable EAS behaviour */
 		energy_aware_enable = true;
 		/* UFS unboost */
@@ -420,9 +420,9 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 
 	/* Put VIDEO_STREAMING_INPUT_EVENT check here to cover max_boost cases */
 	if (test_bit(VIDEO_STREAMING_INPUT_EVENT, &b->state))
-		disable_schedtune_boost(0);
+		disable_schedtune_boost("top-app", false);
 	else if (video_streaming)
-		disable_schedtune_boost(1);
+		disable_schedtune_boost("top-app", true);
 
 	/* return early if being max bosted */
 	if (test_bit(MAX_BOOST, &b->state) ||
@@ -473,7 +473,7 @@ static int fb_notifier_cb(struct notifier_block *nb, unsigned long action,
 	if (*blank == FB_BLANK_UNBLANK) {
 		clear_bit(SCREEN_OFF, &b->state);
 		__cpu_input_boost_kick_max(b, wake_boost_duration);
-		disable_schedtune_boost(0);
+		disable_schedtune_boost("top-app", false);
 	} else {
 		set_bit(SCREEN_OFF, &b->state);
 		wake_up(&b->boost_waitq);

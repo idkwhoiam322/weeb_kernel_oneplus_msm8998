@@ -26,6 +26,11 @@ static int perf_boost_idx;
 /* Performance Constraint region (C) threshold params */
 static int perf_constrain_idx;
 
+static DEFINE_MUTEX(disable_schedtune_boost_mutex);
+bool disable_boost = false;
+static struct schedtune *getSchedtune(char *st_name);
+int disable_schedtune_boost(char *st_name, bool disable);
+
 /**
  * Performance-Energy (P-E) Space thresholds constants
  */
@@ -130,6 +135,9 @@ struct schedtune {
 	/* Hint to bias scheduling of tasks on that SchedTune CGroup
 	 * towards idle CPUs */
 	int prefer_idle;
+
+	/* Used to store current boost value for disable_schedtune_boost() */
+	int cached_boost;
 };
 
 static inline struct schedtune *css_st(struct cgroup_subsys_state *css)
@@ -162,6 +170,7 @@ root_schedtune = {
 	.perf_boost_idx = 0,
 	.perf_constrain_idx = 0,
 	.prefer_idle = 0,
+	.cached_boost = 0,
 };
 
 int
@@ -615,6 +624,13 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 
 	if (boost < -100 || boost > 100)
 		return -EINVAL;
+
+	/* Just cache and exit if boost is currently disabled */
+	if (disable_boost) {
+		st->cached_boost = boost;
+		return 0;
+	}
+
 	boost_pct = boost;
 
 	/*
@@ -628,6 +644,7 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	st->perf_constrain_idx = threshold_idx;
 
 	st->boost = boost;
+	st->cached_boost = boost;
 	if (css == &root_schedtune.css) {
 		sysctl_sched_cfs_boost = boost;
 		perf_boost_idx  = threshold_idx;
@@ -662,6 +679,13 @@ static int prefer_idle_write_wrapper(struct cgroup_subsys_state *css,
 }
 #endif
 
+static s64
+cached_boost_read(struct cgroup_subsys_state *css, struct cftype *cft)
+{
+	struct schedtune *st = css_st(css);
+	return st->cached_boost;
+}
+
 static struct cftype files[] = {
 	{
 		.name = "boost",
@@ -672,6 +696,10 @@ static struct cftype files[] = {
 		.name = "prefer_idle",
 		.read_u64 = prefer_idle_read,
 		.write_u64 = prefer_idle_write_wrapper,
+	},
+	{
+		.name= "cached_boost",
+		.read_s64 = cached_boost_read,
 	},
 	{ }	/* terminate */
 };
@@ -817,6 +845,54 @@ schedtune_init_cgroups(void)
 		BOOSTGROUPS_COUNT);
 
 	schedtune_initialized = true;
+}
+
+static struct schedtune *getSchedtune(char *st_name)
+{
+	int idx;
+
+	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
+		char name_buf[NAME_MAX + 1];
+		struct schedtune *st = allocated_group[idx];
+
+		if (!st) {
+			pr_warn("SCHEDTUNE: Could not find %s\n", st_name);
+			break;
+		}
+
+		cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
+		if (strncmp(name_buf, st_name, strlen(st_name)) == 0)
+			return st;
+	}
+
+	return NULL;
+}
+
+int disable_schedtune_boost(char *st_name, bool disable)
+{
+	int cur_cached_boost;
+	struct schedtune *st = getSchedtune(st_name);
+
+	if (!st)
+		return -EINVAL;
+
+	mutex_lock(&disable_schedtune_boost_mutex);
+
+	if (disable) {
+		cur_cached_boost = st->cached_boost;
+		/* Set boost to 0 */
+		boost_write(&st->css, NULL, 0);
+		disable_boost = disable;
+		st->cached_boost = cur_cached_boost;
+	} else {
+		disable_boost = disable;
+		/* Restore old value */
+		boost_write(&st->css, NULL, st->cached_boost);
+	}
+
+	mutex_unlock(&disable_schedtune_boost_mutex);
+
+	return 0;
 }
 
 #else /* CONFIG_CGROUP_SCHEDTUNE */

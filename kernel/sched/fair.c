@@ -6308,17 +6308,6 @@ static bool cpu_overutilized(int cpu)
 
 struct reciprocal_value schedtune_spc_rdiv;
 
-static int disable_boost = 0;
-
-static DEFINE_MUTEX(disable_stune);
-
-void disable_schedtune_boost(int disable)
-{
-	mutex_lock(&disable_stune);
-	disable_boost = disable;
-	mutex_unlock(&disable_stune);
-}
-
 static long
 schedtune_margin(unsigned long signal, long boost)
 {
@@ -6351,7 +6340,7 @@ schedtune_cpu_margin(unsigned long util, int cpu)
 {
 	int boost = schedtune_cpu_boost(cpu);
 
-	if (boost == 0 || boost == 2 || disable_boost)
+	if (boost == 0 || boost == 2)
 		return 0;
 
 	return schedtune_margin(util, boost);
@@ -6364,7 +6353,7 @@ schedtune_task_margin(struct task_struct *task)
 	unsigned long util;
 	long margin;
 
-	if (boost == 0 || boost == 2 || disable_boost)
+	if (boost == 0 || boost == 2)
 		return 0;
 
 	util = task_util_est(task);
@@ -7081,9 +7070,6 @@ static inline unsigned long cpu_util_freq(int cpu)
 static int start_cpu(bool boosted)
 {
 	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
-
-	if (disable_boost)
-		return rd->min_cap_orig_cpu;
 
 	return boosted ? rd->max_cap_orig_cpu : rd->min_cap_orig_cpu;
 }

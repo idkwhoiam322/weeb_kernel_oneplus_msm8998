@@ -1440,7 +1440,7 @@ void *msm_vidc_open(int core_id, int session_type)
 		msm_vidc_debugfs_init_inst(inst, core->debugfs_root);
 #endif
 
-	disable_schedtune_boost(1);
+	disable_schedtune_boost("top-app", true);
 	video_streaming = true;
 	return inst;
 fail_init:
@@ -1605,7 +1605,7 @@ int msm_vidc_close(void *instance)
 	}
 
 	kref_put(&inst->kref, close_helper);
-	disable_schedtune_boost(0);
+	disable_schedtune_boost("top-app", false);
 	video_streaming = false;
 	return 0;
 }
