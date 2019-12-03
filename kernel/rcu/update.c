@@ -61,10 +61,6 @@ MODULE_ALIAS("rcupdate");
 #define MODULE_PARAM_PREFIX "rcupdate."
 
 module_param(rcu_expedited, int, 0);
-module_param(rcu_normal, int, 0);
-
-static int rcu_normal_after_boot;
-module_param(rcu_normal_after_boot, int, 0);
 
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_PREEMPT_COUNT)
 /**
@@ -117,18 +113,8 @@ EXPORT_SYMBOL(rcu_read_lock_sched_held);
 
 #ifndef CONFIG_TINY_RCU
 
-/*
- * Should expedited grace-period primitives always fall back to their
- * non-expedited counterparts?  Intended for use within RCU.  Note
- * that if the user specifies both rcu_expedited and rcu_normal, then
- * rcu_normal wins.
- */
-bool rcu_gp_is_normal(void)
-{
-	return READ_ONCE(rcu_normal);
-}
-
-static atomic_t rcu_expedited_nesting = ATOMIC_INIT(1);
+static atomic_t rcu_expedited_nesting =
+	ATOMIC_INIT(IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT) ? 1 : 0);
 
 /*
  * Should normal grace-period primitives be expedited?  Intended for
@@ -178,9 +164,8 @@ EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
  */
 void rcu_end_inkernel_boot(void)
 {
-	rcu_unexpedite_gp();
-	if (rcu_normal_after_boot)
-		WRITE_ONCE(rcu_normal, 1);
+	if (IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT))
+		rcu_unexpedite_gp();
 }
 
 #ifdef CONFIG_PREEMPT_RCU

@@ -49,14 +49,9 @@
 #include <asm/barrier.h>
 
 extern int rcu_expedited; /* for sysctl */
-extern int rcu_normal;    /* also for sysctl */
 
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
-static inline bool rcu_gp_is_normal(void)  /* Internal RCU use. */
-{
-	return true;
-}
 static inline bool rcu_gp_is_expedited(void)  /* Internal RCU use. */
 {
 	return false;
@@ -70,7 +65,6 @@ static inline void rcu_unexpedite_gp(void)
 {
 }
 #else /* #ifdef CONFIG_TINY_RCU */
-bool rcu_gp_is_normal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
 void rcu_expedite_gp(void);
 void rcu_unexpedite_gp(void);
