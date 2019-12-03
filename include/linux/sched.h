@@ -63,15 +63,6 @@ struct sched_param {
 
 #include <asm/processor.h>
 
-extern bool energy_aware_enable;
-extern bool disable_boost;
-
-#if defined(CONFIG_SCHED_TUNE) && defined(CONFIG_CGROUP_SCHEDTUNE)
-int disable_schedtune_boost(char *st_name, bool disable);
-#else
-static inline int disable_schedtune_boost(char *st_name, bool disable) { }
-#endif
-
 #define SCHED_ATTR_SIZE_VER0	48	/* sizeof first published struct */
 
 /*

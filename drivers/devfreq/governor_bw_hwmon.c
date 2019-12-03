@@ -35,6 +35,7 @@
 #include <linux/binfmts.h>
 
 #include <linux/cpu_input_boost.h>
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 unsigned int hyst_trigger_count_val = 3;
 unsigned int hist_memory_val = 20;
 unsigned int hyst_length_val = 10;
@@ -53,6 +54,7 @@ void set_hyst_length_val(int val)
 {
 	hyst_length_val = val;
 }
+#endif /* IN_KERNEL_POWERHAL */
 
 #define NUM_MBPS_ZONES		10
 struct hwmon_node {
@@ -741,8 +743,10 @@ static int devfreq_bw_hwmon_get_freq(struct devfreq *df,
 {
 	struct hwmon_node *node = df->data;
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	if (task_is_booster(current))
 		return 0;
+#endif /* IN_KERNEL_POWERHAL */
 
 	/* Suspend/resume sequence */
 	if (!node->mon_started) {
@@ -751,10 +755,12 @@ static int devfreq_bw_hwmon_get_freq(struct devfreq *df,
 		return 0;
 	}
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	/* Set new values */
 	node->hyst_trigger_count = hyst_trigger_count_val;
 	node->hist_memory = hist_memory_val;
 	node->hyst_length = hyst_length_val;
+#endif /* IN_KERNEL_POWERHAL */
 
 	get_bw_and_set_irq(node, freq, node->dev_ab);
 

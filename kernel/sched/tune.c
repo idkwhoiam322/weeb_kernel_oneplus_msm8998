@@ -5,6 +5,7 @@
 #include <linux/printk.h>
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
+#include <linux/power_hal.h>
 
 #include <trace/events/sched.h>
 
@@ -26,10 +27,12 @@ static int perf_boost_idx;
 /* Performance Constraint region (C) threshold params */
 static int perf_constrain_idx;
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 static DEFINE_MUTEX(disable_schedtune_boost_mutex);
 bool disable_boost = false;
 static struct schedtune *getSchedtune(char *st_name);
 int disable_schedtune_boost(char *st_name, bool disable);
+#endif /* IN_KERNEL_POWERHAL */
 
 /**
  * Performance-Energy (P-E) Space thresholds constants
@@ -847,6 +850,7 @@ schedtune_init_cgroups(void)
 	schedtune_initialized = true;
 }
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 static struct schedtune *getSchedtune(char *st_name)
 {
 	int idx;
@@ -894,6 +898,7 @@ int disable_schedtune_boost(char *st_name, bool disable)
 
 	return 0;
 }
+#endif /* IN_KERNEL_POWERHAL */
 
 #else /* CONFIG_CGROUP_SCHEDTUNE */
 

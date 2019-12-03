@@ -266,12 +266,6 @@ config CPU_INPUT_BOOST
 
 if CPU_INPUT_BOOST
 
-config POWERHAL_BOOST_DURATION_MS
-	int "powerHAL boost duration"
-	default "100"
-	help
-	 powerHAL boost duration in milliseconds.
-
 config INPUT_BOOST_DURATION_MS
 	int "Input boost duration"
 	default "100"
@@ -327,6 +321,23 @@ config MAX_BOOST_FREQ_PERF
 	default "0"
 	help
 	  Max-boost frequency for the performance CPU cluster.
+
+config IN_KERNEL_POWERHAL
+	bool "In-Kernel powerHAL"
+	default n
+	help
+	 This utilises cpu_input_boost driver to attempt to
+	 replicate the effects of the Pixel powerHAL.
+
+if IN_KERNEL_POWERHAL
+
+config POWERHAL_BOOST_DURATION_MS
+	int "powerHAL boost duration"
+	default "100"
+	help
+	 powerHAL boost duration in milliseconds.
+
+endif
 
 endif
 

@@ -25,8 +25,10 @@
 #include "vidc_hfi_api.h"
 #include "msm_vidc_dcvs.h"
 
-#include <linux/cpu_input_boost.h>
+#include <linux/power_hal.h>
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 bool video_streaming = false;
+#endif /* IN_KERNEL_POWERHAL */
 
 #define MAX_EVENTS 30
 
@@ -1440,8 +1442,10 @@ void *msm_vidc_open(int core_id, int session_type)
 		msm_vidc_debugfs_init_inst(inst, core->debugfs_root);
 #endif
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	disable_schedtune_boost("top-app", true);
 	video_streaming = true;
+#endif /* IN_KERNEL_POWERHAL */
 	return inst;
 fail_init:
 	v4l2_fh_del(&inst->event_handler);
@@ -1605,8 +1609,10 @@ int msm_vidc_close(void *instance)
 	}
 
 	kref_put(&inst->kref, close_helper);
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	disable_schedtune_boost("top-app", false);
 	video_streaming = false;
+#endif /* IN_KERNEL_POWERHAL */
 	return 0;
 }
 EXPORT_SYMBOL(msm_vidc_close);
