@@ -312,11 +312,7 @@ static void msm_restart_prepare(const char *cmd)
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
 	}
 
-	/* Set restart reason to oem panic if in panic or unspecified command */
-	if (in_panic || !cmd) {
-		qpnp_pon_set_restart_reason(PON_RESTART_REASON_PANIC);
-		__raw_writel(OEM_PANIC, restart_reason);
-	} else {
+	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_BOOTLOADER);
