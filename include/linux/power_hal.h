@@ -38,8 +38,9 @@ void __timer_store_ph(unsigned int val,
 				enum kgsl_pwrctrl_timer_type timer);
 
 /* EAS */
-extern bool energy_aware_enable;
 extern bool disable_boost;
+
+void set_energy_aware_enable_status(bool val);
 
 #if defined(CONFIG_SCHED_TUNE) && defined(CONFIG_CGROUP_SCHEDTUNE)
 int disable_schedtune_boost(char *st_name, bool disable);
@@ -58,6 +59,7 @@ static inline void video_streaming_disable_schedtune(void) { }
 static inline void __force_on_store_ph(unsigned int val, int flag) { }
 static inline void __timer_store_ph(unsigned int val,
 				enum kgsl_pwrctrl_timer_type timer) { }
+static inline void set_energy_aware_enable_status(bool val) { }
 #endif /* IN_KERNEL_POWERHAL */
 
 #endif /* _POWER_HAL_H */

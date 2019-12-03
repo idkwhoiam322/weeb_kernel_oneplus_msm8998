@@ -5654,11 +5654,16 @@ unsigned long capacity_min_of(int cpu)
 	       >> SCHED_CAPACITY_SHIFT;
 }
 
-bool energy_aware_enable = false;
+static bool energy_aware_enable = false;
+
+void set_energy_aware_enable_status(bool val)
+{
+	energy_aware_enable = val;
+}
 
 static inline bool energy_aware(void)
 {
-       return energy_aware_enable;
+	return energy_aware_enable;
 }
 
 struct energy_env {
