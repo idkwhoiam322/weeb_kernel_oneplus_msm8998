@@ -12,6 +12,9 @@
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
+#ifdef CONFIG_IN_KERNEL_POWERHAL
+#include <linux/pm_qos.h>
+#endif /* IN_KERNEL_POWERHAL */
 #include <linux/power_hal.h>
 
 static unsigned int input_boost_freq_lp __read_mostly =
@@ -81,6 +84,10 @@ struct boost_drv {
 #endif /* IN_KERNEL_POWERHAL */
 	atomic_long_t max_boost_expires;
 	unsigned long state;
+
+#ifdef CONFIG_IN_KERNEL_POWERHAL
+	struct pm_qos_request pm_qos_req;
+#endif /* IN_KERNEL_POWERHAL */
 };
 
 #ifdef CONFIG_IN_KERNEL_POWERHAL
@@ -428,6 +435,14 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 		/* Enable KGSL_PWRFLAGS_CLK_ON */
 		__force_on_store_ph(1, 1);
 		__timer_store_ph(10000, KGSL_PWR_IDLE_TIMER);
+
+		/*
+		 * max("wfi" latency-us val from dt) + 1 = 44
+		 * val + 1 to prevent CPU from entering lower idle
+		 * states than WFI.
+		 */
+		/* prevent CPU from entering deeper sleep states */
+		pm_qos_update_request(&b->pm_qos_req, 44);
 	} else {
 		/* Enable EAS behaviour */
 		set_energy_aware_enable_status(true);
@@ -438,6 +453,10 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 		/* Disable KGSL_PWRFLAGS_CLK_ON */
 		__force_on_store_ph(0, 1);
 		__timer_store_ph(64, KGSL_PWR_IDLE_TIMER);
+
+		/* Restore default CPU DMA Latency value */
+		pm_qos_update_request(&b->pm_qos_req,
+			PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE);
 	}
 
 	/* Put VIDEO_STREAMING_INPUT_EVENT check here to cover max_boost cases */
@@ -601,6 +620,11 @@ static int __init cpu_input_boost_init(void)
 	struct task_struct *thread;
 	int ret;
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
+	pm_qos_add_request(&b->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+		PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE);
+#endif /* IN_KERNEL_POWERHAL */
+
 	b->cpu_notif.notifier_call = cpu_notifier_cb;
 	ret = cpufreq_register_notifier(&b->cpu_notif, CPUFREQ_POLICY_NOTIFIER);
 	if (ret) {
@@ -638,6 +662,9 @@ unregister_handler:
 	input_unregister_handler(&cpu_input_boost_input_handler);
 unregister_cpu_notif:
 	cpufreq_unregister_notifier(&b->cpu_notif, CPUFREQ_POLICY_NOTIFIER);
+#ifdef CONFIG_IN_KERNEL_POWERHAL
+	pm_qos_remove_request(&b->pm_qos_req);
+#endif /* IN_KERNEL_POWERHAL */
 	return ret;
 }
 late_initcall(cpu_input_boost_init);
