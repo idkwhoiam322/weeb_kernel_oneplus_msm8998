@@ -753,12 +753,10 @@ static int sugov_init(struct cpufreq_policy *policy)
 		goto stop_kthread;
 	}
 
-	if (task_is_booster(current)){
-		tunables->up_rate_limit_us = 500;
-		tunables->down_rate_limit_us = 20000;
-		tunables->iowait_boost_enable = true;
-	}
+	tunables->up_rate_limit_us = 500;
+	tunables->down_rate_limit_us = 20000;
 
+	tunables->iowait_boost_enable = true;
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
 
