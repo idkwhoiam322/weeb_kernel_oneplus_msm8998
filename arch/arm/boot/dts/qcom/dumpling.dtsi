@@ -347,6 +347,17 @@
 		compatible = "bootloader_log";
 		linux,contiguous-region = <&bootloader_log_mem>;
 	};
+
+	ramoops {
+		compatible = "ramoops";
+		record-size = <0x100000>;
+		console-size = <0x80000>;
+		ftrace-size = <0x80000>;
+		no-dump-oops = <0>;
+	};
+	bootlog {
+		compatible = "bootlog";
+	};
 };
 
 &pm8998_gpios {
