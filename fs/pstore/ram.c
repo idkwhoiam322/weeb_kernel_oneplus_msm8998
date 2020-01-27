@@ -498,10 +498,10 @@ void notrace ramoops_console_write_buf(const char *buf, size_t size)
 static int ramoops_parse_dt_size(struct platform_device *pdev,
 		const char *propname, unsigned long *val)
 {
-	u64 val64;
+	u32 val32;
 	int ret;
 
-	ret = of_property_read_u64(pdev->dev.of_node, propname, &val64);
+	ret = of_property_read_u32(pdev->dev.of_node, propname, &val32);
 	if (ret == -EINVAL) {
 		*val = 0;
 		return 0;
@@ -511,12 +511,12 @@ static int ramoops_parse_dt_size(struct platform_device *pdev,
 		return ret;
 	}
 
-	if (val64 > ULONG_MAX) {
-		dev_err(&pdev->dev, "invalid %s %llu\n", propname, val64);
+	if (val32 > ULONG_MAX) {
+		dev_err(&pdev->dev, "invalid %s %u\n", propname, val32);
 		return -EOVERFLOW;
 	}
 
-	*val = val64;
+	*val = val32;
 	return 0;
 }
 
