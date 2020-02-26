@@ -1263,8 +1263,6 @@ out:
 	if (!err && oom_score_adj >= 700) {
 		if (!strcmp(task_comm, "id.GoogleCamera") ||
 		    !strcmp(task_comm, "eaurora.snapcam") ||
-		    !strcmp(task_comm, "android.gallery") ||
-		    !strcmp(task_comm, "mnirom.omnijaws") ||
 		    !strcmp(task_comm, ".oneplus.camera")) {
 			struct task_kill_info *kinfo;
 
