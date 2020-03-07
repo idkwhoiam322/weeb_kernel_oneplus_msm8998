@@ -100,7 +100,7 @@ int mb2_cache_entry_create(struct mb2_cache *cache, gfp_t mask, u32 key,
 	*entry = (typeof(*entry)){
 		.e_lru_list = LIST_HEAD_INIT(entry->e_lru_list),
 		/* One ref for hash, one ref returned */
-		.e_refcnt = ATOMIC_INIT(2),
+		.e_refcnt = ATOMIC_INIT(1),
 		.e_key = key,
 		.e_block = block,
 		.e_hash_list_head = head
@@ -113,6 +113,8 @@ int mb2_cache_entry_create(struct mb2_cache *cache, gfp_t mask, u32 key,
 
 	spin_lock(&cache->c_lru_list_lock);
 	list_add_tail(&entry->e_lru_list, &cache->c_lru_list);
+	/* Grab ref for LRU list */
+	atomic_inc(&entry->e_refcnt);
 	cache->c_entry_count++;
 	spin_unlock(&cache->c_lru_list_lock);
 
