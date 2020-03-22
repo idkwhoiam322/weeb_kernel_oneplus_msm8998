@@ -459,7 +459,7 @@ static int msm_gpio_get_dash(struct gpio_chip *chip, unsigned offset)
 	/*pr_err("%s enter\n", __func__);*/
 	g = &pctrl->soc->groups[offset];
 
-	val = readl_dash(pctrl->regs + g->io_reg);
+	val = readl(pctrl->regs + g->io_reg);
 	return !!(val & BIT(g->in_bit));
 }
 static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -499,7 +499,7 @@ static void msm_gpio_set_dash(struct gpio_chip *chip,
 		val = BIT(g->out_bit);
 	else
 		val = ~BIT(g->out_bit);
-	writel_dash(val, pctrl->regs + g->io_reg);
+	writel(val, pctrl->regs + g->io_reg);
 
 	/*spin_unlock_irqrestore(&pctrl->lock, flags);*/
 }
