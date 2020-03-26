@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -81,7 +72,6 @@ enum eWniMsgTypes {
 	eWNI_SME_SWITCH_CHL_IND,
 	eWNI_SME_STOP_BSS_REQ,
 	eWNI_SME_STOP_BSS_RSP,
-	eWNI_SME_NEIGHBOR_BSS_IND,
 	eWNI_SME_DEAUTH_CNF,
 	eWNI_SME_MIC_FAILURE_IND,
 	eWNI_SME_ADDTS_REQ,

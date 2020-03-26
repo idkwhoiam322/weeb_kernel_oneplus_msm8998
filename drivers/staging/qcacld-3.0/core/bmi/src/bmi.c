@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include "i_bmi.h"
@@ -424,8 +415,8 @@ QDF_STATUS bmi_sign_stream_start(uint32_t address, uint8_t *buffer,
 		src = &buffer[length - remaining];
 		if (remaining < (BMI_DATASZ_MAX - header)) {
 			if (remaining & 0x3) {
-				remaining = remaining + (4 - (remaining & 0x3));
 				memcpy(aligned_buf, src, remaining);
+				remaining = remaining + (4 - (remaining & 0x3));
 				src = aligned_buf;
 			}
 			txlen = remaining;

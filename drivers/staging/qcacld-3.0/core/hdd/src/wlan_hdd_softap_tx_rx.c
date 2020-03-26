@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /* Include files */
@@ -43,6 +34,7 @@
 #include <cds_utils.h>
 #include <wlan_hdd_regulatory.h>
 #include <wlan_hdd_ipa.h>
+#include "wma_types.h"
 
 /* Preprocessor definitions and constants */
 #undef QCA_HDD_SAP_DUMP_SK_BUFF
@@ -263,6 +255,154 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 
 /**
+ * hdd_post_dhcp_ind() - Send DHCP START/STOP indication to FW
+ * @adapter: pointer to hdd adapter
+ * @sta_id: peer station ID
+ * @type: WMA message type
+ *
+ * Return: None
+ */
+QDF_STATUS hdd_post_dhcp_ind(hdd_adapter_t *adapter,
+			     uint8_t sta_id, uint16_t type)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	hdd_debug("Post DHCP indication,sta_id=%d,  type=%d", sta_id, type);
+
+	if (!adapter) {
+		hdd_err("NULL adapter");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = wma_send_dhcp_ind(type,
+				   adapter->device_mode,
+				   adapter->macAddressCurrent.bytes,
+				   adapter->aStaInfo[sta_id].macAddrSTA.bytes);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_ERROR,
+				"%s: Post DHCP Ind MSG fail", __func__);
+
+	return status;
+}
+
+void hdd_softap_notify_dhcp_ind(void *context, struct sk_buff *netbuf)
+{
+	hdd_ap_ctx_t *hdd_ap_ctx;
+	struct qdf_mac_addr *dest_mac_addr;
+	uint8_t sta_id;
+
+	hdd_adapter_t *adapter = context;
+
+	if (!adapter) {
+		hdd_err("NULL adapter");
+		return;
+	}
+
+	hdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(adapter);
+	if (!hdd_ap_ctx) {
+		hdd_err("HDD sap context is NULL");
+		return;
+	}
+
+	dest_mac_addr = (struct qdf_mac_addr *)netbuf->data;
+
+	if (QDF_NBUF_CB_GET_IS_BCAST(netbuf) ||
+	    QDF_NBUF_CB_GET_IS_MCAST(netbuf)) {
+		/* The BC/MC station ID is assigned during BSS
+		 * starting phase.  SAP will return the station ID
+		 * used for BC/MC traffic.
+		 */
+		sta_id = hdd_ap_ctx->uBCStaId;
+	} else {
+		if (QDF_STATUS_SUCCESS !=
+		    hdd_softap_get_sta_id(adapter,
+					  dest_mac_addr, &sta_id)) {
+			QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA,
+				  QDF_TRACE_LEVEL_INFO_HIGH,
+				  "%s: Failed to find right station", __func__);
+			return;
+		}
+	}
+	hdd_post_dhcp_ind(adapter, sta_id, WMA_DHCP_STOP_IND);
+}
+
+/**
+ * hdd_dhcp_indication() - Send DHCP START/STOP indication to FW
+ * @adapter: pointer to hdd adapter
+ * @sta_id: peer station ID
+ * @skb: pointer to OS packet (sk_buff)
+ * @dir: direction
+ *
+ * Return: true if tx completion to be notified for skb
+ */
+bool hdd_dhcp_indication(hdd_adapter_t *adapter,
+			 uint8_t sta_id,
+			 struct sk_buff *skb,
+			 enum qdf_proto_dir dir)
+{
+	enum qdf_proto_subtype subtype = QDF_PROTO_INVALID;
+	hdd_station_info_t *hdd_sta_info;
+	bool notify_tx_comp = false;
+
+
+	if (((adapter->device_mode == QDF_SAP_MODE) ||
+	     (adapter->device_mode == QDF_P2P_GO_MODE)) &&
+	    ((dir == QDF_TX && QDF_NBUF_CB_PACKET_TYPE_DHCP ==
+				QDF_NBUF_CB_GET_PACKET_TYPE(skb)) ||
+	     (dir == QDF_RX && qdf_nbuf_is_ipv4_dhcp_pkt(skb) == true))) {
+
+		subtype = qdf_nbuf_get_dhcp_subtype(skb);
+		hdd_sta_info = &adapter->aStaInfo[sta_id];
+
+		hdd_debug("ENTER: type=%d, phase=%d, nego_status=%d",
+			  subtype,
+			  hdd_sta_info->dhcp_phase,
+			  hdd_sta_info->dhcp_nego_status);
+
+		switch (subtype) {
+		case QDF_PROTO_DHCP_DISCOVER:
+			if (dir != QDF_RX)
+				break;
+			if (hdd_sta_info->dhcp_nego_status == DHCP_NEGO_STOP)
+				hdd_post_dhcp_ind(adapter, sta_id,
+						  WMA_DHCP_START_IND);
+			hdd_sta_info->dhcp_phase = DHCP_PHASE_DISCOVER;
+			hdd_sta_info->dhcp_nego_status = DHCP_NEGO_IN_PROGRESS;
+			break;
+		case QDF_PROTO_DHCP_OFFER:
+			hdd_sta_info->dhcp_phase = DHCP_PHASE_OFFER;
+			break;
+		case QDF_PROTO_DHCP_REQUEST:
+			if (dir != QDF_RX)
+				break;
+			if (hdd_sta_info->dhcp_nego_status == DHCP_NEGO_STOP)
+				hdd_post_dhcp_ind(adapter, sta_id,
+						  WMA_DHCP_START_IND);
+			hdd_sta_info->dhcp_nego_status = DHCP_NEGO_IN_PROGRESS;
+		case QDF_PROTO_DHCP_DECLINE:
+			if (dir == QDF_RX)
+				hdd_sta_info->dhcp_phase = DHCP_PHASE_REQUEST;
+			break;
+		case QDF_PROTO_DHCP_ACK:
+		case QDF_PROTO_DHCP_NACK:
+			hdd_sta_info->dhcp_phase = DHCP_PHASE_ACK;
+			if (hdd_sta_info->dhcp_nego_status ==
+				DHCP_NEGO_IN_PROGRESS)
+				notify_tx_comp = true;
+			hdd_sta_info->dhcp_nego_status = DHCP_NEGO_STOP;
+			break;
+		default:
+			break;
+		}
+
+		hdd_debug("EXIT: phase=%d, nego_status=%d",
+			  hdd_sta_info->dhcp_phase,
+			  hdd_sta_info->dhcp_nego_status);
+	}
+	return notify_tx_comp;
+}
+
+/**
  * __hdd_softap_hard_start_xmit() - Transmit a frame
  * @skb: pointer to OS packet (sk_buff)
  * @dev: pointer to network device
@@ -284,6 +424,7 @@ static netdev_tx_t __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 	struct qdf_mac_addr *pDestMacAddress;
 	uint8_t STAId;
 	uint32_t num_seg;
+	bool notify_tx_comp = false;
 
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
 	pAdapter->hdd_stats.hddTxRxStats.cont_txtimeout_cnt = 0;
@@ -292,9 +433,11 @@ static netdev_tx_t __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 	 * context may not be reinitialized at this time which may
 	 * lead to a crash.
 	 */
-	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state() ||
+	    cds_is_load_or_unload_in_progress()) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "%s: Recovery in Progress. Ignore!!!", __func__);
+			  "%s: Recovery/(Un)load in Progress. Ignore!!!",
+			  __func__);
 		goto drop_pkt;
 	}
 
@@ -424,6 +567,10 @@ static netdev_tx_t __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 	}
 	pAdapter->aStaInfo[STAId].last_tx_rx_ts = qdf_system_ticks();
 
+	if (STAId != pHddApCtx->uBCStaId)
+		notify_tx_comp = hdd_dhcp_indication(pAdapter,
+						     STAId, skb, QDF_TX);
+
 	hdd_event_eapol_log(skb, QDF_TX);
 	QDF_NBUF_CB_TX_PACKET_TRACK(skb) = QDF_NBUF_TX_PKT_DATA_TRACK;
 	QDF_NBUF_UPDATE_TX_PKT_COUNT(skb, QDF_NBUF_TX_PKT_HDD);
@@ -432,8 +579,18 @@ static netdev_tx_t __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 			qdf_nbuf_data_addr(skb), sizeof(qdf_nbuf_data(skb)),
 			QDF_TX));
 
+	/* check whether need to linearize skb, like non-linear udp data */
+	if (hdd_skb_nontso_linearize(skb) != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA,
+			  QDF_TRACE_LEVEL_INFO_HIGH,
+			  "%s: skb %pK linearize failed. drop the pkt",
+			  __func__, skb);
+		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
+		goto drop_pkt_and_release_skb;
+	}
+
 	if (pAdapter->tx_fn(ol_txrx_get_vdev_by_sta_id(STAId),
-		 (qdf_nbuf_t) skb) != NULL) {
+		 (qdf_nbuf_t)skb, notify_tx_comp) != NULL) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
 			  "%s: Failed to send packet to txrx for staid:%d",
 			  __func__, STAId);
@@ -657,6 +814,28 @@ QDF_STATUS hdd_softap_deinit_tx_rx_sta(hdd_adapter_t *pAdapter, uint8_t STAId)
 }
 
 /**
+ * hdd_softap_notify_tx_compl_cbk() - callback to notify tx completion
+ * @skb: pointer to skb data
+ * @adapter: pointer to vdev apdapter
+ *
+ * Return: None
+ */
+void hdd_softap_notify_tx_compl_cbk(struct sk_buff *skb,
+				    void *context)
+{
+	int errno;
+	hdd_adapter_t *adapter = NULL;
+
+	adapter = (hdd_adapter_t *)context;
+	errno = hdd_validate_adapter(adapter);
+	if (errno)
+		return;
+
+	if (QDF_NBUF_CB_PACKET_TYPE_DHCP == QDF_NBUF_CB_GET_PACKET_TYPE(skb))
+		hdd_softap_notify_dhcp_ind(context, skb);
+}
+
+/**
  * hdd_softap_rx_packet_cbk() - Receive packet handler
  * @context: pointer to HDD context
  * @rxBuf: pointer to rx qdf_nbuf
@@ -708,7 +887,6 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	skb->dev = pAdapter->dev;
 
 	if (unlikely(skb->dev == NULL)) {
-
 		QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_ERROR,
 			  "%s: ERROR!!Invalid netdevice", __func__);
 		return QDF_STATUS_E_FAILURE;
@@ -730,6 +908,8 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		}
 	}
 
+	hdd_dhcp_indication(pAdapter, staid, skb, QDF_RX);
+
 	hdd_event_eapol_log(skb, QDF_RX);
 	qdf_dp_trace_log_pkt(pAdapter->sessionId, skb, QDF_RX);
 	DPTRACE(qdf_dp_trace(skb,
@@ -741,6 +921,18 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 				      0, QDF_RX));
 
 	skb->protocol = eth_type_trans(skb, skb->dev);
+
+	/* hold configurable wakelock for unicast traffic */
+	if (pHddCtx->config->rx_wakelock_timeout &&
+	    skb->pkt_type != PACKET_BROADCAST &&
+	    skb->pkt_type != PACKET_MULTICAST) {
+		cds_host_diag_log_work(&pHddCtx->rx_wake_lock,
+				       pHddCtx->config->rx_wakelock_timeout,
+				       WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
+		qdf_wake_lock_timeout_acquire(&pHddCtx->rx_wake_lock,
+					      pHddCtx->config->
+						      rx_wakelock_timeout);
+	}
 
 	/* Remove SKB from internal tracking table before submitting
 	 * it to stack
@@ -863,6 +1055,7 @@ QDF_STATUS hdd_softap_register_sta(hdd_adapter_t *pAdapter,
 	/* Register the vdev transmit and receive functions */
 	qdf_mem_zero(&txrx_ops, sizeof(txrx_ops));
 	txrx_ops.rx.rx = hdd_softap_rx_packet_cbk;
+	txrx_ops.tx.tx_comp = hdd_softap_notify_tx_compl_cbk;
 	ol_txrx_vdev_register(
 		 ol_txrx_get_vdev_from_vdev_id(pAdapter->sessionId),
 		 pAdapter, &txrx_ops);
@@ -1003,9 +1196,13 @@ QDF_STATUS hdd_softap_stop_bss(hdd_adapter_t *pAdapter)
 			}
 		}
 	}
+	if (pAdapter->device_mode == QDF_SAP_MODE &&
+	    !pHddCtx->config->disable_channel)
+		wlan_hdd_restore_channels(pHddCtx);
 
 	/* Mark the indoor channel (passive) to enable */
-	if (pHddCtx->config->disable_indoor_channel) {
+	if (pHddCtx->config->disable_indoor_channel &&
+			pAdapter->device_mode == QDF_SAP_MODE) {
 		hdd_update_indoor_channel(pHddCtx, false);
 		sme_update_channel_list(pHddCtx->hHal);
 	}

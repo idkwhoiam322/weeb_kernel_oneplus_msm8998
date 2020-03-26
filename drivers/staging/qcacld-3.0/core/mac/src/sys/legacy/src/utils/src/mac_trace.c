@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**=========================================================================
@@ -257,7 +248,6 @@ uint8_t *mac_trace_get_sme_msg_string(uint16_t sme_msg)
 		CASE_RETURN_STRING(eWNI_SME_SWITCH_CHL_IND);
 		CASE_RETURN_STRING(eWNI_SME_STOP_BSS_REQ);
 		CASE_RETURN_STRING(eWNI_SME_STOP_BSS_RSP);
-		CASE_RETURN_STRING(eWNI_SME_NEIGHBOR_BSS_IND);
 		CASE_RETURN_STRING(eWNI_SME_DEAUTH_CNF);
 		CASE_RETURN_STRING(eWNI_SME_MIC_FAILURE_IND);
 		CASE_RETURN_STRING(eWNI_SME_ADDTS_REQ);
@@ -465,7 +455,6 @@ uint8_t *mac_trace_get_wma_msg_string(uint16_t wma_msg)
 		CASE_RETURN_STRING(WMA_UPDATE_EDCA_PROFILE_IND);
 
 		CASE_RETURN_STRING(WMA_UPDATE_BEACON_IND);
-		CASE_RETURN_STRING(WMA_UPDATE_CF_IND);
 		CASE_RETURN_STRING(WMA_CHNL_SWITCH_REQ);
 		CASE_RETURN_STRING(WMA_ADD_TS_REQ);
 		CASE_RETURN_STRING(WMA_DEL_TS_REQ);
@@ -652,7 +641,7 @@ uint8_t *mac_trace_get_wma_msg_string(uint16_t wma_msg)
 #ifdef WLAN_FEATURE_11W
 		CASE_RETURN_STRING(WMA_EXCLUDE_UNENCRYPTED_IND);
 #endif
-		CASE_RETURN_STRING(WMA_WOWL_ENTER_RSP);
+		CASE_RETURN_STRING(WMA_ROAM_SYNC_TIMEOUT);
 		CASE_RETURN_STRING(WMA_WOWL_EXIT_RSP);
 		CASE_RETURN_STRING(WMA_SET_MAX_TX_POWER_RSP);
 		CASE_RETURN_STRING(WMA_SET_DTIM_PERIOD);
@@ -729,6 +718,7 @@ uint8_t *mac_trace_get_wma_msg_string(uint16_t wma_msg)
 		CASE_RETURN_STRING(WMA_SET_PER_ROAM_CONFIG_CMD);
 		CASE_RETURN_STRING(WDA_ACTION_FRAME_RANDOM_MAC);
 		CASE_RETURN_STRING(WMA_SET_DBS_SCAN_SEL_CONF_PARAMS);
+		CASE_RETURN_STRING(WMA_GET_ROAM_SCAN_STATS);
 	default:
 		return (uint8_t *) "UNKNOWN";
 		break;

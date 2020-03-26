@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include "cds_api.h"
@@ -558,8 +549,14 @@ lim_mlm_add_bss(tpAniSirGlobal mac_ctx,
 		mlm_start_req->cfParamSet.cfpDurRemaining;
 
 	addbss_param->rateSet.numRates = mlm_start_req->rateSet.numRates;
+	if (addbss_param->rateSet.numRates > SIR_MAC_RATESET_EID_MAX) {
+		pe_warn("num of sup rates %d exceeding the limit %d, resetting",
+			addbss_param->rateSet.numRates,
+			SIR_MAC_RATESET_EID_MAX);
+		addbss_param->rateSet.numRates = SIR_MAC_RATESET_EID_MAX;
+	}
 	qdf_mem_copy(addbss_param->rateSet.rate, mlm_start_req->rateSet.rate,
-		     mlm_start_req->rateSet.numRates);
+		     addbss_param->rateSet.numRates);
 
 	addbss_param->nwType = mlm_start_req->nwType;
 	addbss_param->htCapable = mlm_start_req->htCapable;
@@ -582,9 +579,16 @@ lim_mlm_add_bss(tpAniSirGlobal mac_ctx,
 	addbss_param->sessionId = mlm_start_req->sessionId;
 
 	/* Send the SSID to HAL to enable SSID matching for IBSS */
-	qdf_mem_copy(&(addbss_param->ssId.ssId),
-		     mlm_start_req->ssId.ssId, mlm_start_req->ssId.length);
 	addbss_param->ssId.length = mlm_start_req->ssId.length;
+	if (addbss_param->ssId.length > SIR_MAC_MAX_SSID_LENGTH) {
+		pe_err("Invalid ssid length %d, max length allowed %d",
+		       addbss_param->ssId.length,
+		       SIR_MAC_MAX_SSID_LENGTH);
+		qdf_mem_free(addbss_param);
+		return eSIR_SME_INVALID_PARAMETERS;
+	}
+	qdf_mem_copy(addbss_param->ssId.ssId,
+		     mlm_start_req->ssId.ssId, addbss_param->ssId.length);
 	addbss_param->bHiddenSSIDEn = mlm_start_req->ssidHidden;
 	pe_debug("TRYING TO HIDE SSID %d", addbss_param->bHiddenSSIDEn);
 	/* CR309183. Disable Proxy Probe Rsp.  Host handles Probe Requests.  Until FW fixed. */
@@ -634,6 +638,14 @@ lim_mlm_add_bss(tpAniSirGlobal mac_ctx,
 		addbss_param->nss_5g = mac_ctx->vdev_type_nss_5g.ibss;
 		addbss_param->tx_aggregation_size =
 			mac_ctx->roam.configParam.tx_aggregation_size;
+		addbss_param->tx_aggregation_size_be =
+			mac_ctx->roam.configParam.tx_aggregation_size_be;
+		addbss_param->tx_aggregation_size_bk =
+			mac_ctx->roam.configParam.tx_aggregation_size_bk;
+		addbss_param->tx_aggregation_size_vi =
+			mac_ctx->roam.configParam.tx_aggregation_size_vi;
+		addbss_param->tx_aggregation_size_vo =
+			mac_ctx->roam.configParam.tx_aggregation_size_vo;
 		addbss_param->rx_aggregation_size =
 			mac_ctx->roam.configParam.rx_aggregation_size;
 	}
@@ -752,8 +764,18 @@ static void lim_post_join_set_link_state_callback(tpAniSirGlobal mac,
 		void *callback_arg, bool status)
 {
 	uint8_t chan_num, sec_chan_offset;
-	tpPESession session_entry = (tpPESession) callback_arg;
+	struct session_params *session_cb_param =
+					(struct session_params *) callback_arg;
 	tLimMlmJoinCnf mlm_join_cnf;
+	tpPESession session_entry = pe_find_session_by_session_id(mac,
+					session_cb_param->session_id);
+	if (session_entry == NULL) {
+		pe_err("sessionId:%d does not exist",
+				session_cb_param->session_id);
+		qdf_mem_free(session_cb_param);
+		return;
+	}
+	qdf_mem_free(session_cb_param);
 
 	pe_debug("Sessionid %d set link state(%d) cb status: %d",
 			session_entry->peSessionId, session_entry->limMlmState,
@@ -792,7 +814,7 @@ failure:
 	MTRACE(mac_trace(mac, TRACE_CODE_MLM_STATE, session_entry->peSessionId,
 			 session_entry->limMlmState));
 	session_entry->limMlmState = eLIM_MLM_IDLE_STATE;
-	mlm_join_cnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
+	mlm_join_cnf.resultCode = eSIR_SME_PEER_CREATE_FAILED;
 	mlm_join_cnf.sessionId = session_entry->peSessionId;
 	mlm_join_cnf.protStatusCode = eSIR_MAC_UNSPEC_FAILURE_STATUS;
 	lim_post_sme_message(mac, LIM_MLM_JOIN_CNF, (uint32_t *) &mlm_join_cnf);
@@ -823,6 +845,7 @@ lim_process_mlm_post_join_suspend_link(tpAniSirGlobal mac_ctx,
 	tLimMlmJoinCnf mlm_join_cnf;
 	tpPESession session = (tpPESession) ctx;
 	tSirLinkState lnk_state;
+	struct session_params *pe_session_param = NULL;
 
 	if (QDF_STATUS_SUCCESS != status) {
 		pe_err("Sessionid %d Suspend link(NOTIFY_BSS) failed. Still proceeding with join",
@@ -838,11 +861,18 @@ lim_process_mlm_post_join_suspend_link(tpAniSirGlobal mac_ctx,
 	pe_debug("[lim_process_mlm_join_req]: lnk_state: %d",
 		lnk_state);
 
+	pe_session_param = qdf_mem_malloc(sizeof(struct session_params));
+	if (pe_session_param != NULL) {
+		pe_session_param->session_id = session->peSessionId;
+	} else {
+		pe_err("insufficient memory");
+		goto error;
+	}
 	if (lim_set_link_state(mac_ctx, lnk_state,
 			session->pLimMlmJoinReq->bssDescription.bssId,
 			session->selfMacAddr,
 			lim_post_join_set_link_state_callback,
-			session) != eSIR_SUCCESS) {
+			pe_session_param) != eSIR_SUCCESS) {
 		pe_err("SessionId:%d lim_set_link_state to eSIR_LINK_PREASSOC_STATE Failed!!",
 			session->peSessionId);
 		lim_print_mac_addr(mac_ctx,
@@ -851,6 +881,7 @@ lim_process_mlm_post_join_suspend_link(tpAniSirGlobal mac_ctx,
 		session->limMlmState = eLIM_MLM_IDLE_STATE;
 		MTRACE(mac_trace(mac_ctx, TRACE_CODE_MLM_STATE,
 				 session->peSessionId, session->limMlmState));
+		qdf_mem_free(pe_session_param);
 		goto error;
 	}
 
@@ -1220,6 +1251,10 @@ static void lim_process_mlm_auth_req(tpAniSirGlobal mac_ctx, uint32_t *msg)
 			goto end;
 		} else {
 			pe_debug("lim_process_mlm_auth_req_sae is successful");
+			lim_diag_event_report(mac_ctx,
+					      WLAN_PE_DIAG_AUTH_ALGO_NUM,
+					      session, eSIR_SUCCESS,
+					      eSIR_AUTH_TYPE_SAE);
 			return;
 		}
 	} else
@@ -1236,6 +1271,9 @@ static void lim_process_mlm_auth_req(tpAniSirGlobal mac_ctx, uint32_t *msg)
 		auth_frame_body.authAlgoNumber =
 		(uint8_t) mac_ctx->lim.gpLimMlmAuthReq->authType;
 	}
+	lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_AUTH_ALGO_NUM,
+			      session, eSIR_SUCCESS,
+			      auth_frame_body.authAlgoNumber);
 
 	/* Prepare & send Authentication frame */
 	auth_frame_body.authTransactionSeqNumber = SIR_MAC_AUTH_FRAME_1;
@@ -1351,19 +1389,6 @@ static void lim_process_mlm_assoc_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	/* map the session entry pointer to the AssocFailureTimer */
 	mac_ctx->lim.limTimers.gLimAssocFailureTimer.sessionId =
 		mlm_assoc_req->sessionId;
-#ifdef WLAN_FEATURE_11W
-	/*
-	 * Store current MLM state in case ASSOC response returns with
-	 * TRY_AGAIN_LATER return code.
-	 */
-	if (session_entry->limRmfEnabled) {
-		session_entry->pmfComebackTimerInfo.limPrevMlmState =
-			session_entry->limPrevMlmState;
-		session_entry->pmfComebackTimerInfo.limMlmState =
-			session_entry->limMlmState;
-	}
-#endif /* WLAN_FEATURE_11W */
-
 	session_entry->limPrevMlmState = session_entry->limMlmState;
 	session_entry->limMlmState = eLIM_MLM_WT_ASSOC_RSP_STATE;
 	MTRACE(mac_trace(mac_ctx, TRACE_CODE_MLM_STATE,
@@ -2069,6 +2094,8 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 
 	mlm_set_keys_req = (tLimMlmSetKeysReq *) msg_buf;
 	if (mac_ctx->lim.gpLimMlmSetKeysReq != NULL) {
+		qdf_mem_zero(mac_ctx->lim.gpLimMlmSetKeysReq,
+			     sizeof(tLimMlmSetKeysReq));
 		qdf_mem_free(mac_ctx->lim.gpLimMlmSetKeysReq);
 		mac_ctx->lim.gpLimMlmSetKeysReq = NULL;
 	}
@@ -2078,6 +2105,8 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 				mlm_set_keys_req->sessionId);
 	if (NULL == session) {
 		pe_err("session does not exist for given sessionId");
+		qdf_mem_zero(mlm_set_keys_req->key, sizeof(tSirKeys));
+		mlm_set_keys_req->numKeys = 0;
 		qdf_mem_free(mlm_set_keys_req);
 		mac_ctx->lim.gpLimMlmSetKeysReq = NULL;
 		return;

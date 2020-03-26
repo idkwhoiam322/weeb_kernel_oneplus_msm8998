@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*============================================================================
@@ -224,6 +215,16 @@ enum channel_enum cds_get_channel_enum(uint32_t chan_num)
 	return INVALID_CHANNEL;
 }
 
+void cds_set_channel_state(uint32_t chan_num, enum channel_state state)
+{
+	enum channel_enum chan_enum;
+
+	chan_enum = cds_get_channel_enum(chan_num);
+	if (INVALID_CHANNEL == chan_enum)
+		return;
+
+	reg_channels[chan_enum].state = state;
+}
 
 /**
  * cds_get_channel_state() - get the channel state
@@ -637,8 +638,22 @@ QDF_STATUS cds_get_reg_domain_from_country_code(v_REGDOMAIN_t *reg_domain_ptr,
 	hdd_context_t *hdd_ctx;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
-	if (wlan_hdd_validate_context(hdd_ctx))
-		return false;
+
+	if (!hdd_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+			  "hdd_ctx is NULL");
+		return QDF_STATUS_E_ENXIO;
+	}
+
+	if (cds_is_driver_unloading()) {
+		hdd_err("Driver is unloading can not open the hdd");
+		return QDF_STATUS_E_BUSY;
+	}
+
+	if (cds_is_driver_recovering()) {
+		hdd_err("WLAN is currently recovering; Please try again.");
+		return QDF_STATUS_E_BUSY;
+	}
 
 	if (NULL == reg_domain_ptr) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -19,12 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 /**
  * DOC: wlan_hdd_ocb.c
  *
@@ -36,8 +27,8 @@
 #include "wlan_hdd_main.h"
 #include "wlan_hdd_ocb.h"
 #include "wlan_hdd_trace.h"
-#include "wlan_tgt_def_config.h"
 #include "wlan_hdd_request_manager.h"
+#include "target_if_def_config.h"
 #include "sch_api.h"
 #include "wma_api.h"
 #include "ol_txrx.h"
@@ -297,8 +288,8 @@ struct sir_ocb_config *hdd_ocb_config_new(uint32_t num_channels,
 	uint32_t len;
 	void *cursor;
 
-	if (num_channels > CFG_TGT_NUM_OCB_CHANNELS ||
-			num_schedule > CFG_TGT_NUM_OCB_SCHEDULES)
+	if (num_channels > TGT_NUM_OCB_CHANNELS ||
+			num_schedule > TGT_NUM_OCB_SCHEDULES)
 		return NULL;
 
 	len = sizeof(*ret) +
@@ -821,18 +812,10 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 		tb[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_SCHEDULE_SIZE]);
 
 	/* Get the ndl chan array and the ndl active state array. */
-	if (!tb[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_NDL_CHANNEL_ARRAY]) {
-		hdd_err("NDL_CHANNEL_ARRAY is not present");
-		return -EINVAL;
-	}
 	ndl_chan_list =
 		tb[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_NDL_CHANNEL_ARRAY];
 	ndl_chan_list_len = (ndl_chan_list ? nla_len(ndl_chan_list) : 0);
 
-	if (!tb[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_NDL_ACTIVE_STATE_ARRAY]) {
-		hdd_err("NDL_ACTIVE_STATE_ARRAY is not present");
-		return -EINVAL;
-	}
 	ndl_active_state_list =
 		tb[QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_NDL_ACTIVE_STATE_ARRAY];
 	ndl_active_state_list_len = (ndl_active_state_list ?
@@ -1320,6 +1303,7 @@ static void hdd_ocb_get_tsf_timer_callback(void *context_ptr,
 		return;
 	}
 
+	priv = hdd_request_priv(hdd_request);
 	if (response) {
 		priv->response = *response;
 		priv->status = 0;
@@ -1930,6 +1914,12 @@ static int __wlan_hdd_cfg80211_dcc_update_ndl(struct wiphy *wiphy,
 		tb[QCA_WLAN_VENDOR_ATTR_DCC_UPDATE_NDL_ACTIVE_STATE_ARRAY]);
 	ndl_active_state_array = nla_data(
 		tb[QCA_WLAN_VENDOR_ATTR_DCC_UPDATE_NDL_ACTIVE_STATE_ARRAY]);
+
+	/* Check channel count. Per 11p spec, max 2 channels allowed */
+	if (!channel_count || channel_count > TGT_NUM_OCB_CHANNELS) {
+		hdd_err("Invalid channel_count %d", channel_count);
+		return -EINVAL;
+	}
 
 	hdd_request = hdd_request_alloc(&params);
 	if (!hdd_request) {

@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -629,7 +620,8 @@ __lim_ext_scan_forward_bcn_probe_rsp(tpAniSirGlobal pmac, uint8_t *rx_pkt_info,
 	frame_len = sizeof(*bssdescr) + ie_len - sizeof(bssdescr->ieFields[1]);
 	bssdescr = (tSirBssDescription *) qdf_mem_malloc(frame_len);
 
-	if (NULL == bssdescr) {
+	if (!bssdescr) {
+		qdf_mem_free(result);
 		pe_err("qdf_mem_malloc(length=%d) failed", frame_len);
 		return;
 	}
@@ -1358,16 +1350,18 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	tSirMbMsgP2p *p2p_msg = NULL;
 	tSirSetActiveModeSetBncFilterReq *bcn_filter_req = NULL;
 
-	if (ANI_DRIVER_TYPE(mac_ctx) == QDF_DRIVER_TYPE_MFG) {
-		qdf_mem_free(msg->bodyptr);
-		msg->bodyptr = NULL;
-		return;
-	}
 	if (msg == NULL) {
 		pe_err("Message pointer is Null");
 		QDF_ASSERT(0);
 		return;
 	}
+
+	if (ANI_DRIVER_TYPE(mac_ctx) == QDF_DRIVER_TYPE_MFG) {
+		qdf_mem_free(msg->bodyptr);
+		msg->bodyptr = NULL;
+		return;
+	}
+
 #ifdef WLAN_DEBUG
 	mac_ctx->lim.numTot++;
 #endif
@@ -1706,7 +1700,8 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		break;
 	case SIR_LIM_BEACON_GEN_IND:
 		if (mac_ctx->lim.gLimSystemRole != eLIM_AP_ROLE)
-			sch_process_pre_beacon_ind(mac_ctx, msg);
+			sch_process_pre_beacon_ind(mac_ctx,
+						   msg, REASON_DEFAULT);
 		break;
 	case SIR_LIM_DELETE_STA_CONTEXT_IND:
 		lim_delete_sta_context(mac_ctx, msg);
@@ -2044,6 +2039,11 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		break;
 	case eWNI_SME_SEND_SAE_MSG:
 		lim_process_sae_msg(mac_ctx, msg->bodyptr);
+		qdf_mem_free((void *)msg->bodyptr);
+		msg->bodyptr = NULL;
+		break;
+	case WMA_SEND_BCN_RSP:
+		lim_send_bcn_rsp(mac_ctx, (tpSendbeaconParams)msg->bodyptr);
 		qdf_mem_free((void *)msg->bodyptr);
 		msg->bodyptr = NULL;
 		break;

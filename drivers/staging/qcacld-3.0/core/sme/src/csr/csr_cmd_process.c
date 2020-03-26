@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -53,8 +44,9 @@ QDF_STATUS csr_msg_processor(tpAniSirGlobal mac_ctx, void *msg_buf)
 	tCsrRoamSession *session;
 #endif
 	uint8_t session_id = sme_rsp->sessionId;
-	eCsrRoamState cur_state = mac_ctx->roam.curState[session_id];
+	eCsrRoamState cur_state;
 
+	cur_state = sme_get_current_roam_state(mac_ctx, session_id);
 	sme_debug("msg %d[0x%04X] recvd in curstate %s & substate %s id(%d)",
 		sme_rsp->messageType, sme_rsp->messageType,
 		mac_trace_getcsr_roam_state(cur_state),
@@ -119,7 +111,9 @@ QDF_STATUS csr_msg_processor(tpAniSirGlobal mac_ctx, void *msg_buf)
 			 * due to failure or finding the condition meets both
 			 * SAP and infra/IBSS requirement.
 			 */
-			if (eWNI_SME_SETCONTEXT_RSP == sme_rsp->messageType) {
+			if (eWNI_SME_SETCONTEXT_RSP == sme_rsp->messageType ||
+			    eWNI_SME_DISCONNECT_DONE_IND ==
+			    sme_rsp->messageType) {
 				sme_warn("handling msg 0x%X CSR state is %d",
 					sme_rsp->messageType, cur_state);
 				csr_roam_check_for_link_status_change(mac_ctx,

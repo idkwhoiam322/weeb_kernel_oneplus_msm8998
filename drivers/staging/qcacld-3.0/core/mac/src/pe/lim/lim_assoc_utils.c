@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -1396,6 +1387,25 @@ tSirRetStatus lim_populate_vht_mcs_set(tpAniSirGlobal mac_ctx,
 			VHT_TX_HIGHEST_SUPPORTED_DATA_RATE_1_1;
 		rates->vhtRxHighestDataRate =
 			VHT_RX_HIGHEST_SUPPORTED_DATA_RATE_1_1;
+		if (!session_entry->ch_width &&
+				!mac_ctx->roam.configParam.enable_vht20_mcs9 &&
+				((rates->vhtRxMCSMap & VHT_1x1_MCS_MASK) ==
+				 VHT_1x1_MCS9_MAP)) {
+			DISABLE_VHT_MCS_9(rates->vhtRxMCSMap,
+					NSS_1x1_MODE);
+			DISABLE_VHT_MCS_9(rates->vhtTxMCSMap,
+					NSS_1x1_MODE);
+		}
+	} else {
+		if (!session_entry->ch_width &&
+				!mac_ctx->roam.configParam.enable_vht20_mcs9 &&
+				((rates->vhtRxMCSMap & VHT_2x2_MCS_MASK) ==
+				 VHT_2x2_MCS9_MAP)) {
+			DISABLE_VHT_MCS_9(rates->vhtRxMCSMap,
+					NSS_2x2_MODE);
+			DISABLE_VHT_MCS_9(rates->vhtTxMCSMap,
+					NSS_2x2_MODE);
+		}
 	}
 
 	if ((peer_vht_caps == NULL) || (!peer_vht_caps->present))

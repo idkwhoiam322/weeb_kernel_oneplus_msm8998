@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include <ol_cfg.h>
@@ -86,7 +77,7 @@ void ol_pdev_cfg_param_update(struct txrx_pdev_cfg_t *cfg_ctx)
 }
 #endif
 
-#if CFG_TGT_DEFAULT_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK
+#if TGT_DEFAULT_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK
 static inline
 uint8_t ol_defrag_timeout_check(void)
 {
@@ -134,13 +125,13 @@ ol_pdev_handle ol_pdev_cfg_attach(qdf_device_t osdev,
 	cfg_ctx->rx_pn_check = 1;
 	cfg_ctx->defrag_timeout_check = ol_defrag_timeout_check();
 	cfg_ctx->max_peer_id = 511;
-	cfg_ctx->max_vdev = CFG_TGT_NUM_VDEV;
+	cfg_ctx->max_vdev = TGT_NUM_VDEV;
 	cfg_ctx->pn_rx_fwd_check = 1;
 	cfg_ctx->frame_type = wlan_frm_fmt_802_3;
 	cfg_ctx->max_thruput_mbps = 800;
 	cfg_ctx->max_nbuf_frags = 1;
 	cfg_ctx->vow_config = vow_config;
-	cfg_ctx->target_tx_credit = CFG_TGT_NUM_MSDU_DESC;
+	cfg_ctx->target_tx_credit = TGT_NUM_MSDU_DESC;
 	cfg_ctx->throttle_period_ms = 40;
 	cfg_ctx->dutycycle_level[0] = THROTTLE_DUTY_CYCLE_LEVEL0;
 	cfg_ctx->dutycycle_level[1] = THROTTLE_DUTY_CYCLE_LEVEL1;
@@ -570,4 +561,37 @@ int ol_cfg_get_discard_weight(ol_pdev_handle pdev, int ac)
 		return cfg->ac_specs[ac].discard_weight;
 	else
 		return 0;
+}
+
+/**
+ * ol_cfg_pktcapture_mode() - return pktcapture mode
+ * @pdev : handle to the physical device
+ *
+ * Return: 0 - disable
+ *         1 - Mgmt packets
+ *         2 - Data packets
+ *         3 - Both Mgmt and Data packets
+ */
+int ol_cfg_pktcapture_mode(ol_pdev_handle pdev)
+{
+	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
+
+	return cfg->pktcapture_mode;
+}
+
+/**
+ * ol_cfg_set_pktcapture_mode() - set pktcapture mode
+ * @pdev : handle to the physical device
+ * @val  : 0 - disable
+ *         1 - Mgmt packets
+ *         2 - Data packets
+ *         3 - Both Mgmt and Data packets
+ *
+ * Return: none
+ */
+void ol_cfg_set_pktcapture_mode(ol_pdev_handle pdev, int val)
+{
+	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
+
+	cfg->pktcapture_mode = val;
 }

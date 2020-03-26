@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -296,13 +287,16 @@ struct sk_buff *__qdf_nbuf_alloc(qdf_device_t osdev, size_t size, int reserve,
 		size += (align - 1);
 
 	if (in_interrupt() || irqs_disabled() || in_atomic()) {
+		flags = GFP_ATOMIC;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
 		/*
 		 * Observed that kcompactd burns out CPU to make order-3 page.
 		 *__netdev_alloc_skb has 4k page fallback option just in case of
 		 * failing high order page allocation so we don't need to be
 		 * hard. Make kcompactd rest in piece.
 		 */
-		flags = GFP_ATOMIC & ~__GFP_KSWAPD_RECLAIM;
+		flags = flags & ~__GFP_KSWAPD_RECLAIM;
+#endif
 	}
 
 	skb = __netdev_alloc_skb(NULL, size, flags);
@@ -2379,14 +2373,15 @@ qdf_export_symbol(qdf_nbuf_alloc_debug);
 
 void qdf_nbuf_free_debug(qdf_nbuf_t nbuf, uint8_t *file, uint32_t line)
 {
+	if (qdf_unlikely(!nbuf))
+		return;
+
 	if (qdf_nbuf_is_tso(nbuf) && qdf_nbuf_get_users(nbuf) > 1)
 		goto free_buf;
 
 	/* Remove SKB from internal QDF tracking table */
-	if (qdf_likely(nbuf)) {
-		qdf_net_buf_debug_delete_node(nbuf);
-		qdf_nbuf_history_add(nbuf, file, line, QDF_NBUF_FREE);
-	}
+	qdf_net_buf_debug_delete_node(nbuf);
+	qdf_nbuf_history_add(nbuf, file, line, QDF_NBUF_FREE);
 
 free_buf:
 	__qdf_nbuf_free(nbuf);
@@ -3422,13 +3417,24 @@ static unsigned int qdf_nbuf_update_radiotap_vht_flags(
 
 #define NORMALIZED_TO_NOISE_FLOOR (-96)
 
+#define IEEE80211_RADIOTAP_TX_STATUS 0
+#define IEEE80211_RADIOTAP_RETRY_COUNT 1
+
+/* This is Radio Tap Header Extension Length.
+ * 4 Bytes for Extended it_present bit map +
+ * 4 bytes padding for alignment
+ */
+#define RADIOTAP_HEADER_EXT_LEN (2 * sizeof(uint32_t))
+
 /* This is the length for radiotap, combined length
- * (Mandatory part struct ieee80211_radiotap_header + RADIOTAP_HEADER_LEN)
+ * (Mandatory part struct ieee80211_radiotap_header +
+ *  RADIOTAP_HEADER_LEN + RADIOTAP_HEADER_EXT_LEN)
  * cannot be more than available headroom_sz.
  * Max size current radiotap we are populating is less than 100 bytes,
  * increase this when we add more radiotap elements.
  */
-#define RADIOTAP_HEADER_LEN (sizeof(struct ieee80211_radiotap_header) + 100)
+#define RADIOTAP_HEADER_LEN (sizeof(struct ieee80211_radiotap_header) + \
+						RADIOTAP_HEADER_EXT_LEN + 100)
 
 /**
  * qdf_nbuf_update_radiotap() - Update radiotap header from rx_status
@@ -3446,6 +3452,13 @@ unsigned int qdf_nbuf_update_radiotap(struct mon_rx_status *rx_status,
 		(struct ieee80211_radiotap_header *)rtap_buf;
 	uint32_t rtap_hdr_len = sizeof(struct ieee80211_radiotap_header);
 	uint32_t rtap_len = rtap_hdr_len;
+	uint32_t *rtap_ext = NULL;
+
+	/* Adding Extended Header space */
+	if (rx_status->add_rtap_ext) {
+		rtap_hdr_len += RADIOTAP_HEADER_EXT_LEN;
+		rtap_len = rtap_hdr_len;
+	}
 
 	/* IEEE80211_RADIOTAP_TSFT              __le64       microseconds*/
 	rthdr->it_present = cpu_to_le32(1 << IEEE80211_RADIOTAP_TSFT);
@@ -3515,6 +3528,21 @@ unsigned int qdf_nbuf_update_radiotap(struct mon_rx_status *rx_status,
 							      rtap_buf,
 							      rtap_len);
 	}
+
+	/* Add Extension to Radiotap Header & corresponding data */
+	if (rx_status->add_rtap_ext) {
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_EXT);
+		rtap_ext = (uint32_t *)&rthdr->it_present;
+		rtap_ext++;
+		*rtap_ext = cpu_to_le32(1 << IEEE80211_RADIOTAP_TX_STATUS);
+		*rtap_ext |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RETRY_COUNT);
+
+		rtap_buf[rtap_len] = rx_status->tx_status;
+		rtap_len += 1;
+		rtap_buf[rtap_len] = rx_status->tx_retry_cnt;
+		rtap_len += 1;
+	}
+
 	rthdr->it_len = cpu_to_le16(rtap_len);
 
 	if (headroom_sz < rtap_len) {

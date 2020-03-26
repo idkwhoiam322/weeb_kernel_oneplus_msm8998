@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -290,6 +281,18 @@ void qdf_snprintf(char *str_buffer, unsigned int size, char *str_format, ...)
 }
 qdf_export_symbol(qdf_snprintf);
 
+#ifdef MULTI_IF_NAME
+static const char *qdf_trace_wlan_modname(void)
+{
+	return MULTI_IF_NAME;
+}
+#else
+static const char *qdf_trace_wlan_modname(void)
+{
+	return "wlan";
+}
+#endif
+
 #ifdef QDF_ENABLE_TRACING
 void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 		   char *str_format, va_list val)
@@ -314,7 +317,7 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 
 		/* print the prefix string into the string buffer... */
 		n = snprintf(str_buffer, QDF_TRACE_BUFFER_SIZE,
-			     "wlan: [%d:%2s:%3s] ",
+			     "%s: [%d:%2s:%3s] ", qdf_trace_wlan_modname(),
 			     in_interrupt() ? 0 : current->pid,
 			     (char *)TRACE_LEVEL_STR[level],
 			     (char *)g_qdf_trace_info[module].module_name_str);
@@ -426,7 +429,7 @@ void qdf_trace_hex_dump(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 {
 	const u8 *ptr = data;
 	int i, linelen, remaining = buf_len;
-	unsigned char linebuf[BUFFER_SIZE];
+	unsigned char linebuf[BUFFER_SIZE] = {0};
 
 	if (!(g_qdf_trace_info[module].module_trace_level &
 		QDF_TRACE_LEVEL_TO_MODULE_BITMASK(level)))
@@ -1937,7 +1940,9 @@ void qdf_dp_trace_data_pkt(qdf_nbuf_t nbuf,
 	if (qdf_dp_enable_check(nbuf, code, dir) == false)
 		return;
 
-	qdf_dp_add_record(code, qdf_nbuf_data(nbuf), nbuf->len - nbuf->data_len,
+	qdf_dp_add_record(code,
+			  nbuf ? qdf_nbuf_data(nbuf) : NULL,
+			  nbuf ? nbuf->len - nbuf->data_len : 0,
 			  (uint8_t *)&buf, sizeof(struct qdf_dp_trace_data_buf),
 			  (nbuf) ? QDF_NBUF_CB_DP_TRACE_PRINT(nbuf)
 			  : false);

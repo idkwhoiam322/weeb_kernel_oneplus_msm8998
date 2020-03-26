@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -639,9 +630,10 @@ enum qca_wlan_vendor_attr_get_station_info {
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_RX_STBC,
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_CH_WIDTH,
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_SGI_ENABLE,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_PAD,
-#endif
+	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_RX_RETRY_COUNT,
+	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_RX_BC_MC_COUNT,
+
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_MAX =
@@ -2074,6 +2066,51 @@ enum qca_roaming_policy {
 };
 
 /**
+ * enum qca_roam_reason - Represents the reason codes for roaming. Used by
+ * QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REASON.
+ *
+ * @QCA_ROAM_REASON_UNKNOWN: Any reason that do not classify under the below
+ * reasons.
+ *
+ * @QCA_ROAM_REASON_PER: Roam triggered when packet error rates(PER) breached
+ * the configured threshold.
+ *
+ * @QCA_ROAM_REASON_BEACON_MISS: Roam triggered due to the continuous configured
+ * beacon misses from the then connected AP.
+ *
+ * @QCA_ROAM_REASON_POOR_RSSI: Roam triggered due to the poor RSSI reported
+ * by the connected AP.
+ *
+ * @QCA_ROAM_REASON_BETTER_RSSI: Roam triggered for finding a BSSID with a
+ * better RSSI than the connected BSSID. Here the RSSI of the current BSSID is
+ * not poor.
+ *
+ * @QCA_ROAM_REASON_CONGESTION: Roam triggered considering the connected channel
+ * or environment being very noisy / congested.
+ *
+ * @QCA_ROAM_REASON_EXPLICIT_REQUEST: Roam triggered due to an explicit request
+ * from the user (user space).
+ *
+ * @QCA_ROAM_REASON_BTM: Roam triggered due to BTM request frame received from
+ * connected AP.
+ *
+ * @QCA_ROAM_REASON_BSS_LOAD: Roam triggered due to the channel utilization
+ * breaching out the configured threshold.
+ *
+ */
+enum qca_roam_reason {
+	QCA_ROAM_REASON_UNKNOWN,
+	QCA_ROAM_REASON_PER,
+	QCA_ROAM_REASON_BEACON_MISS,
+	QCA_ROAM_REASON_POOR_RSSI,
+	QCA_ROAM_REASON_BETTER_RSSI,
+	QCA_ROAM_REASON_CONGESTION,
+	QCA_ROAM_REASON_USER_TRIGGER,
+	QCA_ROAM_REASON_BTM,
+	QCA_ROAM_REASON_BSS_LOAD,
+};
+
+/**
  * enum qca_wlan_vendor_attr_roam_auth - vendor event for roaming
  * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_BSSID: BSSID of the roamed AP
  * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REQ_IE: Request IE
@@ -2090,6 +2127,9 @@ enum qca_roaming_policy {
  * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_PMKID: AUTH PMKID
  * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_FILS_ERP_NEXT_SEQ_NUM: FILS erp next
  * seq number
+ * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REASON: A 16-bit unsigned value
+ * representing the reasons for the roaming. Defined by enum
+ * qca_roam_reason.
  */
 enum qca_wlan_vendor_attr_roam_auth {
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_INVALID = 0,
@@ -2122,6 +2162,7 @@ enum qca_wlan_vendor_attr_roam_auth {
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_PMK,
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_PMKID,
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_FILS_ERP_NEXT_SEQ_NUM,
+	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REASON,
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_MAX =
 		QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_AFTER_LAST - 1
@@ -2863,6 +2904,12 @@ enum qca_wlan_vendor_attr_get_logger_features {
  *	to specify negotiated rate flags i.e. ht, vht and channel width
  * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_FREQ: Unsigned 32bit value to
  *	specify the operating frequency
+ * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAC_ADDR: MAC Address of the peer
+ * (STA / AP ) for the connected link.
+ * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_FLAGS: Attribute containing a
+ * &struct nl80211_sta_flag_update for the respective connected link. MAC
+ * address of the peer represented by
+ * QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAC_ADDR.
  * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_AFTER_LAST: after last
  * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAX: max value
  */
@@ -2871,8 +2918,10 @@ enum qca_wlan_vendor_attr_link_properties {
 	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_NSS = 1,
 	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_RATE_FLAGS = 2,
 	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_FREQ = 3,
-	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_FLAGS  = 4,
-	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_MAC  = 5,
+	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAC_ADDR = 4,
+	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_FLAGS = 5,
+
+
 
 	/* KEEP LAST */
 	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_AFTER_LAST,
@@ -3347,6 +3396,12 @@ enum qca_wlan_vendor_attr_config {
 	 */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_RSN_IE = 56,
 
+	/*
+	 * 8-bit unsigned value to trigger green Tx power saving.
+	 * 1-Enable, 0-Disable
+	 */
+	QCA_WLAN_VENDOR_ATTR_CONFIG_GTX = 57,
+
 	QCA_WLAN_VENDOR_ATTR_CONFIG_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_MAX =
 	QCA_WLAN_VENDOR_ATTR_CONFIG_AFTER_LAST - 1,
@@ -3492,6 +3547,132 @@ enum qca_wlan_vendor_attr_rssi_monitoring {
 	QCA_WLAN_VENDOR_ATTR_RSSI_MONITORING_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_RSSI_MONITORING_MAX =
 		QCA_WLAN_VENDOR_ATTR_RSSI_MONITORING_AFTER_LAST - 1,
+};
+
+/**
+ * enum qca_wlan_vendor_attr_ndp_params - Used by the vendor command
+ * QCA_NL80211_VENDOR_SUBCMD_NDP.
+ * @QCA_WLAN_VENDOR_ATTR_NDP_PARAM_INVALID
+ * @QCA_WLAN_VENDOR_ATTR_NDP_SUBCMD: sub commands values in qca_wlan_ndp_sub_cmd
+ * @QCA_WLAN_VENDOR_ATTR_NDP_TRANSACTION_ID:
+ * @QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_INSTANCE_ID: indicats a service info
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL: channel frequency in MHz
+ * @QCA_WLAN_VENDOR_ATTR_NDP_PEER_DISCOVERY_MAC_ADDR: Interface Discovery MAC
+ * address
+ * @QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR: Interface name on which NDP is being
+ * created
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_SECURITY: CONFIG_SECURITY is deprecated, use
+ * NCS_SK_TYPE/PMK/SCID instead
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS: value for QoS
+ * @QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO: app info
+ * @QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID: NDP instance Id
+ * @QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID_ARRAY: Array of instance Ids
+ * @QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE: initiator/responder NDP response
+ * code: accept/reject
+ * @QCA_WLAN_VENDOR_ATTR_NDP_NDI_MAC_ADDR: NDI MAC address
+ * @QCA_WLAN_VENDOR_ATTR_NDP_DRV_RESPONSE_STATUS_TYPE: errors types returned by
+ * driver
+ * @QCA_WLAN_VENDOR_ATTR_NDP_DRV_RETURN_VALUE: value error values returned by
+ * driver
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_CONFIG: Channel setup configuration
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CSID: Cipher Suite Shared Key Type
+ * @QCA_WLAN_VENDOR_ATTR_NDP_PMK: PMK_INFO
+ * @QCA_WLAN_VENDOR_ATTR_NDP_SCID: Security Context Identifier that contains the
+ * PMKID
+ * @QCA_WLAN_VENDOR_ATTR_NDP_PASSPHRASE: passphrase
+ * @QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_NAME: service name
+ * @QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_REASON: bitmap indicating schedule
+ * update:
+ *     BIT_0: NSS Update
+ *     BIT_1: Channel list update
+ * @QCA_WLAN_VENDOR_ATTR_NDP_NSS: nss
+ * @QCA_WLAN_VENDOR_ATTR_NDP_NUM_CHANNELS: NUMBER NDP CHANNEL
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_WIDTH: CHANNEL BANDWIDTH:
+ *     0:20 MHz,
+ *     1:40 MHz,
+ *     2:80 MHz,
+ *     3:160 MHz
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO: Array of channel/band width
+ * @QCA_WLAN_VENDOR_ATTR_NDP_IPV6_ADDR: IPv6 address used by NDP, 16 bytes array
+ * @QCA_WLAN_VENDOR_ATTR_NDP_TRANSPORT_PORT: Unsigned 16-bit value indicating
+ * transport port used by NDP.
+ * QCA_WLAN_VENDOR_ATTR_NDP_TRANSPORT_PROTOCOL: Unsigned 8-bit value indicating
+ * protocol used by NDP and assigned by the Internet Assigned Numbers Authority
+ * as per: www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
+ * @QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_AFTER_LAST: id after last valid attribute
+ * @QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX: max value of this enum type
+ */
+enum qca_wlan_vendor_attr_ndp_params {
+	QCA_WLAN_VENDOR_ATTR_NDP_PARAM_INVALID = 0,
+	QCA_WLAN_VENDOR_ATTR_NDP_SUBCMD = 1,
+	QCA_WLAN_VENDOR_ATTR_NDP_TRANSACTION_ID = 2,
+	QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_INSTANCE_ID = 3,
+	QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL = 4,
+	QCA_WLAN_VENDOR_ATTR_NDP_PEER_DISCOVERY_MAC_ADDR = 5,
+	QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR = 6,
+	QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_SECURITY = 7,
+	QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS = 8,
+	QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO = 9,
+	QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID = 10,
+	QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID_ARRAY = 11,
+	QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE = 12,
+	QCA_WLAN_VENDOR_ATTR_NDP_NDI_MAC_ADDR = 13,
+	QCA_WLAN_VENDOR_ATTR_NDP_DRV_RESPONSE_STATUS_TYPE = 14,
+	QCA_WLAN_VENDOR_ATTR_NDP_DRV_RETURN_VALUE = 15,
+	QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_CONFIG = 16,
+	QCA_WLAN_VENDOR_ATTR_NDP_CSID = 17,
+	QCA_WLAN_VENDOR_ATTR_NDP_PMK = 18,
+	QCA_WLAN_VENDOR_ATTR_NDP_SCID = 19,
+	QCA_WLAN_VENDOR_ATTR_NDP_PASSPHRASE = 20,
+	QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_NAME = 21,
+	QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_REASON = 22,
+	QCA_WLAN_VENDOR_ATTR_NDP_NSS = 23,
+	QCA_WLAN_VENDOR_ATTR_NDP_NUM_CHANNELS = 24,
+	QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_WIDTH = 25,
+	QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO = 26,
+	QCA_WLAN_VENDOR_ATTR_NDP_IPV6_ADDR = 27,
+	QCA_WLAN_VENDOR_ATTR_NDP_TRANSPORT_PORT = 28,
+	QCA_WLAN_VENDOR_ATTR_NDP_TRANSPORT_PROTOCOL = 29,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX =
+		QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_AFTER_LAST - 1,
+};
+
+/**
+ * enum qca_wlan_ndp_sub_cmd - NDP sub comands types for
+ * QCA_NL80211_VENDOR_SUBCMD_NDP.
+ * @QCA_WLAN_VENDOR_ATTR_NDP_INVALID: invalid value
+ * @QCA_WLAN_VENDOR_ATTR_NDP_INTERFACE_CREATE: create a ndi
+ * @QCA_WLAN_VENDOR_ATTR_NDP_INTERFACE_DELETE: delete a ndi
+ * @QCA_WLAN_VENDOR_ATTR_NDP_INITIATOR_REQUEST: initiate a ndp session
+ * @QCA_WLAN_VENDOR_ATTR_NDP_INITIATOR_RESPONSE: response for above
+ * @QCA_WLAN_VENDOR_ATTR_NDP_RESPONDER_REQUEST: respond to ndp session
+ * @QCA_WLAN_VENDOR_ATTR_NDP_RESPONDER_RESPONSE: response for above
+ * @QCA_WLAN_VENDOR_ATTR_NDP_END_REQUEST: initiate a ndp end
+ * @QCA_WLAN_VENDOR_ATTR_NDP_END_RESPONSE: response for above
+ * @QCA_WLAN_VENDOR_ATTR_NDP_REQUEST_IND: notify the peer about the end request
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CONFIRM_IND: confirm the ndp session is complete
+ * @QCA_WLAN_VENDOR_ATTR_NDP_END_IND: indicate the peer about the end request
+ * being received
+ * @QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_IND: indicate the peer of schedule
+ * update
+ */
+enum qca_wlan_ndp_sub_cmd {
+	QCA_WLAN_VENDOR_ATTR_NDP_INVALID = 0,
+	QCA_WLAN_VENDOR_ATTR_NDP_INTERFACE_CREATE = 1,
+	QCA_WLAN_VENDOR_ATTR_NDP_INTERFACE_DELETE = 2,
+	QCA_WLAN_VENDOR_ATTR_NDP_INITIATOR_REQUEST = 3,
+	QCA_WLAN_VENDOR_ATTR_NDP_INITIATOR_RESPONSE = 4,
+	QCA_WLAN_VENDOR_ATTR_NDP_RESPONDER_REQUEST = 5,
+	QCA_WLAN_VENDOR_ATTR_NDP_RESPONDER_RESPONSE = 6,
+	QCA_WLAN_VENDOR_ATTR_NDP_END_REQUEST = 7,
+	QCA_WLAN_VENDOR_ATTR_NDP_END_RESPONSE = 8,
+	QCA_WLAN_VENDOR_ATTR_NDP_REQUEST_IND = 9,
+	QCA_WLAN_VENDOR_ATTR_NDP_CONFIRM_IND = 10,
+	QCA_WLAN_VENDOR_ATTR_NDP_END_IND = 11,
+	QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_IND = 12
 };
 
 /**
@@ -4685,6 +4866,8 @@ enum qca_wlan_vendor_tdls_trigger_mode {
  *	limit feature.
  * @QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_USER: Select the SAR power
  *	limits configured by %QCA_NL80211_VENDOR_SUBCMD_SET_SAR.
+ * @QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_V2_0: Select the SAR power
+ *	limits version 2.0 configured by %QCA_NL80211_VENDOR_SUBCMD_SET_SAR.
  *
  * This enumerates the valid set of values that may be supplied for
  * attribute %QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT in an instance of
@@ -4700,6 +4883,7 @@ enum qca_vendor_attr_sar_limits_selections {
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_BDF4 = 4,
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_NONE = 5,
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_USER = 6,
+	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_V2_0 = 7,
 };
 
 /**
@@ -4747,6 +4931,11 @@ enum qca_vendor_attr_sar_limits_spec_modulations {
  *	%QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_MODULATION and always
  *	contains as a payload the attribute
  *	%QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_POWER_LIMIT.
+ *	%QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_POWER_LIMIT_INDEX.
+ *	Either %QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_POWER_LIMIT or
+ *	%QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_POWER_LIMIT_INDEX is
+ *	needed based upon the value of
+ *	%QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SAR_ENABLE.
  *
  * @QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_BAND: Optional (u32) value to
  *	indicate for which band this specification applies. Valid
@@ -4769,8 +4958,15 @@ enum qca_vendor_attr_sar_limits_spec_modulations {
  *	modulation schemes.
  *
  * @QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_POWER_LIMIT: Required (u32)
- *	value to specify the actual power limit value in steps of 0.5
- *	dbm.
+ *	value to specify the actual power limit value in units of 0.5
+ *	dBm (i.e., a value of 11 represents 5.5 dBm).
+ *	This is required, when %QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT is
+ *	%QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_USER.
+ *
+ * @QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_POWER_LIMIT_INDEX: Required (u32)
+ *	value to indicate SAR V2 indices (0 - 11) to select SAR V2 profiles.
+ *	This is required, when %QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT is
+ *	%QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_V2_0.
  *
  * These attributes are used with %QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS
  * and %QCA_NL80211_VENDOR_SUBCMD_GET_SAR_LIMITS.
@@ -4784,6 +4980,7 @@ enum qca_vendor_attr_sar_limits {
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_CHAIN = 5,
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_MODULATION = 6,
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_POWER_LIMIT = 7,
+	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_POWER_LIMIT_INDEX = 8,
 
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_MAX =

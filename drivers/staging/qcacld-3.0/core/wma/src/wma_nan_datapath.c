@@ -1,8 +1,6 @@
 /*
  * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -550,15 +548,6 @@ static int wma_ndp_indication_event_handler(void *handle, uint8_t *event_info,
 	ind_event.ncs_sk_type = fixed_params->nan_csid;
 	ind_event.scid.scid_len = fixed_params->nan_scid_len;
 
-	if (fixed_params->ndp_cfg_len > event->num_ndp_cfg ||
-	    fixed_params->ndp_app_info_len > event->num_ndp_app_info ||
-	    fixed_params->nan_scid_len > event->num_ndp_scid) {
-		WMA_LOGD(FL("Invalid ndp_cfg_len: %d, ndp_app_info_len: %d, nan_scid_len: %d"),
-				fixed_params->ndp_cfg_len,
-				fixed_params->ndp_app_info_len,
-				fixed_params->nan_scid_len);
-		return -EINVAL;
-	}
 	if (ind_event.ndp_config.ndp_cfg_len) {
 		ind_event.ndp_config.ndp_cfg =
 			qdf_mem_malloc(fixed_params->ndp_cfg_len);
@@ -696,6 +685,15 @@ static int wma_ndp_confirm_event_handler(void *handle, uint8_t *event_info,
 	WMA_LOGD(FL("ndp_app_info - %d bytes"), fixed_params->ndp_app_info_len);
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 		&event->ndp_app_info, fixed_params->ndp_app_info_len);
+
+	if (fixed_params->num_ndp_channels > event->num_ndp_channel_list ||
+	    fixed_params->num_ndp_channels > event->num_nss_list) {
+		WMI_LOGE(FL("NDP Ch count %d greater than NDP Ch TLV len (%d) or NSS TLV len (%d)"),
+			 fixed_params->num_ndp_channels,
+			 event->num_ndp_channel_list,
+			 event->num_nss_list);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	ndp_confirm.vdev_id = fixed_params->vdev_id;
 	ndp_confirm.ndp_instance_id = fixed_params->ndp_instance_id;
@@ -935,6 +933,21 @@ static int wma_ndp_sch_update_event_handler(void *handle, uint8_t *evinfo,
 	WMA_LOGD(FL("flags: %d, num_ch: %d, num_ndp_instances: %d"),
 		 fixed_params->flags, fixed_params->num_channels,
 		 fixed_params->num_ndp_instances);
+
+	if (fixed_params->num_channels > event->num_ndl_channel_list ||
+	    fixed_params->num_channels > event->num_nss_list) {
+		WMI_LOGE(FL("Channel count %d greater than NDP Ch list TLV len (%d) or NSS list TLV len (%d)"),
+			 fixed_params->num_channels,
+			 event->num_ndl_channel_list,
+			 event->num_nss_list);
+		return QDF_STATUS_E_INVAL;
+	}
+	if (fixed_params->num_ndp_instances > event->num_ndp_instance_list) {
+		WMI_LOGE(FL("NDP Instance count %d greater than NDP Instancei TLV len %d"),
+			 fixed_params->num_ndp_instances,
+			 event->num_ndp_instance_list);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	if (fixed_params->vdev_id >= wma_handle->max_bssid) {
 		WMA_LOGE(FL("incorrect vdev_id: %d"), fixed_params->vdev_id);

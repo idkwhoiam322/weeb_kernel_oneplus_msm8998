@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,6 +16,10 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+#ifndef _WLAN_HDD_SYSFS_H_
+#define _WLAN_HDD_SYSFS_H_
+
+#ifdef WLAN_SYSFS
 /**
  * hdd_sysfs_create_version_interface - create version interface
  *
@@ -32,3 +33,13 @@ void hdd_sysfs_create_version_interface(void);
  * Return: none
  */
 void hdd_sysfs_destroy_version_interface(void);
+#else
+static inline void hdd_sysfs_create_version_interface(void)
+{
+}
+
+static inline void hdd_sysfs_destroy_version_interface(void)
+{
+}
+#endif
+#endif

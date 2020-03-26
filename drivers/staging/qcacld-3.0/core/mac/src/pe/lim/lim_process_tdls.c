@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*===========================================================================
@@ -2983,7 +2974,6 @@ tSirRetStatus lim_process_sme_tdls_add_sta_req(tpAniSirGlobal pMac,
 		goto lim_tdls_add_sta_error;
 	}
 
-	pMac->lim.gLimAddStaTdls = true;
 
 	/* To start with, send add STA request to HAL */
 	if (eSIR_FAILURE == lim_tdls_setup_add_sta(pMac, pAddStaReq, psessionEntry)) {
@@ -3053,8 +3043,8 @@ tSirRetStatus lim_process_sme_tdls_del_sta_req(tpAniSirGlobal pMac,
 		goto lim_tdls_del_sta_error;
 	}
 
-	lim_tdls_del_sta(pMac, pDelStaReq->peermac, psessionEntry, true);
-	return eSIR_SUCCESS;
+	if (lim_tdls_del_sta(pMac, pDelStaReq->peermac, psessionEntry, true))
+		return eSIR_SUCCESS;
 
 lim_tdls_del_sta_error:
 	lim_send_sme_tdls_del_sta_rsp(pMac, psessionEntry->smeSessionId,
@@ -3310,7 +3300,7 @@ tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 	if (lim_is_roam_synch_in_progress(session_entry))
 		return eSIR_SUCCESS;
 
-	if (mac_ctx->lim.sme_msg_callback) {
+	if (!session_entry->is_tdls_csa && mac_ctx->lim.sme_msg_callback) {
 		tdls_state_disable = qdf_mem_malloc(
 						sizeof(*tdls_state_disable));
 		if (NULL == tdls_state_disable) {
@@ -3323,6 +3313,10 @@ tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 		msg.bodyval = 0;
 		mac_ctx->lim.sme_msg_callback(mac_ctx, &msg);
 	}
+
+	if (session_entry->is_tdls_csa)
+		/* reset the csa flag */
+		session_entry->is_tdls_csa = false;
 
 	lim_send_sme_tdls_delete_all_peer_ind(mac_ctx, session_entry);
 	pe_debug("Exit");

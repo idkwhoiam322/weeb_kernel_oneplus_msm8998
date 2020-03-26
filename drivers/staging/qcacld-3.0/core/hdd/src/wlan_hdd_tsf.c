@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -274,18 +265,16 @@ static enum hdd_tsf_op_result hdd_indicate_tsf_internal(
 #ifdef WLAN_FEATURE_TSF_PLUS
 /* unit for target time: us;  host time: ns */
 #define HOST_TO_TARGET_TIME_RATIO NSEC_PER_USEC
-#define MAX_ALLOWED_DEVIATION_NS (20 * NSEC_PER_MSEC)
+#define MAX_ALLOWED_DEVIATION_NS (100 * NSEC_PER_USEC)
 #define MAX_CONTINUOUS_ERROR_CNT 3
 
 /* to distinguish 32-bit overflow case, this inverval should:
  * equal or less than (1/2 * OVERFLOW_INDICATOR32 us)
  */
-#define WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC 500
+#define WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC 10
 #define WLAN_HDD_CAPTURE_TSF_INIT_INTERVAL_MS 100
-#define NORMAL_INTERVAL_TARGET \
-	((int64_t)((int64_t)WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC * \
-		NSEC_PER_SEC / HOST_TO_TARGET_TIME_RATIO))
 #define OVERFLOW_INDICATOR32 (((int64_t)0x1) << 32)
+#define CAP_TSF_TIMER_FIX_SEC 1
 
 /**
  * TS_STATUS - timestamp status
@@ -466,8 +455,21 @@ static void hdd_update_timestamp(hdd_adapter_t *adapter,
 		hdd_info("ts-pair updated: target: %llu; host: %llu",
 			 adapter->last_target_time,
 			 adapter->last_host_time);
-		interval = WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC *
-			MSEC_PER_SEC;
+
+		/*
+		 * TSF-HOST need to be updated in at most
+		 * WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC, it couldn't be achieved
+		 * if the timer interval is also
+		 * WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC, due to processing or
+		 * schedule delay. So deduct several seconds from
+		 * WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC.
+		 * Without this change, hdd_get_hosttime_from_targettime() will
+		 * get wrong host time when it's longer than
+		 * WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC from last
+		 * TSF-HOST update.
+		 */
+		interval = (WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC -
+			    CAP_TSF_TIMER_FIX_SEC) * MSEC_PER_SEC;
 		adapter->continuous_error_count = 0;
 		break;
 	case HDD_TS_STATUS_WAITING:
@@ -539,6 +541,7 @@ static inline int32_t hdd_get_hosttime_from_targettime(
 	int32_t ret = -EINVAL;
 	int64_t delta32_target;
 	bool in_cap_state;
+	int64_t normal_interval_target;
 
 	in_cap_state = hdd_tsf_is_in_cap(adapter);
 
@@ -553,11 +556,15 @@ static inline int32_t hdd_get_hosttime_from_targettime(
 	delta32_target = (int64_t)((target_time & U32_MAX) -
 			(adapter->last_target_time & U32_MAX));
 
+	normal_interval_target =
+		qdf_do_div(WLAN_HDD_CAPTURE_TSF_INTERVAL_SEC *
+			   NSEC_PER_SEC, HOST_TO_TARGET_TIME_RATIO);
+
 	if (delta32_target <
-			(NORMAL_INTERVAL_TARGET - OVERFLOW_INDICATOR32))
+			(normal_interval_target  - OVERFLOW_INDICATOR32))
 		delta32_target += OVERFLOW_INDICATOR32;
 	else if (delta32_target >
-			(OVERFLOW_INDICATOR32 - NORMAL_INTERVAL_TARGET))
+			(OVERFLOW_INDICATOR32 - normal_interval_target))
 		delta32_target -= OVERFLOW_INDICATOR32;
 
 	ret = hdd_64bit_plus(adapter->last_host_time,

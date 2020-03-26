@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -128,7 +119,7 @@ int hdd_napi_create(void)
 			hdd_err("ERR(%d) creating NAPI instances",
 				rc);
 		} else {
-			hdd_info("napi instances were created. Map=0x%x", rc);
+			hdd_debug("napi instances were created. Map=0x%x", rc);
 			hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 			if (unlikely(NULL == hdd_ctx)) {
 				QDF_ASSERT(0);
@@ -249,7 +240,7 @@ int hdd_napi_event(enum qca_napi_event event, void *data)
 	return rc;
 }
 
-#ifdef HELIUMPLUS
+#if defined HELIUMPLUS && defined MSM_PLATFORM
 /**
  * hdd_napi_perfd_cpufreq() - set/reset min CPU freq for cores
  * @req_state:  high/low
@@ -427,7 +418,7 @@ int hdd_napi_serialize(int is_on)
 	}
 	return rc;
 }
-#endif /* HELIUMPLUS */
+#endif /* HELIUMPLUS && MSM_PLATFORM */
 
 /**
  * hdd_napi_poll() - NAPI poll function

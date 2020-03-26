@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011, 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -1733,8 +1724,9 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 		(struct htt_host_tx_desc_t *)
 		(((char *)htt_tx_desc) - HTT_TX_DESC_VADDR_OFFSET);
 	bool desc_ext_required = (type != EXT_HEADER_NOT_PRESENT);
-	uint16_t channel_freq;
+	int channel_freq;
 	void *qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	qdf_dma_dir_t dir;
 	QDF_STATUS status;
 
 	if (qdf_unlikely(!qdf_ctx)) {
@@ -1830,7 +1822,7 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 	 */
 	local_word3 = HTT_INVALID_PEER;
 	channel_freq = htt_get_channel_freq(type, ext_header_data);
-	if (channel_freq != HTT_INVALID_CHANNEL)
+	if (channel_freq != HTT_INVALID_CHANNEL && channel_freq > 0)
 		HTT_TX_DESC_CHAN_FREQ_SET(local_word3, channel_freq);
 #if HTT_PADDR64
 	*word4 = local_word3;
@@ -1864,7 +1856,9 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 					0);
 
 	if (QDF_NBUF_CB_PADDR(msdu) == 0) {
-		status = qdf_nbuf_map_single(qdf_ctx, msdu, QDF_DMA_TO_DEVICE);
+		dir = QDF_NBUF_CB_TX_DMA_BI_MAP(msdu) ?
+			QDF_DMA_BIDIRECTIONAL : QDF_DMA_TO_DEVICE;
+		status = qdf_nbuf_map_single(qdf_ctx, msdu, dir);
 		if (qdf_unlikely(status != QDF_STATUS_SUCCESS)) {
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 				"%s: nbuf map failed", __func__);

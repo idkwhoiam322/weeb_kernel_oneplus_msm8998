@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -321,8 +312,6 @@ char *lim_msg_str(uint32_t msgType)
 		return "eWNI_SME_STOP_BSS_REQ";
 	case eWNI_SME_STOP_BSS_RSP:
 		return "eWNI_SME_STOP_BSS_RSP";
-	case eWNI_SME_NEIGHBOR_BSS_IND:
-		return "eWNI_SME_NEIGHBOR_BSS_IND";
 	case eWNI_SME_DEAUTH_CNF:
 		return "eWNI_SME_DEAUTH_CNF";
 	case eWNI_SME_ADDTS_REQ:
@@ -610,8 +599,16 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 	/* Deactivate remain on channel timer */
 	tx_timer_deactivate(&lim_timer->gLimRemainOnChannelTimer);
 
+	if (tx_timer_running(&lim_timer->gLimDisassocAckTimer)) {
+		pe_err("Disassoc timer running call the timeout API");
+		lim_timer_handler(mac_ctx, SIR_LIM_DISASSOC_ACK_TIMEOUT);
+	}
 	tx_timer_deactivate(&lim_timer->gLimDisassocAckTimer);
 
+	if (tx_timer_running(&lim_timer->gLimDeauthAckTimer)) {
+		pe_err("Deauth timer running call the timeout API");
+		lim_timer_handler(mac_ctx, SIR_LIM_DEAUTH_ACK_TIMEOUT);
+	}
 	tx_timer_deactivate(&lim_timer->gLimDeauthAckTimer);
 
 	tx_timer_deactivate(&lim_timer->
@@ -5481,10 +5478,8 @@ void lim_process_add_sta_rsp(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	else if (LIM_IS_NDI_ROLE(session))
 		lim_ndp_add_sta_rsp(mac_ctx, session, msg->bodyptr);
 #ifdef FEATURE_WLAN_TDLS
-	else if (mac_ctx->lim.gLimAddStaTdls) {
+	else if (add_sta_params->staType == STA_ENTRY_TDLS_PEER)
 		lim_process_tdls_add_sta_rsp(mac_ctx, msg->bodyptr, session);
-		mac_ctx->lim.gLimAddStaTdls = false;
-	}
 #endif
 	else
 		lim_process_mlm_add_sta_rsp(mac_ctx, msg, session);
@@ -5518,7 +5513,8 @@ void lim_update_beacon(tpAniSirGlobal mac_ctx)
 			if (false == mac_ctx->sap.SapDfsInfo.
 					is_dfs_cac_timer_running)
 				lim_send_beacon_ind(mac_ctx,
-						&mac_ctx->lim.gpSession[i]);
+						&mac_ctx->lim.gpSession[i],
+						REASON_DEFAULT);
 		}
 	}
 }
@@ -5686,38 +5682,6 @@ void lim_diag_event_report(tpAniSirGlobal pMac, uint16_t eventType,
 }
 
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
-
-uint8_t *lim_get_ie_ptr_new(tpAniSirGlobal pMac, uint8_t *pIes, int length,
-				 uint8_t eid, eSizeOfLenField size_of_len_field)
-{
-	int left = length;
-	uint8_t *ptr = pIes;
-	uint8_t elem_id;
-	uint16_t elem_len;
-
-	while (left >= (size_of_len_field + 1)) {
-		elem_id = ptr[0];
-		if (size_of_len_field == TWO_BYTE) {
-			elem_len = ((uint16_t) ptr[1]) | (ptr[2] << 8);
-		} else {
-			elem_len = ptr[1];
-		}
-
-		left -= (size_of_len_field + 1);
-		if (elem_len > left) {
-			pe_err("Invalid IEs eid: %d elem_len: %d left: %d",
-				eid, elem_len, left);
-			return NULL;
-		}
-		if (elem_id == eid) {
-			return ptr;
-		}
-
-		left -= elem_len;
-		ptr += (elem_len + (size_of_len_field + 1));
-	}
-	return NULL;
-}
 
 /* Returns length of P2P stream and Pointer ie passed to this function is filled with noa stream */
 
@@ -5967,12 +5931,7 @@ bool lim_set_nss_change(tpAniSirGlobal pMac, tpPESession psessionEntry,
 
 	if (!rxNss) {
 		pe_err("Invalid rxNss value: %u", rxNss);
-		if (!cds_is_driver_recovering()) {
-			if (cds_is_self_recovery_enabled())
-				cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
-			else
-				QDF_BUG(0);
-		}
+		cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
 	}
 
 	tempParam.rxNss = rxNss;
@@ -6106,8 +6065,8 @@ void lim_set_ht_caps(tpAniSirGlobal p_mac, tpPESession p_session_entry,
 	tDot11fIEHTCaps dot11_ht_cap = {0,};
 
 	populate_dot11f_ht_caps(p_mac, p_session_entry, &dot11_ht_cap);
-	p_ie = lim_get_ie_ptr_new(p_mac, p_ie_start, num_bytes,
-			DOT11F_EID_HTCAPS, ONE_BYTE);
+	p_ie = wlan_cfg_get_ie_ptr(p_ie_start, num_bytes,
+				   DOT11F_EID_HTCAPS, ONE_BYTE);
 	pe_debug("p_ie: %pK dot11_ht_cap.supportedMCSSet[0]: 0x%x",
 		p_ie, dot11_ht_cap.supportedMCSSet[0]);
 	if (p_ie) {
@@ -6181,8 +6140,8 @@ void lim_set_vht_caps(tpAniSirGlobal p_mac, tpPESession p_session_entry,
 	tDot11fIEVHTCaps     dot11_vht_cap;
 
 	populate_dot11f_vht_caps(p_mac, p_session_entry, &dot11_vht_cap);
-	p_ie = lim_get_ie_ptr_new(p_mac, p_ie_start, num_bytes,
-				  DOT11F_EID_VHTCAPS, ONE_BYTE);
+	p_ie = wlan_cfg_get_ie_ptr(p_ie_start, num_bytes,
+				   DOT11F_EID_VHTCAPS, ONE_BYTE);
 
 	if (p_ie) {
 		tSirMacVHTCapabilityInfo *vht_cap =
@@ -6582,7 +6541,7 @@ QDF_STATUS lim_send_ext_cap_ie(tpAniSirGlobal mac_ctx,
  */
 tSirRetStatus lim_strip_ie(tpAniSirGlobal mac_ctx,
 		uint8_t *addn_ie, uint16_t *addn_ielen,
-		uint8_t eid, eSizeOfLenField size_of_len_field,
+		uint8_t eid, enum size_of_len_field size_of_len_field,
 		uint8_t *oui, uint8_t oui_length, uint8_t *extracted_ie,
 		uint32_t eid_max_len)
 {
@@ -7376,8 +7335,7 @@ lim_assoc_rej_rem_entry_with_lowest_delta(qdf_list_t *list)
 }
 
 void lim_assoc_rej_add_to_rssi_based_reject_list(tpAniSirGlobal mac_ctx,
-	tDot11fTLVrssi_assoc_rej  *rssi_assoc_rej,
-	tSirMacAddr bssid, int8_t rssi)
+	struct sir_rssi_disallow_lst *ap_info)
 {
 	struct sir_rssi_disallow_lst *entry;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -7388,16 +7346,13 @@ void lim_assoc_rej_add_to_rssi_based_reject_list(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
-	pe_debug("%pM: assoc resp rssi %d, delta rssi %d retry delay %d sec and list size %d",
-		bssid, rssi, rssi_assoc_rej->delta_rssi,
-		rssi_assoc_rej->retry_delay,
+	pe_debug("%pM: assoc resp, expected rssi %d retry delay %d sec and list size %d",
+		ap_info->bssid.bytes, ap_info->expected_rssi,
+		ap_info->retry_delay,
 		qdf_list_size(&mac_ctx->roam.rssi_disallow_bssid));
 
-	qdf_mem_copy(entry->bssid.bytes,
-		bssid, QDF_MAC_ADDR_SIZE);
-	entry->retry_delay = rssi_assoc_rej->retry_delay *
-		QDF_MC_TIMER_TO_MS_UNIT;
-	entry->expected_rssi = rssi + rssi_assoc_rej->delta_rssi;
+	*entry = *ap_info;
+
 	entry->time_during_rejection =
 		qdf_do_div(qdf_get_monotonic_boottime(),
 		QDF_MC_TIMER_TO_MS_UNIT);
@@ -7501,4 +7456,105 @@ enum rateid lim_get_min_session_txrate(tpPESession session)
 	}
 
 	return rid;
+}
+
+void
+lim_send_dfs_chan_sw_ie_update(tpAniSirGlobal mac_ctx, tpPESession session)
+{
+
+	/* Update the beacon template and send to FW */
+	if (sch_set_fixed_beacon_fields(mac_ctx, session) != eSIR_SUCCESS) {
+		pe_err("Unable to set CSA IE in beacon");
+		return;
+	}
+
+	/* Send update beacon template message */
+	lim_send_beacon_ind(mac_ctx, session, REASON_CHANNEL_SWITCH);
+	pe_debug("Updated CSA IE, IE COUNT: %d",
+			session->gLimChannelSwitch.switchCount);
+}
+
+void lim_process_ap_ecsa_timeout(void *data)
+{
+	tpPESession session = (tpPESession)data;
+	tpAniSirGlobal mac_ctx;
+	uint8_t bcn_int, ch, ch_width;
+	QDF_STATUS status;
+
+	if (!session || !session->valid) {
+		pe_err("Session is not valid");
+		return;
+	}
+
+	mac_ctx = (tpAniSirGlobal)session->mac_ctx;
+
+	if (!session->dfsIncludeChanSwIe) {
+		pe_debug("session->dfsIncludeChanSwIe not set");
+		return;
+	}
+
+	if (session->gLimChannelSwitch.switchCount) {
+		/* Decrement the beacon switch count */
+		session->gLimChannelSwitch.switchCount--;
+		pe_debug("current beacon count %d",
+			 session->gLimChannelSwitch.switchCount);
+	}
+
+	/*
+	 * Send only g_sap_chanswitch_beacon_cnt beacons with CSA IE Set in
+	 * when a radar is detected
+	 */
+	if (session->gLimChannelSwitch.switchCount > 0) {
+		/* Send the next beacon with updated CSA IE count */
+		lim_send_dfs_chan_sw_ie_update(mac_ctx, session);
+
+		ch = session->gLimChannelSwitch.primaryChannel;
+		ch_width = session->gLimChannelSwitch.ch_width;
+
+		if (mac_ctx->sap.SapDfsInfo.dfs_beacon_tx_enhanced)
+			/* Send Action frame after updating beacon */
+			lim_send_chan_switch_action_frame(mac_ctx, ch, ch_width,
+							  session);
+
+		/* Restart the timer */
+		if (session->beaconParams.beaconInterval)
+			bcn_int = session->beaconParams.beaconInterval;
+		else
+			bcn_int = WNI_CFG_BEACON_INTERVAL_STADEF;
+
+		status = qdf_mc_timer_start(&session->ap_ecsa_timer, bcn_int);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			pe_err("cannot start ap_ecsa_timer");
+			lim_process_ap_ecsa_timeout(session);
+		}
+	} else {
+		tSirSmeCSAIeTxCompleteRsp *chan_switch_tx_rsp;
+		cds_msg_t msg = {0};
+		uint8_t length = sizeof(*chan_switch_tx_rsp);
+
+		/* Done with CSA IE update, send response back to SME */
+		session->gLimChannelSwitch.switchCount = 0;
+		if (mac_ctx->sap.SapDfsInfo.disable_dfs_ch_switch == false)
+			session->gLimChannelSwitch.switchMode = 0;
+		session->dfsIncludeChanSwIe = false;
+		session->dfsIncludeChanWrapperIe = false;
+
+		chan_switch_tx_rsp = qdf_mem_malloc(length);
+		if (!chan_switch_tx_rsp) {
+			pe_err("AllocateMemory failed for tSirSmeCSAIeTxCompleteRsp");
+			return;
+		}
+
+		chan_switch_tx_rsp->sessionId = session->smeSessionId;
+		chan_switch_tx_rsp->chanSwIeTxStatus = QDF_STATUS_SUCCESS;
+
+		msg.type = eWNI_SME_DFS_CSAIE_TX_COMPLETE_IND;
+		msg.bodyptr = chan_switch_tx_rsp;
+
+		status = cds_mq_post_message(QDF_MODULE_ID_SME, &msg);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			sme_err("Failed to post eWNI_SME_DFS_CSAIE_TX_COMPLETE_IND");
+			qdf_mem_free(chan_switch_tx_rsp);
+		}
+	}
 }

@@ -13,10 +13,6 @@ config QCACLD_WLAN_LFR3
 	bool "Enable the WLAN Legacy Fast Roaming feature Version 3"
 	default n
 
-config WLAN_FEATURE_FILS
-	bool "Enable FILS Feature (11ai)"
-	default n
-
 config PRIMA_WLAN_OKC
 	bool "Enable the Prima WLAN Opportunistic Key Caching feature"
 	default n
@@ -49,10 +45,6 @@ config WLAN_FEATURE_NAN_DATAPATH
 config QCACLD_FEATURE_GREEN_AP
 	bool "Enable Green AP feature"
 	default n
-
-config QCACLD_FEATURE_METERING
-	bool "Enable feature metering"
-	default y
 
 config HELIUMPLUS
 	bool "Enable Beeliner based descriptor structures for Helium"
@@ -142,5 +134,9 @@ config ICMP_DISABLE_PS
 
 config CONFIG_BUILD_TIMESTAMP
 	bool "Embed timestamp in wlan version"
+	default n
+
+config WLAN_FEATURE_SARV1_TO_SARV2
+	bool "Enable conversion of SAR v1 to v2 feature"
 	default n
 endif # QCA_CLD_WLAN

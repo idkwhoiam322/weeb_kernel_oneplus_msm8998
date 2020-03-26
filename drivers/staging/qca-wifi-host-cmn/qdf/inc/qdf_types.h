@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,12 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 /**
  * DOC: qdf_types.h
  * QCA driver framework (QDF) basic type definitions
@@ -36,6 +27,7 @@
 /* Include Files */
 #include <i_qdf_types.h>
 #include <qdf_atomic.h>
+#include "target_if_def_config.h"
 
 /* Preprocessor definitions and constants */
 #define QDF_MAX_SGLIST 4
@@ -241,7 +233,7 @@ typedef void (*qdf_defer_fn_t)(void *);
 typedef bool (*qdf_irqlocked_func_t)(void *);
 
 /* Prototype of timer function */
-typedef void (*qdf_timer_func_t)(void *);
+typedef void (*qdf_timer_func_t)(unsigned long);
 
 #define qdf_offsetof(type, field) offsetof(type, field)
 
@@ -456,20 +448,16 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 
 #define qdf_vprint    __qdf_vprint
 #define qdf_snprint   __qdf_snprint
-
 #define qdf_kstrtoint	__qdf_kstrtoint
 
-#ifdef WLAN_OPEN_P2P_INTERFACE
-/* This should match with WLAN_MAX_INTERFACES */
-#define QDF_MAX_CONCURRENCY_PERSONA  (4)
-#else
-#define QDF_MAX_CONCURRENCY_PERSONA  (3)
-#endif
+/* This should match with WLAN MAX INTERFACES */
+#define QDF_MAX_CONCURRENCY_PERSONA  (TGT_NUM_VDEV)
 
 #define QDF_STA_MASK (1 << QDF_STA_MODE)
 #define QDF_SAP_MASK (1 << QDF_SAP_MODE)
 #define QDF_P2P_CLIENT_MASK (1 << QDF_P2P_CLIENT_MODE)
 #define QDF_P2P_GO_MASK (1 << QDF_P2P_GO_MODE)
+#define QDF_MONITOR_MASK (1 << QDF_MONITOR_MODE)
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 
@@ -482,6 +470,15 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
  * restart of SAP
  * @QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL: Switch using fav channel(s)
  * without SAP restart
+ * @QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION:**Not In Use**
+ * Force switch without SAP restart. MCC is allowed only in below exception
+ * cases:
+ *	Exception Case-1: When STA is operating on DFS channel.
+ *	Exception Case-2: When STA is operating on LTE-CoEx channel.
+ *	Exception Case-3: When STA is operating on AP disabled channel.
+ * @QDF_MCC_TO_SCC_WITH_PREFERRED_BAND: Force SCC only in user preferred band.
+ * Allow MCC if STA is operating or comes up on other than user preferred band.
+ *
  * @QDF_MCC_TO_SCC_SWITCH_MAX: max switch
  */
 typedef enum {
@@ -490,6 +487,8 @@ typedef enum {
 	QDF_MCC_TO_SCC_SWITCH_FORCE,
 	QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION,
 	QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL,
+	QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION,
+	QDF_MCC_TO_SCC_WITH_PREFERRED_BAND,
 	QDF_MCC_TO_SCC_SWITCH_MAX
 } tQDF_MCC_TO_SCC_SWITCH_MODE;
 #endif

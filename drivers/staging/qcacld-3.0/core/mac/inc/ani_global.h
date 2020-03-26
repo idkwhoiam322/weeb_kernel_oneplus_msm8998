@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #ifndef _ANIGLOBAL_H
@@ -799,7 +790,6 @@ typedef struct sAniSirLim {
 	/* //////////////////////////////  HT RELATED           ////////////////////////////////////////// */
 
 #ifdef FEATURE_WLAN_TDLS
-	uint8_t gLimAddStaTdls;
 	uint8_t gLimTdlsLinkMode;
 	/* //////////////////////////////  TDLS RELATED         ////////////////////////////////////////// */
 #endif
@@ -837,6 +827,8 @@ typedef struct sAniSirLim {
 		uint32_t scan_id, uint32_t flags);
 	QDF_STATUS(*sme_msg_callback)
 		(tHalHandle hal, cds_msg_t *msg);
+	QDF_STATUS(*stop_roaming_callback)
+		(tHalHandle hal, uint8_t session_id, uint8_t reason);
 	uint8_t retry_packet_cnt;
 	uint8_t scan_disabled;
 	uint8_t beacon_probe_rsp_cnt_per_scan;
@@ -985,6 +977,10 @@ typedef struct sAniSirGlobal {
 	void *readyToExtWoWContext;
 #endif
 	uint32_t f_sta_miracast_mcc_rest_time_val;
+	uint32_t sta_scan_burst_duration;
+	uint32_t p2p_scan_burst_duration;
+	uint32_t go_scan_burst_duration;
+	uint32_t ap_scan_burst_duration;
 	uint8_t f_prefer_non_dfs_on_radar;
 	hdd_ftm_msg_processor ftm_msg_processor_callback;
 	uint32_t fine_time_meas_cap;
@@ -1019,6 +1015,13 @@ typedef struct sAniSirGlobal {
 
 	/* 11k Offload Support */
 	bool is_11k_offload_supported;
+
+	/* if true, it is forced to follow the AP's edca */
+	bool follow_ap_edca;
+	uint32_t peer_rssi;
+	uint32_t peer_txrate;
+	uint32_t peer_rxrate;
+	uint32_t rx_mc_bc_cnt;
 } tAniSirGlobal;
 
 typedef enum {

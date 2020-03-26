@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -417,13 +408,9 @@ sch_bcn_process_sta(tpAniSirGlobal mac_ctx,
 		beaconParams->beaconInterval = (uint16_t) bi;
 	}
 
-	if (bcn->cfPresent) {
+	if (bcn->cfPresent)
 		cfg_set_int(mac_ctx, WNI_CFG_CFP_PERIOD,
 			    bcn->cfParamSet.cfpPeriod);
-		lim_send_cf_params(mac_ctx, *bssIdx,
-				   bcn->cfParamSet.cfpCount,
-				   bcn->cfParamSet.cfpPeriod);
-	}
 
 	/* No need to send DTIM Period and Count to HAL/SMAC */
 	/* SMAC already parses TIM bit. */
@@ -492,6 +479,10 @@ static void update_nss(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds,
 		       tpSirMacMgmtHdr mgmt_hdr)
 {
 	if (sta_ds->vhtSupportedRxNss != (beacon->OperatingMode.rxNSS + 1)) {
+		if (session_entry->nss_forced_1x1) {
+			pe_debug("Not Updating NSS for special AP");
+			return;
+		}
 		sta_ds->vhtSupportedRxNss =
 			beacon->OperatingMode.rxNSS + 1;
 		lim_set_nss_change(mac_ctx, session_entry,
@@ -555,15 +546,14 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 		if ((operMode == eHT_CHANNEL_WIDTH_80MHZ) &&
 		    (bcn->OperatingMode.chanWidth > eHT_CHANNEL_WIDTH_80MHZ))
 			skip_opmode_update = true;
+
 		if (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE == cb_mode) {
 			/*
-			 * if channel bonding is disabled from INI and
-			 * receiving beacon which has operating mode IE
-			 * containing channel width change then don't update
-			 * CH_WIDTH
+			 * if channel bonding is disabled from INI don't
+			 * update the CH_WIDTH
 			 */
-			pe_err("CB disabled & CH_WIDTH changed old[%d] new[%d]",
-				operMode, bcn->OperatingMode.chanWidth);
+			pe_debug_rate_limited(30, "CB disabled skip bw update: old[%d] new[%d]",
+				      operMode, bcn->OperatingMode.chanWidth);
 			return;
 		}
 
@@ -629,15 +619,14 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 
 	if (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE == cb_mode) {
 		/*
-		 * if channel bonding is disabled from INI and
-		 * receiving beacon which has operating mode IE
-		 * containing channel width change then don't update
-		 * the CH_WIDTH
+		 * if channel bonding is disabled from INI don't
+		 * update the CH_WIDTH
 		 */
-		pe_err("CB disabled & VHT CH_WIDTH changed old[%d] new[%d]",
-			operMode, bcn->VHTOperation.chanWidth);
+		pe_debug_rate_limited(30, "CB disabled, skip ch width update: old[%d] new[%d]",
+				      operMode, bcn->VHTOperation.chanWidth);
 		return;
 	}
+
 	if (!skip_opmode_update &&
 	    (operMode != bcn->VHTOperation.chanWidth)) {
 		pe_debug("received VHTOP CHWidth %d staIdx = %d",
@@ -793,8 +782,12 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 			 * delete all TDLS peers before leaving BSS and proceed
 			 * for channel switch
 			 */
-			if (LIM_IS_STA_ROLE(session))
+			if (LIM_IS_STA_ROLE(session)) {
+#ifdef FEATURE_WLAN_TDLS
+				session->is_tdls_csa = true;
+#endif
 				lim_delete_tdls_peers(mac_ctx, session);
+			}
 
 			lim_update_channel_switch(mac_ctx, bcn, session);
 		} else if (session->gLimSpecMgmt.dot11hChanSwState ==
@@ -983,7 +976,8 @@ sch_beacon_edca_process(tpAniSirGlobal pMac, tSirMacEdcaParamSetIE *edca,
 	session->gLimEdcaParams[EDCA_AC_VI] = edca->acvi;
 	session->gLimEdcaParams[EDCA_AC_VO] = edca->acvo;
 
-	if (pMac->roam.configParam.enable_edca_params) {
+	if (pMac->roam.configParam.enable_edca_params &&
+	    !pMac->follow_ap_edca) {
 		session->gLimEdcaParams[EDCA_AC_VO].aci.aifsn =
 			pMac->roam.configParam.edca_vo_aifs;
 		session->gLimEdcaParams[EDCA_AC_VI].aci.aifsn =

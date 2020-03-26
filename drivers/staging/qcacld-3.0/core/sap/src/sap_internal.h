@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #ifndef WLAN_QCT_WLANSAP_INTERNAL_H
@@ -373,10 +364,6 @@ sap_search_mac_list(struct qdf_mac_addr *macList, uint8_t num_mac,
 QDF_STATUS sap_acquire_global_lock(ptSapContext pSapCtx);
 
 QDF_STATUS sap_release_global_lock(ptSapContext pSapCtx);
-
-#ifdef FEATURE_WLAN_CH_AVOID
-void sap_update_unsafe_channel_list(ptSapContext pSapCtx);
-#endif /* FEATURE_WLAN_CH_AVOID */
 
 uint8_t
 sap_indicate_radar(ptSapContext sapContext,

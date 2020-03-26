@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -19,12 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 #ifndef HDD_IPA_H__
 #define HDD_IPA_H__
 
@@ -32,7 +23,6 @@
  * DOC: wlan_hdd_ipa.h
  *
  * WLAN IPA interface module headers
- * Originally written by Qualcomm Atheros, Inc
  */
 
 /**
@@ -98,7 +88,7 @@ int hdd_ipa_resume(hdd_context_t *hdd_ctx);
 void hdd_ipa_uc_stat_query(hdd_context_t *hdd_ctx, uint32_t *ipa_tx_diff,
 	uint32_t *ipa_rx_diff);
 void hdd_ipa_uc_rt_debug_host_dump(hdd_context_t *hdd_ctx);
-void hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason);
+void hdd_ipa_uc_stat_request(hdd_context_t *hdd_ctx, uint8_t reason);
 void hdd_ipa_uc_sharing_stats_request(hdd_adapter_t *adapter,
 				      uint8_t reset_stats);
 void hdd_ipa_uc_set_quota(hdd_adapter_t *adapter, uint8_t set_quota,
@@ -171,6 +161,24 @@ void hdd_ipa_uc_info(hdd_context_t *hdd_ctx);
  * Return: None
  */
 void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter);
+
+/**
+ * hdd_ipa_fw_rejuvenate() - send fw rejuvenate message to IPA driver
+ * @hdd_ctx: hdd context
+ *
+ * Return: void
+ */
+void hdd_ipa_fw_rejuvenate_send_msg(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_ipa_uc_disconnect_ap() - send ap disconnect event
+ * @hdd_ctx: pointer to hdd adapter
+ *
+ * Send disconnect ap event to IPA driver during SSR
+ *
+ * Return: 0 - Success
+ */
+int hdd_ipa_uc_disconnect_ap(hdd_adapter_t *adapter);
 
 #else
 
@@ -349,9 +357,17 @@ static inline void hdd_ipa_uc_info(hdd_context_t *hdd_ctx)
 {
 }
 
+static inline void hdd_ipa_fw_rejuvenate_send_msg(hdd_context_t *hdd_ctx)
+{
+}
+
 static inline void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter)
 {
 }
 
+static inline int hdd_ipa_uc_disconnect_ap(hdd_adapter_t *adapter)
+{
+	return 0;
+}
 #endif /* IPA_OFFLOAD */
 #endif /* #ifndef HDD_IPA_H__ */

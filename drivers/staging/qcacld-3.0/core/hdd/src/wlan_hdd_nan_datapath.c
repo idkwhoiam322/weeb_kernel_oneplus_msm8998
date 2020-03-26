@@ -1,8 +1,6 @@
 /*
  * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -45,15 +43,14 @@ qca_wlan_vendor_ndp_policy[QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX + 1] = {
 	[QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_INSTANCE_ID] = { .type = NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL] = { .type = NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_PEER_DISCOVERY_MAC_ADDR] = {
-					.type = NLA_BINARY,
+					.type = NLA_UNSPEC,
 					.len = QDF_MAC_ADDR_SIZE },
 	[QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_SECURITY] = { .type = NLA_U16 },
-	[QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS] = { .type = NLA_BINARY,
-					.len = NDP_QOS_INFO_LEN },
+	[QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS] = { .type = NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO] = { .type = NLA_BINARY,
 					.len = NDP_APP_INFO_LEN },
 	[QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID] = { .type = NLA_U32 },
-	[QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE] = { .type = NLA_U16 },
+	[QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE] = { .type = NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_NDI_MAC_ADDR] = { .type = NLA_BINARY,
 					.len = QDF_MAC_ADDR_SIZE },
 	[QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID_ARRAY] = { .type = NLA_BINARY,
@@ -62,7 +59,7 @@ qca_wlan_vendor_ndp_policy[QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX + 1] = {
 					NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_DRV_RETURN_VALUE] = { .type = NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_CONFIG] = { .type = NLA_U32 },
-	[QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE] = { .type = NLA_U32 },
+	[QCA_WLAN_VENDOR_ATTR_NDP_CSID] = { .type = NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_PMK] = { .type = NLA_BINARY,
 					.len = NDP_PMK_LEN },
 	[QCA_WLAN_VENDOR_ATTR_NDP_SCID] = { .type = NLA_BINARY,
@@ -106,7 +103,11 @@ void hdd_nan_datapath_target_config(hdd_context_t *hdd_ctx,
 	hdd_ctx->nan_datapath_enabled =
 		hdd_ctx->config->enable_nan_datapath &&
 			cfg->nan_datapath_enabled;
-	hdd_info("enable_nan_datapath: %d", hdd_ctx->nan_datapath_enabled);
+
+	hdd_debug("final: %d, host: %d, fw: %d",
+		  hdd_ctx->nan_datapath_enabled,
+		  hdd_ctx->config->enable_nan_datapath,
+		  cfg->nan_datapath_enabled);
 }
 
 /**
@@ -250,13 +251,11 @@ static int hdd_ndi_start_bss(hdd_adapter_t *adapter,
 
 	roam_profile->csrPersona = adapter->device_mode;
 
+	if (!operating_channel)
+		operating_channel = NAN_SOCIAL_CHANNEL_2_4GHZ;
+
 	roam_profile->ChannelInfo.numOfChannels = 1;
-	if (operating_channel) {
-		roam_profile->ChannelInfo.ChannelList = &operating_channel;
-	} else {
-		roam_profile->ChannelInfo.ChannelList[0] =
-			NAN_SOCIAL_CHANNEL_2_4GHZ;
-	}
+	roam_profile->ChannelInfo.ChannelList = &operating_channel;
 
 	roam_profile->SSIDs.numOfSSIDs = 1;
 	roam_profile->SSIDs.SSIDList->SSID.length = 0;
@@ -456,8 +455,8 @@ static int hdd_ndi_create_req_handler(hdd_context_t *hdd_ctx,
 	 * does not have any such formal requests. The NDI create request
 	 * is responsible for starting the BSS as well.
 	 */
-	if (op_channel != NAN_SOCIAL_CHANNEL_2_4GHZ ||
-	    op_channel != NAN_SOCIAL_CHANNEL_5GHZ_LOWER_BAND ||
+	if (op_channel != NAN_SOCIAL_CHANNEL_2_4GHZ &&
+	    op_channel != NAN_SOCIAL_CHANNEL_5GHZ_LOWER_BAND &&
 	    op_channel != NAN_SOCIAL_CHANNEL_5GHZ_UPPER_BAND) {
 		/* start NDI on the default 2.4 GHz social channel */
 		op_channel = NAN_SOCIAL_CHANNEL_2_4GHZ;
@@ -577,9 +576,9 @@ static int ndp_parse_security_params(struct nlattr **tb,
 		return -EINVAL;
 	}
 
-	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE]) {
+	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_CSID]) {
 		*ncs_sk_type =
-			nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE]);
+			nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_CSID]);
 	}
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_PMK]) {
@@ -631,7 +630,7 @@ static int ndp_parse_security_params(struct nlattr **tb,
  * QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_PMK - optional
- * QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE - optional
+ * QCA_WLAN_VENDOR_ATTR_NDP_CSID - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_PASSPHRASE - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_NAME - optional
  *
@@ -772,7 +771,7 @@ static int hdd_ndp_initiator_req_handler(hdd_context_t *hdd_ctx,
  * QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_PMK - optional
- * QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE - optional
+ * QCA_WLAN_VENDOR_ATTR_NDP_CSID - optional
  *
  * Return: 0 on success or error code on failure
  */
@@ -1594,7 +1593,7 @@ ndp_confirm_nla_failed:
  * QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID (4 bytes)
  * QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO (ndp_app_info_len size)
  * QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS (4 bytes)
- * QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE(4 bytes)
+ * QCA_WLAN_VENDOR_ATTR_NDP_CSID(4 bytes)
  * QCA_WLAN_VENDOR_ATTR_NDP_SCID(scid_len in size)
  *
  * Return: none
@@ -1707,7 +1706,7 @@ static void hdd_ndp_indication_handler(hdd_adapter_t *adapter,
 
 	if (event->scid.scid_len) {
 		if (nla_put_u32(vendor_event,
-				QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE,
+				QCA_WLAN_VENDOR_ATTR_NDP_CSID,
 				event->ncs_sk_type))
 			goto ndp_indication_nla_failed;
 
@@ -2396,7 +2395,7 @@ int hdd_init_nan_data_mode(struct hdd_adapter_s *adapter)
 
 	ret_val = wma_cli_set_command((int)adapter->sessionId,
 			(int)WMI_PDEV_PARAM_BURST_ENABLE,
-			(int)hdd_ctx->config->enableSifsBurst,
+			(int)HDD_ENABLE_SIFS_BURST_DEFAULT,
 			PDEV_CMD);
 	if (0 != ret_val)
 		hdd_err("WMI_PDEV_PARAM_BURST_ENABLE set failed %d", ret_val);

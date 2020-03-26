@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2015,2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -60,6 +51,7 @@ extern void sch_qos_update_local(tpAniSirGlobal pMac, tpPESession psessionEntry)
 extern void sch_edca_profile_update(tpAniSirGlobal pMac,
 				    tpPESession psessionEntry);
 
+void sch_edca_profile_update_all(tpAniSirGlobal pmac);
 /* / Set the fixed fields in a beacon frame */
 extern tSirRetStatus sch_set_fixed_beacon_fields(tpAniSirGlobal pMac,
 						 tpPESession psessionEntry);
@@ -76,8 +68,17 @@ extern void sch_initializeCfEndTemplate(tpAniSirGlobal pMac);
 /* / Process the scheduler messages */
 extern void sch_process_message(tpAniSirGlobal pMac, tpSirMsgQ pSchMsg);
 
-/* / The beacon Indication handler function */
-extern void sch_process_pre_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
+/**
+ * sch_process_pre_beacon_ind() - Process the PreBeacon Indication from the Lim
+ * @pMac: pointer to mac structure
+ * @limMsg: Lim Msg
+ * @reason: beaon update reason
+ *
+ * return: success: QDF_STATUS_SUCCESS failure: QDF_STATUS_E_FAILURE
+ */
+extern QDF_STATUS sch_process_pre_beacon_ind(tpAniSirGlobal pMac,
+					     tpSirMsgQ limMsg,
+					     enum sir_bcn_update_reason reason);
 
 /* / Post a message to the scheduler message queue */
 extern tSirRetStatus sch_post_message(tpAniSirGlobal pMac, tpSirMsgQ pMsg);
@@ -93,8 +94,19 @@ void sch_generate_tim(tpAniSirGlobal, uint8_t **, uint16_t *, uint8_t);
 
 void sch_set_beacon_interval(tpAniSirGlobal pMac, tpPESession psessionEntry);
 
-tSirRetStatus sch_send_beacon_req(tpAniSirGlobal, uint8_t *, uint16_t,
-				  tpPESession psessionEntry);
+/**
+ * sch_send_beacon_req() - send beacon update req to wma
+ * @mac_ctx: pointer to mac structure
+ * @bcn_payload: beacon payload
+ * @size: beacon size
+ * @session:pe session
+ * @reason: beaon update reason
+ *
+ * return: success: QDF_STATUS_SUCCESS failure: QDF_STATUS_E_FAILURE
+ */
+QDF_STATUS sch_send_beacon_req(tpAniSirGlobal mac_ctx, uint8_t *bcn_payload,
+			       uint16_t size, tpPESession session,
+			       enum sir_bcn_update_reason reason);
 
 tSirRetStatus lim_update_probe_rsp_template_ie_bitmap_beacon1(tpAniSirGlobal,
 							      tDot11fBeacon1 *,

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -68,23 +59,10 @@
 						##__VA_ARGS__);\
 	} while (0)
 #else
-static inline void __printf(3, 4) no_qdf_trace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-		   char *str_format, ...)
-{
-}
-static inline void no_qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-		    char *str_format, va_list val)
-{
-}
-static inline void no_qdf_trace_hex_dump(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-			void *data, int buf_len)
-{
-}
-#define QDF_TRACE no_qdf_trace_msg
-#define QDF_VTRACE no_qdf_vtrace_msg
-#define QDF_TRACE_HEX_DUMP no_qdf_trace_hex_dump
-#define QDF_TRACE_RATE_LIMITED(rate, module, level, format, ...) \
-	no_qdf_trace_msg(module, level, format, ##__VA_ARGS__)
+#define QDF_TRACE(arg ...)
+#define QDF_VTRACE(arg ...)
+#define QDF_TRACE_HEX_DUMP(arg ...)
+#define QDF_TRACE_RATE_LIMITED(arg ...)
 #endif
 #else
 

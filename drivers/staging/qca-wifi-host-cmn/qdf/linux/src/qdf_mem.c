@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2017,2019 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -59,6 +50,7 @@
 /* Preprocessor Definitions and Constants */
 #define QDF_MEM_MAX_MALLOC (1024 * 1024) /* 1MiB */
 #define QDF_MEM_WARN_THRESHOLD 300 /* ms */
+#define QDF_DEBUG_STRING_SIZE 512
 
 static enum qdf_mem_domain qdf_mem_current_domain = QDF_MEM_DOMAIN_INIT;
 
@@ -140,6 +132,7 @@ static inline qdf_list_t *qdf_mem_dma_active_list(void)
  * @line: line number of the file the allocation was made from
  * @size: size of the allocation in bytes
  * @header: a known value, used to detect out-of-bounds access
+ * @time : the time at which allocation happened
  */
 struct qdf_mem_header {
 	qdf_list_node_t node;
@@ -149,6 +142,7 @@ struct qdf_mem_header {
 	uint32_t line;
 	uint32_t size;
 	uint64_t header;
+	uint64_t time;
 };
 
 static inline struct qdf_mem_header *qdf_mem_get_header(void *ptr)
@@ -201,6 +195,7 @@ static void qdf_mem_header_init(struct qdf_mem_header *header, qdf_size_t size,
 	header->line = line;
 	header->size = size;
 	header->header = WLAN_MEM_HEADER;
+	header->time = qdf_get_log_timestamp();
 }
 
 enum qdf_mem_validation_bitmap {
@@ -410,13 +405,14 @@ static int seq_printf_printer(void *priv, const char *fmt, ...)
  * @line: the line at which allocation happened
  * @size: the size of allocation
  * @count: how many allocations of same type
- *
+ * @time: the time at which allocation happened
  */
 struct __qdf_mem_info {
 	const char *file;
 	uint32_t line;
 	uint32_t size;
 	uint32_t count;
+	uint64_t time;
 };
 
 /*
@@ -437,7 +433,7 @@ static void qdf_mem_domain_print_header(qdf_abstract_print print,
 {
 	print(print_priv,
 	      "--------------------------------------------------------------");
-	print(print_priv, " count    size     total    filename");
+	print(print_priv, " count    size     total    filename    timestamp");
 	print(print_priv,
 	      "--------------------------------------------------------------");
 }
@@ -455,19 +451,33 @@ static void qdf_mem_meta_table_print(struct __qdf_mem_info *table,
 				     void *print_priv)
 {
 	int i;
+	char debug_str[QDF_DEBUG_STRING_SIZE];
+	size_t len = 0;
+	char *debug_prefix = "WLAN_BUG_RCA: memory leak detected";
+
+	len += qdf_scnprintf(debug_str, sizeof(debug_str) - len,
+			     "%s", debug_prefix);
 
 	for (i = 0; i < QDF_MEM_STAT_TABLE_SIZE; i++) {
 		if (!table[i].count)
 			break;
 
 		print(print_priv,
-		      "%6u x %5u = %7uB @ %s:%u",
+		      "%6u x %5u = %7uB @ %s:%u %llu",
 		      table[i].count,
 		      table[i].size,
 		      table[i].count * table[i].size,
 		      kbasename(table[i].file),
-		      table[i].line);
+		      table[i].line,
+		      table[i].time);
+		len += qdf_scnprintf(debug_str + len,
+				     sizeof(debug_str) - len,
+				     " @ %s:%u:%llu",
+				     kbasename(table[i].file),
+				     table[i].line,
+				     table[i].time);
 	}
+	print(print_priv, "%s", debug_str);
 }
 
 /**
@@ -488,12 +498,14 @@ static bool qdf_mem_meta_table_insert(struct __qdf_mem_info *table,
 			table[i].line = meta->line;
 			table[i].size = meta->size;
 			table[i].count = 1;
+			table[i].time = meta->time;
 			break;
 		}
 
 		if (table[i].file == meta->file &&
 		    table[i].line == meta->line &&
-		    table[i].size == meta->size) {
+		    table[i].size == meta->size &&
+		    table[i].time == meta->time) {
 			table[i].count++;
 			break;
 		}
@@ -1529,7 +1541,7 @@ static inline void *qdf_mem_dma_alloc(qdf_device_t osdev, void *dev,
 	return vaddr;
 }
 
-inline void
+static inline void
 qdf_mem_dma_free(void *dev, qdf_size_t size, void *vaddr, qdf_dma_addr_t paddr)
 {
 	qdf_mem_free(vaddr);
@@ -1542,7 +1554,7 @@ static inline void *qdf_mem_dma_alloc(qdf_device_t osdev, void *dev,
 	return dma_alloc_coherent(dev, size, paddr, qdf_mem_malloc_flags());
 }
 
-inline void
+static inline void
 qdf_mem_dma_free(void *dev, qdf_size_t size, void *vaddr, qdf_dma_addr_t paddr)
 {
 	dma_free_coherent(dev, size, vaddr, paddr);

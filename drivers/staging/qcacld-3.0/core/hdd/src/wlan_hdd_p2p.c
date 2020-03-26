@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -719,7 +710,11 @@ QDF_STATUS wlan_hdd_remain_on_channel_callback(tHalHandle hHal, void *pCtx,
 		hdd_warn("No Rem on channel pending for which Rsp is received");
 		return QDF_STATUS_SUCCESS;
 	}
-
+	if (pRemainChanCtx->scan_id != scan_id) {
+		mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
+		hdd_warn("RoC scan id is not matching");
+		return QDF_STATUS_SUCCESS;
+	}
 	hdd_debug("Received remain on channel rsp");
 	if (qdf_mc_timer_stop(&pRemainChanCtx->hdd_remain_on_chan_timer)
 			!= QDF_STATUS_SUCCESS)
@@ -807,7 +802,9 @@ QDF_STATUS wlan_hdd_remain_on_channel_callback(tHalHandle hHal, void *pCtx,
 	 * Always schedule below work queue only after completing the
 	 * cancel_rem_on_chan_var event.
 	 */
-	schedule_delayed_work(&hdd_ctx->roc_req_work, 0);
+	/* If ssr is inprogress, do not schedule next roc req */
+	if (!hdd_ctx->is_ssr_in_progress)
+		schedule_delayed_work(&hdd_ctx->roc_req_work, 0);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -962,6 +959,8 @@ static void wlan_hdd_cancel_pending_roc(hdd_adapter_t *adapter)
 	roc_scan_id = roc_ctx->scan_id;
 	mutex_unlock(&cfg_state->remain_on_chan_ctx_lock);
 
+	INIT_COMPLETION(adapter->cancel_rem_on_chan_var);
+
 	if (adapter->device_mode == QDF_P2P_GO_MODE) {
 		void *sap_ctx = WLAN_HDD_GET_SAP_CTX_PTR(adapter);
 
@@ -1108,6 +1107,7 @@ static int wlan_hdd_execute_remain_on_channel(hdd_adapter_t *pAdapter,
 	cfgState->remain_on_chan_ctx = pRemainChanCtx;
 	cfgState->current_freq = pRemainChanCtx->chan.center_freq;
 	pAdapter->is_roc_inprogress = true;
+	pRemainChanCtx->is_recd_roc_ready = false;
 	mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
 
 	/* Initialize Remain on chan timer */
@@ -1141,6 +1141,12 @@ static int wlan_hdd_execute_remain_on_channel(hdd_adapter_t *pAdapter,
 			duration *= P2P_ROC_DURATION_MULTIPLIER_GO_PRESENT;
 		else
 			duration *= P2P_ROC_DURATION_MULTIPLIER_GO_ABSENT;
+
+		/* this is to protect too huge value if some customers
+		 * give a higher value from supplicant
+		 */
+		if (duration > HDD_P2P_MAX_ROC_DURATION)
+			duration = HDD_P2P_MAX_ROC_DURATION;
 	}
 
 	hdd_prevent_suspend(WIFI_POWER_EVENT_WAKELOCK_ROC);
@@ -1656,6 +1662,7 @@ void hdd_remain_chan_ready_handler(hdd_adapter_t *pAdapter,
 	mutex_lock(&cfgState->remain_on_chan_ctx_lock);
 	pRemainChanCtx = cfgState->remain_on_chan_ctx;
 	if (pRemainChanCtx != NULL) {
+		pRemainChanCtx->is_recd_roc_ready = true;
 		MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 				 TRACE_CODE_HDD_REMAINCHANREADYHANDLER,
 				 pAdapter->sessionId,
@@ -1957,8 +1964,8 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	uint8_t home_ch = 0;
 	bool enb_random_mac = false;
 	uint32_t mgmt_hdr_len = sizeof(struct ieee80211_hdr_3addr);
-	int32_t mgmt_id;
 	QDF_STATUS qdf_status;
+	int32_t mgmt_id;
 
 	ENTER();
 
@@ -2256,16 +2263,34 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			(QDF_TIMER_STATE_RUNNING !=
 			 qdf_mc_timer_get_current_state(
 				 &pRemainChanCtx->hdd_remain_on_chan_timer))) {
-				 mutex_unlock(
-				 &cfgState->remain_on_chan_ctx_lock);
-			hdd_debug("remain_on_chan_ctx exists but RoC timer not running. wait for ready on channel");
-			rc = wait_for_completion_timeout(&pAdapter->
-					rem_on_chan_ready_event,
-					msecs_to_jiffies
-					(WAIT_REM_CHAN_READY));
-			if (!rc)
-				hdd_err("timeout waiting for remain on channel ready indication");
-
+			if (!pRemainChanCtx->is_recd_roc_ready) {
+				mutex_unlock(
+				    &cfgState->remain_on_chan_ctx_lock);
+				hdd_debug("remain_on_chan_ctx exists but RoC timer not running. wait for ready on channel");
+				rc = wait_for_completion_timeout(&pAdapter->
+						rem_on_chan_ready_event,
+						msecs_to_jiffies
+						(WAIT_REM_CHAN_READY));
+				if (!rc)
+					hdd_err("timeout waiting for remain on channel ready indication");
+			} else {
+				/* Timer expired and posted msg to mc thread
+				 * but is not yet processed clean the roc ctx
+				 * and send response to upper layer.
+				 */
+				mutex_unlock(
+				    &cfgState->remain_on_chan_ctx_lock);
+				INIT_COMPLETION(pAdapter->
+						cancel_rem_on_chan_var);
+				rc = wait_for_completion_timeout(&pAdapter->
+						cancel_rem_on_chan_var,
+						msecs_to_jiffies(
+							WAIT_CANCEL_REM_CHAN));
+				if (!rc) {
+					hdd_err("Timeout waiting for cancel ROC indication");
+					goto err_rem_channel;
+				}
+			}
 			mutex_lock(&cfgState->remain_on_chan_ctx_lock);
 			pRemainChanCtx = cfgState->remain_on_chan_ctx;
 		}
@@ -2301,7 +2326,7 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 						 msecs_to_jiffies
 							 (WAIT_CHANGE_CHANNEL_FOR_OFFCHANNEL_TX));
 		if (!rc) {
-			hdd_err("wait on offchannel_tx_event timed out");
+			hdd_debug("wait on offchannel_tx_event timed out");
 			goto err_rem_channel;
 		}
 	} else if (offchan) {
@@ -2855,6 +2880,7 @@ wlan_hdd_allow_sap_add(hdd_context_t *hdd_ctx,
 		adapter = adapter_node->pAdapter;
 		if (adapter && adapter->device_mode == QDF_SAP_MODE &&
 		    test_bit(NET_DEVICE_REGISTERED, &adapter->event_flags) &&
+		    adapter->dev &&
 		    !strncmp(adapter->dev->name, name, IFNAMSIZ)) {
 			beacon_data_t *beacon = adapter->sessionCtx.ap.beacon;
 
@@ -2863,7 +2889,7 @@ wlan_hdd_allow_sap_add(hdd_context_t *hdd_ctx,
 				adapter->sessionCtx.ap.beacon = NULL;
 				qdf_mem_free(beacon);
 			}
-			if (adapter->dev && adapter->dev->ieee80211_ptr) {
+			if (adapter->dev->ieee80211_ptr) {
 				*sap_dev = adapter->dev->ieee80211_ptr;
 				return false;
 			}
@@ -2933,6 +2959,9 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-EINVAL);
 	}
 
+	if (wlan_hdd_check_mon_concurrency())
+		return ERR_PTR(-EINVAL);
+
 	pAdapter = hdd_get_adapter(pHddCtx, QDF_STA_MODE);
 	if ((pAdapter != NULL) &&
 		!(wlan_hdd_validate_session_id(pAdapter->sessionId))) {
@@ -2943,6 +2972,16 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 					   eCSR_SCAN_ABORT_DEFAULT);
 			hdd_debug("Abort Scan while adding virtual interface");
 		}
+	}
+
+	pAdapter = NULL;
+	ret = wlan_hdd_add_monitor_check(pHddCtx, &pAdapter, type, name,
+					 true, name_assign_type);
+	if (ret)
+		return ERR_PTR(-EINVAL);
+	if (pAdapter) {
+		EXIT();
+		return pAdapter->dev->ieee80211_ptr;
 	}
 
 	if (session_type == QDF_SAP_MODE) {
@@ -3153,6 +3192,10 @@ int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	if (pVirtAdapter->device_mode == QDF_SAP_MODE &&
 	    wlan_sap_is_pre_cac_active(pHddCtx->hHal)) {
 		hdd_clean_up_pre_cac_interface(pHddCtx);
+	} else if (wlan_hdd_is_session_type_monitor(
+				pVirtAdapter->device_mode)) {
+		wlan_hdd_del_monitor(pHddCtx, pVirtAdapter, TRUE);
+		hdd_reset_mon_mode_cb();
 	} else {
 		wlan_hdd_release_intf_addr(pHddCtx,
 					 pVirtAdapter->macAddressCurrent.bytes);
@@ -3511,6 +3554,7 @@ static void process_tdls_rx_action_frame(hdd_adapter_t *adapter,
 static bool process_rx_public_action_frame(hdd_adapter_t *adapter,
 					   uint8_t *pb_frames,
 					   hdd_cfg80211_state_t *cfg_state,
+					   enum action_frm_type frm_type,
 					   uint32_t frm_len, uint16_t freq,
 					   int8_t rx_rssi)
 {
@@ -3577,6 +3621,7 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *adapter, uint32_t frm_len,
 	uint16_t freq;
 	uint8_t type = 0;
 	uint8_t sub_type = 0;
+	enum action_frm_type frm_type;
 	hdd_cfg80211_state_t *cfg_state;
 	hdd_context_t *hdd_ctx;
 	uint8_t broadcast = 0;
@@ -3651,7 +3696,7 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *adapter, uint32_t frm_len,
 		bool processed;
 
 		processed = process_rx_public_action_frame(adapter, pb_frames,
-							   cfg_state,
+							   cfg_state, frm_type,
 							   frm_len, freq,
 							   rx_rssi);
 		if (!processed) {

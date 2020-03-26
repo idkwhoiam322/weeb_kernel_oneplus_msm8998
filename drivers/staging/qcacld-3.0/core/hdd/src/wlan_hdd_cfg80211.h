@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -354,11 +345,6 @@ QDF_STATUS wlan_hdd_cfg80211_roam_metrics_handover(hdd_adapter_t *pAdapter,
 						   tCsrRoamInfo *pRoamInfo);
 #endif
 
-#ifdef FEATURE_WLAN_WAPI
-void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t *pAdapter, uint8_t key_index,
-				    const uint8_t *mac_addr, const uint8_t *key,
-				    int key_Len);
-#endif
 hdd_context_t *hdd_cfg80211_wiphy_alloc(int priv_size);
 
 int wlan_hdd_cfg80211_tdls_scan(struct wiphy *wiphy,
@@ -399,7 +385,6 @@ extern void wlan_hdd_cfg80211_update_replay_counter_cb(
 						tpSirGtkOffloadGetInfoRspParams
 						pGtkOffloadGetInfoRsp);
 #endif
-void *wlan_hdd_change_country_code_cb(void *pAdapter);
 void hdd_select_cbmode(hdd_adapter_t *pAdapter, uint8_t operationChannel,
 		       struct ch_params_s *ch_params);
 
@@ -473,18 +458,27 @@ void wlan_hdd_rso_cmd_status_cb(void *ctx, struct rso_cmd_status *rso_status);
 
 /**
  * wlan_hdd_cfg80211_chainrssi_callback - chainrssi callback
- * @ctx: hdd context
+ * @hdd_ctx: hdd context
  * @pmsg: pmsg
+ * @context: callback context
  *
  * Return: void
  */
-void wlan_hdd_cfg80211_chainrssi_callback(void *ctx, void *pmsg);
+void wlan_hdd_cfg80211_chainrssi_callback(void *hdd_ctx, void *pmsg,
+					  void *context);
 
 void hdd_rssi_threshold_breached(void *hddctx,
 				 struct rssi_breach_event *data);
 
-struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(hdd_adapter_t *pAdapter,
-						tSirMacAddr bssid);
+/*
+ * wlan_hdd_cfg80211_unlink_bss :to inform nl80211
+ * interface that BSS might have been lost.
+ * @pAdapter: adapter
+ * @bssid: bssid which might have been lost
+ *
+ * Return: void
+ */
+void wlan_hdd_cfg80211_unlink_bss(hdd_adapter_t *pAdapter, tSirMacAddr bssid);
 
 int wlan_hdd_cfg80211_update_bss(struct wiphy *wiphy,
 						hdd_adapter_t *pAdapter,
@@ -710,4 +704,14 @@ QDF_STATUS wlan_hdd_send_sta_authorized_event(
 					hdd_adapter_t *pAdapter,
 					hdd_context_t *pHddCtx,
 					const struct qdf_mac_addr *mac_addr);
+
+/**
+ * wlan_hdd_restore_channels() - Restore the channels which were cached
+ * and disabled in wlan_hdd_disable_channels api.
+ * @hdd_ctx: Pointer to the HDD context
+ *
+ * Return: 0 on success, Error code on failure
+ */
+int wlan_hdd_restore_channels(hdd_context_t *hdd_ctx);
+
 #endif

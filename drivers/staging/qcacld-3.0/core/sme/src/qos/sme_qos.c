@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -4112,7 +4103,6 @@ static QDF_STATUS sme_qos_del_ts_req(tpAniSirGlobal pMac,
 	struct sme_qos_acinfo *pACInfo;
 	tSirDeltsReq *pMsg;
 	sme_QosWmmTspecInfo *pTspecInfo;
-	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 	WLAN_HOST_DIAG_EVENT_DEF(qos, host_event_wlan_qos_payload_type);
@@ -4182,23 +4172,23 @@ static QDF_STATUS sme_qos_del_ts_req(tpAniSirGlobal pMac,
 		  pTspecInfo->ts_info.up, pTspecInfo->ts_info.tid);
 	qdf_mem_zero(&pACInfo->curr_QoSInfo[tspec_mask - 1],
 		     sizeof(sme_QosWmmTspecInfo));
-	if (QDF_IS_STATUS_SUCCESS(cds_send_mb_message_to_mac(pMsg))) {
-		status = QDF_STATUS_SUCCESS;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "%s: %d: sme_qos_del_ts_req:Test: sent down a DELTS req to PE",
-			  __func__, __LINE__);
-		/* event: EVENT_WLAN_QOS */
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-		qos.eventId = SME_QOS_DIAG_DELTS;
-		qos.reasonCode = SME_QOS_DIAG_USER_REQUESTED;
-		WLAN_HOST_DIAG_EVENT_REPORT(&qos, EVENT_WLAN_QOS);
-#endif /* FEATURE_WLAN_DIAG_SUPPORT */
-	}
-	sme_set_tspec_uapsd_mask_per_session(pMac,
-			&pMsg->req.tspec.tsinfo,
-			sessionId);
 
-	return status;
+	if (!QDF_IS_STATUS_SUCCESS(cds_send_mb_message_to_mac(pMsg))) {
+		sme_err("DELTS req to PE failed");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	sme_debug("sent down a DELTS req to PE");
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+	qos.eventId = SME_QOS_DIAG_DELTS;
+	qos.reasonCode = SME_QOS_DIAG_USER_REQUESTED;
+	WLAN_HOST_DIAG_EVENT_REPORT(&qos, EVENT_WLAN_QOS);
+#endif
+
+	sme_set_tspec_uapsd_mask_per_session(pMac, &pMsg->req.tspec.tsinfo,
+					     sessionId);
+
+	return QDF_STATUS_SUCCESS;
 }
 
 /*
@@ -4525,7 +4515,7 @@ static QDF_STATUS sme_qos_process_reassoc_req_ev(tpAniSirGlobal pMac, uint8_t
 		 */
 		entry = csr_ll_peek_head(&sme_qos_cb.flow_list, false);
 		if (!entry) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_WARN,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				FL("Flow List empty, nothing to update"));
 			return QDF_STATUS_E_FAILURE;
 		}
@@ -4888,6 +4878,54 @@ static QDF_STATUS sme_qos_process_reassoc_failure_ev(tpAniSirGlobal pMac,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+#ifdef FEATURE_WLAN_ESE
+static bool sme_qos_ft_handoff_required(tpAniSirGlobal pmac,
+					uint8_t session_id)
+{
+	tCsrRoamSession *csr_roam_session;
+
+	if (csr_roam_is11r_assoc(pmac, session_id))
+		return true;
+
+	csr_roam_session = CSR_GET_SESSION(pmac, session_id);
+
+	if (csr_roam_session->roam_synch_in_progress &&
+	    csr_roam_is_ese_assoc(pmac, session_id) &&
+	    csr_roam_session->connectedInfo.nTspecIeLength)
+		return true;
+
+	return false;
+}
+#else
+static inline bool sme_qos_ft_handoff_required(tpAniSirGlobal pmac,
+					       uint8_t session_id)
+{
+	return csr_roam_is11r_assoc(pmac, session_id) ? true : false;
+}
+#endif
+#else
+static inline bool sme_qos_ft_handoff_required(tpAniSirGlobal pmac,
+					       uint8_t session_id)
+{
+	return false;
+}
+#endif
+
+#ifdef FEATURE_WLAN_ESE
+static inline bool sme_qos_legacy_handoff_required(tpAniSirGlobal pmac,
+						   uint8_t session_id)
+{
+	return csr_roam_is_ese_assoc(pmac, session_id) ? false : true;
+}
+#else
+static inline bool sme_qos_legacy_handoff_required(tpAniSirGlobal pmac,
+						   uint8_t session_id)
+{
+	return true;
+}
+#endif
+
 /*
  * sme_qos_process_handoff_assoc_req_ev() - Function to process the
  *  SME_QOS_CSR_HANDOFF_ASSOC_REQ event indication from CSR
@@ -4936,16 +4974,13 @@ static QDF_STATUS sme_qos_process_handoff_assoc_req_ev(tpAniSirGlobal pMac,
 			break;
 		}
 	}
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-	if (csr_roam_is11r_assoc(pMac, sessionId))
+
+	if (sme_qos_ft_handoff_required(pMac, sessionId))
 		pSession->ftHandoffInProgress = true;
-#endif
+
 	/* If FT handoff/ESE in progress, legacy handoff need not be enabled */
-	if (!pSession->ftHandoffInProgress
-#ifdef FEATURE_WLAN_ESE
-	    && !csr_roam_is_ese_assoc(pMac, sessionId)
-#endif
-	   )
+	if (!pSession->ftHandoffInProgress &&
+	    sme_qos_legacy_handoff_required(pMac, sessionId))
 		pSession->handoffRequested = true;
 
 	/* this session no longer needs UAPSD */
@@ -7020,6 +7055,7 @@ static QDF_STATUS sme_qos_add_ts_failure_fnp(tpAniSirGlobal pMac, tListElem
 	case SME_QOS_REASON_MODIFY:
 		flow_info->reason = SME_QOS_REASON_REQ_SUCCESS;
 	case SME_QOS_REASON_REQ_SUCCESS:
+	/* fallthrough */
 	default:
 		inform_hdd = false;
 		break;
@@ -7210,6 +7246,7 @@ static QDF_STATUS sme_qos_add_ts_success_fnp(tpAniSirGlobal mac_ctx,
 	case SME_QOS_REASON_REQ_SUCCESS:
 		hdd_status = SME_QOS_STATUS_SETUP_MODIFIED_IND;
 		inform_hdd = true;
+	/* fallthrough */
 	default:
 		delete_entry = false;
 		break;

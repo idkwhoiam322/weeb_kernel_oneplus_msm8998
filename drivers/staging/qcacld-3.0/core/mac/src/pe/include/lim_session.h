@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined(__LIM_SESSION_H)
@@ -68,10 +59,6 @@ typedef struct tagComebackTimerInfo {
 /* Maximum Number of WEP KEYS */
 #define MAX_WEP_KEYS 4
 
-/* Maximum allowable size of a beacon frame */
-#define SCH_MAX_BEACON_SIZE    512
-
-#define SCH_MAX_PROBE_RESP_SIZE 512
 #define SCH_PROTECTION_RESET_TIME 4000
 
 /*--------------------------------------------------------------------------
@@ -96,6 +83,10 @@ typedef struct join_params {
 	tSirResultCodes result_code;
 } join_params;
 
+struct session_params {
+	uint16_t session_id;
+};
+
 typedef struct sPESession       /* Added to Support BT-AMP */
 {
 	/* To check session table is in use or free */
@@ -103,7 +94,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint16_t peSessionId;
 	uint8_t smeSessionId;
 	uint16_t transactionId;
-
+	qdf_wake_lock_t ap_ecsa_wakelock;
+	qdf_runtime_lock_t ap_ecsa_runtime_lock;
 	/* In AP role: BSSID and selfMacAddr will be the same. */
 	/* In STA role: they will be different */
 	tSirMacAddr bssId;
@@ -356,6 +348,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint32_t peerAIDBitmap[2];
 	bool tdls_prohibited;
 	bool tdls_chan_swit_prohibited;
+	bool is_tdls_csa;
 #endif
 	bool fWaitForProbeRsp;
 	bool fIgnoreCapsChange;
@@ -448,13 +441,11 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	/* Fast Transition (FT) */
 	tftPEContext ftPEContext;
 	bool isNonRoamReassoc;
-#ifdef WLAN_FEATURE_11W
-	qdf_mc_timer_t pmfComebackTimer;
-	tComebackTimerInfo pmfComebackTimerInfo;
-#endif /* WLAN_FEATURE_11W */
 	uint8_t  is_key_installed;
 	/* timer for reseting protection fileds at regular intervals */
 	qdf_mc_timer_t protection_fields_reset_timer;
+	/* timer to decrement CSA/ECSA count */
+	qdf_mc_timer_t ap_ecsa_timer;
 	void *mac_ctx;
 	/*
 	 * variable to store state of various protection struct like
@@ -478,6 +469,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	/* flag to indicate country code in beacon */
 	uint8_t country_info_present;
 	uint8_t nss;
+	bool nss_forced_1x1;
 	bool add_bss_failed;
 	/* To hold OBSS Scan IE Parameters */
 	struct obss_scanparam obss_ht40_scanparam;

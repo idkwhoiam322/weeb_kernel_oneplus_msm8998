@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*============================================================================
@@ -607,7 +598,8 @@ bool cds_is_gmac_mmie_valid(uint8_t *igtk, uint8_t *ipn, uint8_t *frm,
 {
 	struct ieee80211_mmie_16 *mmie;
 	struct ieee80211_frame *wh;
-	uint8_t rx_ipn[6], aad[AAD_LEN], mic[IEEE80211_MMIE_GMAC_MICLEN];
+	uint8_t rx_ipn[6], aad[AAD_LEN];
+	uint8_t mic[IEEE80211_MMIE_GMAC_MICLEN] = {0};
 	uint16_t data_len;
 	uint8_t gmac_nonce[GMAC_NONCE_LEN];
 	uint8_t iv[AES_BLOCK_SIZE] = {0};
@@ -762,7 +754,7 @@ void cds_copy_hlp_info(struct qdf_mac_addr *input_dst_mac,
 		       uint8_t *output_hlp_data)
 {
 	if (!input_hlp_data_len) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_DEBUG,
 			  "Input HLP data len zero\n");
 		return;
 	}

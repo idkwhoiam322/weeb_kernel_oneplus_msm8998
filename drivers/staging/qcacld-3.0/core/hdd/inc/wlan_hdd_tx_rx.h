@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined(WLAN_HDD_TX_RX_H)
@@ -197,14 +188,46 @@ const char *hdd_action_type_to_string(enum netif_action_type action);
 void wlan_hdd_netif_queue_control(hdd_adapter_t *adapter,
 		enum netif_action_type action, enum netif_reason_type reason);
 int hdd_set_mon_rx_cb(struct net_device *dev);
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+/**
+ * hdd_set_mon_mode_cb() - Set pkt capture mode callback
+ * @dev:        Pointer to net_device structure
+ *
+ * Return: 0 on success; non-zero for failure
+ */
+int hdd_set_mon_mode_cb(struct net_device *dev);
+
+/**
+ * hdd_reset_mon_mode_cb() - Reset pkt capture mode callback
+ * @void
+ *
+ * Return: None
+ */
+void hdd_reset_mon_mode_cb(void);
+#else
+static inline
+int hdd_set_mon_mode_cb(struct net_device *dev)
+{
+	return -ENOTSUPP;
+}
+
+static inline
+void hdd_reset_mon_mode_cb(void)
+{
+}
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
+
 void hdd_send_rps_ind(hdd_adapter_t *adapter);
 void hdd_send_rps_disable_ind(hdd_adapter_t *adapter);
 void wlan_hdd_classify_pkt(struct sk_buff *skb);
 
 #ifdef MSM_PLATFORM
 void hdd_reset_tcp_delack(hdd_context_t *hdd_ctx);
+#define HDD_MSM_CFG(msm_cfg)	msm_cfg
 #else
 static inline void hdd_reset_tcp_delack(hdd_context_t *hdd_ctx) {}
+#define HDD_MSM_CFG(msm_cfg)	0
 #endif
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
@@ -247,5 +270,23 @@ hdd_skb_fill_gso_size(struct net_device *dev,
 				+ tcp_hdrlen(skb));
 	}
 }
+
+#ifdef CONFIG_HL_SUPPORT
+static inline QDF_STATUS
+hdd_skb_nontso_linearize(struct sk_buff *skb)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#else
+static inline QDF_STATUS
+hdd_skb_nontso_linearize(struct sk_buff *skb)
+{
+	if (qdf_nbuf_is_nonlinear(skb) && qdf_nbuf_is_tso(skb) == false) {
+		if (qdf_unlikely(skb_linearize(skb)))
+			return QDF_STATUS_E_NOMEM;
+	}
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 #endif /* end #if !defined(WLAN_HDD_TX_RX_H) */
