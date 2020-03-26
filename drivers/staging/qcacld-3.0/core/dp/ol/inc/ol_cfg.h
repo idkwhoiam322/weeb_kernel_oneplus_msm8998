@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,12 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 #ifndef _OL_CFG__H_
 #define _OL_CFG__H_
 
@@ -32,11 +23,7 @@
 #include <cdp_txrx_cmn.h>       /* ol_pdev_handle */
 #include <cds_ieee80211_common.h>   /* ieee80211_qosframe_htc_addr4 */
 #include <enet.h>               /* LLC_SNAP_HDR_LEN */
-#if defined(CONFIG_HL_SUPPORT)
-#include "wlan_tgt_def_config_hl.h"
-#else
-#include "wlan_tgt_def_config.h"
-#endif
+#include "target_if_def_config.h"
 #include "ol_txrx_ctrl_api.h"   /* txrx_pdev_cfg_param_t */
 
 
@@ -100,6 +87,8 @@ struct txrx_pdev_cfg_t {
 	bool flow_steering_enabled;
 
 	struct ol_tx_sched_wrr_ac_specs_t ac_specs[TX_WMM_AC_NUM];
+
+	uint8_t pktcapture_mode;
 };
 
 /**
@@ -276,8 +265,8 @@ void ol_cfg_set_tx_free_at_download(ol_pdev_handle pdev);
  */
 #define OL_CFG_NUM_MSDU_REAP 512
 #define ol_cfg_tx_credit_lwm(pdev)					       \
-	((CFG_TGT_NUM_MSDU_DESC >  OL_CFG_NUM_MSDU_REAP) ?		       \
-	 (CFG_TGT_NUM_MSDU_DESC -  OL_CFG_NUM_MSDU_REAP) : 0)
+	((TGT_NUM_MSDU_DESC >  OL_CFG_NUM_MSDU_REAP) ?		       \
+	 (TGT_NUM_MSDU_DESC -  OL_CFG_NUM_MSDU_REAP) : 0)
 
 /**
  * @brief In a HL system, specify the target initial credit count.
@@ -616,4 +605,8 @@ uint16_t ol_cfg_get_send_limit(ol_pdev_handle pdev, int ac);
 int ol_cfg_get_credit_reserve(ol_pdev_handle pdev, int ac);
 
 int ol_cfg_get_discard_weight(ol_pdev_handle pdev, int ac);
+
+int ol_cfg_pktcapture_mode(ol_pdev_handle pdev);
+
+void ol_cfg_set_pktcapture_mode(ol_pdev_handle pdev, int val);
 #endif /* _OL_CFG__H_ */

@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2015-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /* OS abstraction libraries */
@@ -453,8 +444,13 @@ ol_tx_distribute_descs_to_deficient_pools(struct ol_tx_flow_pool_t *src_pool)
 			if (dst_pool->status == FLOW_POOL_ACTIVE_PAUSED) {
 				if (dst_pool->avail_desc > dst_pool->start_th) {
 					pdev->pause_cb(dst_pool->member_flow_id,
+					      WLAN_NETIF_PRIORITY_QUEUE_ON,
+					      WLAN_DATA_FLOW_CONTROL_PRIORITY);
+
+					pdev->pause_cb(dst_pool->member_flow_id,
 						      WLAN_WAKE_ALL_NETIF_QUEUE,
 						      WLAN_DATA_FLOW_CONTROL);
+
 					dst_pool->status =
 						FLOW_POOL_ACTIVE_UNPAUSED;
 				}
@@ -711,6 +707,9 @@ void ol_tx_flow_pool_map_handler(uint8_t flow_id, uint8_t flow_type,
 
 	case FLOW_TYPE_VDEV:
 		ol_tx_flow_pool_vdev_map(pool, flow_id);
+		pdev->pause_cb(flow_id,
+			       WLAN_NETIF_PRIORITY_QUEUE_ON,
+			       WLAN_DATA_FLOW_CONTROL_PRIORITY);
 		pdev->pause_cb(flow_id,
 			       WLAN_WAKE_ALL_NETIF_QUEUE,
 			       WLAN_DATA_FLOW_CONTROL);

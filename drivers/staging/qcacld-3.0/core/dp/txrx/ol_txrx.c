@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*=== includes ===*/
@@ -124,6 +115,8 @@ enum dpt_set_param_debugfs {
 #define OL_TXRX_PEER_DEC_REF_CNT_SILENT(peer) \
 	qdf_atomic_dec(&peer->ref_cnt)
 
+#define NORMALIZED_TO_NOISE_FLOOR (-96)
+
 ol_txrx_peer_handle
 ol_txrx_peer_find_by_local_id_inc_ref(struct ol_txrx_pdev_t *pdev,
 			      uint8_t local_peer_id);
@@ -141,6 +134,7 @@ static void ol_txrx_peer_dec_ref_cnt(struct ol_txrx_peer_t *peer);
 void
 ol_txrx_copy_mac_addr_raw(ol_txrx_vdev_handle vdev, uint8_t *bss_addr)
 {
+	qdf_spin_lock_bh(&vdev->pdev->last_real_peer_mutex);
 	if (bss_addr && vdev->last_real_peer &&
 	    !qdf_mem_cmp((u8 *)bss_addr,
 			     vdev->last_real_peer->mac_addr.raw,
@@ -148,6 +142,7 @@ ol_txrx_copy_mac_addr_raw(ol_txrx_vdev_handle vdev, uint8_t *bss_addr)
 		qdf_mem_copy(vdev->hl_tdls_ap_mac_addr.raw,
 			     vdev->last_real_peer->mac_addr.raw,
 			     OL_TXRX_MAC_ADDR_LEN);
+	qdf_spin_unlock_bh(&vdev->pdev->last_real_peer_mutex);
 }
 
 /**
@@ -165,15 +160,14 @@ ol_txrx_add_last_real_peer(ol_txrx_pdev_handle pdev,
 {
 	ol_txrx_peer_handle peer;
 
-	if (vdev->last_real_peer == NULL) {
-		peer = NULL;
-		peer = ol_txrx_find_peer_by_addr(pdev,
-				vdev->hl_tdls_ap_mac_addr.raw,
-				peer_id);
-		if (peer && (peer->peer_ids[0] !=
-					HTT_INVALID_PEER_ID))
-			vdev->last_real_peer = peer;
-	}
+	peer = ol_txrx_find_peer_by_addr(pdev,
+					 vdev->hl_tdls_ap_mac_addr.raw,
+					 peer_id);
+	qdf_spin_lock_bh(&pdev->last_real_peer_mutex);
+	if (!vdev->last_real_peer && peer &&
+	    peer->peer_ids[0] != HTT_INVALID_PEER_ID)
+		vdev->last_real_peer = peer;
+	qdf_spin_unlock_bh(&pdev->last_real_peer_mutex);
 }
 
 /**
@@ -208,14 +202,18 @@ ol_txrx_update_last_real_peer(
 {
 	struct ol_txrx_vdev_t *vdev;
 
+	if (!restore_last_peer)
+		return;
+
 	vdev = peer->vdev;
-	if (restore_last_peer && (vdev->last_real_peer == NULL)) {
-		peer = NULL;
-		peer = ol_txrx_find_peer_by_addr(pdev,
-				vdev->hl_tdls_ap_mac_addr.raw, peer_id);
-		if (peer && (peer->peer_ids[0] != HTT_INVALID_PEER_ID))
-			vdev->last_real_peer = peer;
-	}
+	peer = ol_txrx_find_peer_by_addr(pdev,
+					 vdev->hl_tdls_ap_mac_addr.raw,
+					 peer_id);
+	qdf_spin_lock_bh(&pdev->last_real_peer_mutex);
+	if (!vdev->last_real_peer && peer &&
+	    (peer->peer_ids[0] != HTT_INVALID_PEER_ID))
+		vdev->last_real_peer = peer;
+	qdf_spin_unlock_bh(&pdev->last_real_peer_mutex);
 }
 #endif
 
@@ -1471,6 +1469,7 @@ ol_txrx_pdev_attach(ol_pdev_handle ctrl_pdev,
 	ol_txrx_fw_stats_desc_pool_init(pdev, FW_STATS_DESC_POOL_SIZE);
 
 	TAILQ_INIT(&pdev->vdev_list);
+	TAILQ_INIT(&pdev->roam_stale_peer_list);
 
 	TAILQ_INIT(&pdev->req_list);
 	pdev->req_list_depth = 0;
@@ -1570,7 +1569,7 @@ void htt_pkt_log_init(struct ol_txrx_pdev_t *handle, void *scn)
  *
  * Return: void
  */
-static void htt_pktlogmod_exit(struct ol_txrx_pdev_t *handle, void *scn)
+void htt_pktlogmod_exit(struct ol_txrx_pdev_t *handle, void *scn)
 {
 	if (scn && cds_get_conparam() != QDF_GLOBAL_FTM_MODE &&
 		!QDF_IS_EPPING_ENABLED(cds_get_conparam()) &&
@@ -1581,7 +1580,7 @@ static void htt_pktlogmod_exit(struct ol_txrx_pdev_t *handle, void *scn)
 }
 #else
 void htt_pkt_log_init(ol_txrx_pdev_handle handle, void *ol_sc) { }
-static void htt_pktlogmod_exit(ol_txrx_pdev_handle handle, void *sc)  { }
+void htt_pktlogmod_exit(ol_txrx_pdev_handle handle, void *sc)  { }
 #endif
 
 /**
@@ -2273,7 +2272,7 @@ static void ol_txrx_debugfs_exit(ol_txrx_pdev_handle pdev)
  */
 void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev)
 {
-	struct ol_txrx_stats_req_internal *req;
+	struct ol_txrx_stats_req_internal *req, *temp_req;
 	int i = 0;
 
 	/*checking to ensure txrx pdev structure is not NULL */
@@ -2289,7 +2288,7 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev)
 			"Warning: the txrx req list is not empty, depth=%d\n",
 			pdev->req_list_depth
 			);
-	TAILQ_FOREACH(req, &pdev->req_list, req_list_elem) {
+	TAILQ_FOREACH_SAFE(req, &pdev->req_list, req_list_elem, temp_req) {
 		TAILQ_REMOVE(&pdev->req_list, req, req_list_elem);
 		pdev->req_list_depth--;
 		ol_txrx_err(
@@ -2449,6 +2448,48 @@ ol_txrx_vdev_attach(ol_txrx_pdev_handle pdev,
 }
 
 /**
+ * ol_txrx_mon_cb_deregister() - Deregister pkt capture mode callback
+ * @void:
+ *
+ * Return: None
+ */
+void ol_txrx_mon_cb_deregister(void)
+{
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (qdf_unlikely(!pdev)) {
+		qdf_print("%s: pdev is NULL!\n", __func__);
+		qdf_assert(0);
+		return;
+	}
+
+	pdev->mon_osif_dev = NULL;
+	pdev->mon_cb = NULL;
+}
+
+/**
+ * ol_txrx_mon_cb_register() - Register pkt capture mode callback
+ * @osif_vdev: the virtual device's OS shim object
+ * @mon_cb: callback to register
+ *
+ * Return: None
+ */
+void ol_txrx_mon_cb_register(void *osif_vdev,
+			     ol_txrx_mon_callback_fp mon_cb)
+{
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (qdf_unlikely(!pdev)) {
+		qdf_print("%s: pdev is NULL!\n", __func__);
+		qdf_assert(0);
+		return;
+	}
+
+	pdev->mon_osif_dev = osif_vdev;
+	pdev->mon_cb = mon_cb;
+}
+
+/**
  *ol_txrx_vdev_register - Link a vdev's data object with the
  * matching OS shim vdev object.
  *
@@ -2480,6 +2521,7 @@ void ol_txrx_vdev_register(ol_txrx_vdev_handle vdev,
 	vdev->osif_dev = osif_vdev;
 	vdev->rx = txrx_ops->rx.rx;
 	vdev->stats_rx = txrx_ops->rx.stats_rx;
+	vdev->tx_comp = txrx_ops->tx.tx_comp;
 	txrx_ops->tx.tx = ol_tx_data;
 }
 
@@ -2924,8 +2966,11 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 	TAILQ_INSERT_TAIL(&vdev->peer_list, peer, peer_list_elem);
 	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 	/* check whether this is a real peer (peer mac addr != vdev mac addr) */
-	if (ol_txrx_peer_find_mac_addr_cmp(&vdev->mac_addr, &peer->mac_addr))
+	if (ol_txrx_peer_find_mac_addr_cmp(&vdev->mac_addr, &peer->mac_addr)) {
+		qdf_spin_lock_bh(&pdev->last_real_peer_mutex);
 		vdev->last_real_peer = peer;
+		qdf_spin_unlock_bh(&pdev->last_real_peer_mutex);
+	}
 
 	peer->rx_opt_proc = pdev->rx_opt_proc;
 
@@ -3513,6 +3558,35 @@ ol_txrx_peer_qoscapable_get(struct ol_txrx_pdev_t *txrx_pdev, uint16_t peer_id)
 	return 0;
 }
 
+bool ol_txrx_is_peer_eligible_for_deletion(ol_txrx_peer_handle peer,
+					   struct ol_txrx_pdev_t *pdev)
+{
+	bool peerdel = true;
+	u_int16_t peer_id;
+	int i;
+
+	for (i = 0; i < MAX_NUM_PEER_ID_PER_PEER; i++) {
+		peer_id = peer->peer_ids[i];
+
+		if (peer_id == HTT_INVALID_PEER)
+			continue;
+
+		if (!pdev->peer_id_to_obj_map[peer_id].peer_ref)
+			continue;
+
+		if (pdev->peer_id_to_obj_map[peer_id].peer_ref != peer)
+			continue;
+
+		if (qdf_atomic_read(&pdev->peer_id_to_obj_map[peer_id].
+					del_peer_id_ref_cnt)) {
+			peerdel = false;
+			break;
+		}
+
+		pdev->peer_id_to_obj_map[peer_id].peer_ref = NULL;
+	}
+	return peerdel;
+}
 int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 					const char *fname,
 					int line)
@@ -3695,10 +3769,35 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 			}
 		}
 
-		qdf_mem_free(peer);
+		qdf_spin_lock_bh(&pdev->peer_map_unmap_lock);
+		if (ol_txrx_is_peer_eligible_for_deletion(peer, pdev)) {
+			qdf_mem_free(peer);
+		} else {
+			/*
+			 * Mark this PEER as a stale peer, to be deleted
+			 * during PEER UNMAP. Remove this peer from
+			 * roam_stale_peer_list during UNMAP.
+			 */
+			struct ol_txrx_roam_stale_peer_t *roam_stale_peer;
+
+			roam_stale_peer = qdf_mem_malloc(
+				sizeof(struct ol_txrx_roam_stale_peer_t));
+			if (roam_stale_peer) {
+				roam_stale_peer->peer = peer;
+				TAILQ_INSERT_TAIL(&pdev->roam_stale_peer_list,
+						  roam_stale_peer,
+						  next_stale_entry);
+			} else {
+				QDF_TRACE(QDF_MODULE_ID_TXRX,
+					  QDF_TRACE_LEVEL_ERROR,
+					  "[%s][%d]: No memory allocated",
+					  fname, line);
+			}
+		}
+		qdf_spin_unlock_bh(&pdev->peer_map_unmap_lock);
 	} else {
 		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
-		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
 			  "[%s][%d]: ref delete peer %pK peer->ref_cnt = %d",
 			  fname, line, peer, rc);
 	}
@@ -3771,7 +3870,7 @@ QDF_STATUS ol_txrx_clear_peer(uint8_t sta_id)
  *
  * Return: none
  */
-void peer_unmap_timer_handler(void *data)
+void peer_unmap_timer_handler(unsigned long data)
 {
 	ol_txrx_peer_handle peer = (ol_txrx_peer_handle)data;
 
@@ -3784,10 +3883,7 @@ void peer_unmap_timer_handler(void *data)
 		 peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
 	if (!cds_is_driver_recovering() && !cds_is_fw_down()) {
 		wma_peer_debug_dump();
-		if (cds_is_self_recovery_enabled())
-			cds_trigger_recovery(CDS_PEER_UNMAP_TIMEDOUT);
-		else
-			QDF_BUG(0);
+		cds_trigger_recovery(CDS_PEER_UNMAP_TIMEDOUT);
 	} else {
 		WMA_LOGE("%s: Recovery is in progress, ignore!", __func__);
 	}
@@ -3824,15 +3920,12 @@ void ol_txrx_peer_detach(ol_txrx_peer_handle peer, bool start_peer_unmap_timer)
 	/* debug print to dump rx reorder state */
 	/* htt_rx_reorder_log_print(vdev->pdev->htt_pdev); */
 
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
 		   "%s:peer %pK (%02x:%02x:%02x:%02x:%02x:%02x)",
 		   __func__, peer,
 		   peer->mac_addr.raw[0], peer->mac_addr.raw[1],
 		   peer->mac_addr.raw[2], peer->mac_addr.raw[3],
 		   peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
-
-	if (peer->vdev->last_real_peer == peer)
-		peer->vdev->last_real_peer = NULL;
 
 	qdf_spin_lock_bh(&vdev->pdev->last_real_peer_mutex);
 	if (vdev->last_real_peer == peer)
@@ -4719,11 +4812,13 @@ static void ol_txrx_disp_peer_stats(ol_txrx_pdev_handle pdev)
 		return;
 
 	for (i = 0; i < OL_TXRX_NUM_LOCAL_PEER_IDS; i++) {
+		qdf_spin_lock_bh(&pdev->peer_ref_mutex);
 		qdf_spin_lock_bh(&pdev->local_peer_ids.lock);
 		peer = pdev->local_peer_ids.map[i];
 		if (peer)
 			OL_TXRX_PEER_INC_REF_CNT(peer);
 		qdf_spin_unlock_bh(&pdev->local_peer_ids.lock);
+		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 
 		if (peer) {
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
@@ -5228,6 +5323,11 @@ void ol_txrx_ipa_uc_set_quota(ol_txrx_pdev_handle pdev, uint64_t quota_bytes)
 {
 	htt_h2t_ipa_uc_set_quota(pdev->htt_pdev, quota_bytes);
 }
+
+int ol_txrx_rx_hash_smmu_map(ol_txrx_pdev_handle pdev, bool map)
+{
+	return htt_rx_hash_smmu_map_update(pdev->htt_pdev, map);
+}
 #endif /* IPA_UC_OFFLOAD */
 
 QDF_STATUS ol_txrx_display_stats(uint16_t value,
@@ -5367,6 +5467,840 @@ static inline int ol_txrx_drop_nbuf_list(qdf_nbuf_t buf_list)
 }
 
 /**
+ * ol_txrx_mon_mgmt_cb(): callback to process management packets
+ * for pkt capture mode
+ * @ppdev: device handler
+ * @nbuf_list: netbuf list
+ * @vdev_id: vdev id for which packet is captured
+ * @tid:  tid number
+ * @pkt_tx_status: Tx status
+ * @pktformat: Frame format
+ *
+ * Return: none
+ */
+static void
+ol_txrx_mon_mgmt_cb(void *ppdev, void *nbuf_list, uint8_t vdev_id,
+		    uint8_t tid, struct ol_mon_tx_status pkt_tx_status,
+		    bool pkt_format)
+{
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+	uint8_t drop_count;
+	void *mon_osif_dev;
+	qdf_nbuf_t msdu, next_buf;
+	ol_txrx_mon_callback_fp data_rx = NULL;
+	void *cds_ctx = cds_get_global_context();
+
+	if (qdf_unlikely(!cds_ctx) || qdf_unlikely(!pdev))
+		goto free_buf;
+
+	data_rx = pdev->mon_cb;
+	mon_osif_dev = pdev->mon_osif_dev;
+
+	if (!data_rx || !mon_osif_dev)
+		goto free_buf;
+
+	msdu = nbuf_list;
+	while (msdu) {
+		next_buf = qdf_nbuf_queue_next(msdu);
+		qdf_nbuf_set_next(msdu, NULL);   /* Add NULL terminator */
+		if (QDF_STATUS_SUCCESS != data_rx(mon_osif_dev, msdu)) {
+			ol_txrx_err("Frame Rx to HDD failed");
+			qdf_nbuf_free(msdu);
+		}
+		msdu = next_buf;
+	}
+
+	return;
+free_buf:
+	drop_count = ol_txrx_drop_nbuf_list(nbuf_list);
+	ol_txrx_dbg("%s:Dropped frames %u", __func__, drop_count);
+}
+
+/**
+ * ol_txrx_mon_mgmt_process(): process management packets for pkt capture mode
+ * @txrx_status: mon_rx_status to update radiotap header
+ * @nbuf: netbuf
+ * @status: Tx status
+ * @pktformat: Frame format
+ *
+ * Return: true if pkt is post to thread else false
+ */
+bool ol_txrx_mon_mgmt_process(struct mon_rx_status *txrx_status,
+			      qdf_nbuf_t nbuf, uint8_t status)
+{
+	uint32_t headroom;
+	struct cds_ol_mon_pkt *pkt;
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	p_cds_sched_context sched_ctx = get_cds_sched_ctxt();
+	struct ol_mon_tx_status pkt_tx_status = {0};
+
+	if (unlikely(!sched_ctx))
+		return false;
+
+	if (!pdev) {
+		ol_txrx_err("pdev is NULL");
+		return false;
+	}
+
+	/*
+	 * Calculate the headroom and adjust head to prepare radiotap header
+	 */
+	headroom = qdf_nbuf_headroom(nbuf);
+	qdf_nbuf_push_head(nbuf, headroom);
+	qdf_nbuf_update_radiotap(txrx_status, nbuf, headroom);
+
+	pkt = cds_alloc_ol_mon_pkt(sched_ctx);
+	if (!pkt)
+		return false;
+
+	pkt->callback = ol_txrx_mon_mgmt_cb;
+	pkt->context = (void *)pdev;
+	pkt->monpkt = (void *)nbuf;
+	pkt->vdev_id = HTT_INVALID_VDEV;
+	pkt->tid = HTT_INVALID_TID;
+	pkt->pkt_tx_status = pkt_tx_status;
+	pkt->pkt_format = TXRX_PKT_FORMAT_80211;
+	cds_indicate_monpkt(sched_ctx, pkt);
+
+	return true;
+}
+
+/**
+ * ol_txrx_convert8023to80311() - convert 802.3 packet to 803.11
+ * format from rx desc
+ * @bssid: bssid
+ * @msdu: netbuf
+ * @desc: rx desc
+ *
+ * Return: none
+ */
+static QDF_STATUS
+ol_txrx_convert8023to80311(uint8_t *bssid,
+			   qdf_nbuf_t msdu, void *desc)
+{
+	struct ethernet_hdr_t *eth_hdr;
+	struct llc_snap_hdr_t *llc_hdr;
+	struct ieee80211_frame *wh;
+	uint8_t hdsize, new_hdsize;
+	struct ieee80211_qoscntl *qos_cntl;
+	uint16_t seq_no;
+	uint8_t localbuf[sizeof(struct ieee80211_qosframe_htc_addr4) +
+			sizeof(struct llc_snap_hdr_t)];
+	const uint8_t ethernet_II_llc_snap_header_prefix[] = {
+					0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
+	uint16_t ether_type;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	struct htt_host_rx_desc_base *rx_desc = desc;
+
+	eth_hdr = (struct ethernet_hdr_t *)qdf_nbuf_data(msdu);
+	hdsize = sizeof(struct ethernet_hdr_t);
+	wh = (struct ieee80211_frame *)localbuf;
+
+	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA;
+	*(uint16_t *)wh->i_dur = 0;
+
+	new_hdsize = 0;
+
+	/* DA , BSSID , SA */
+	qdf_mem_copy(wh->i_addr1, eth_hdr->dest_addr,
+		     IEEE80211_ADDR_LEN);
+	qdf_mem_copy(wh->i_addr2, bssid,
+		     IEEE80211_ADDR_LEN);
+	qdf_mem_copy(wh->i_addr3, eth_hdr->src_addr,
+		     IEEE80211_ADDR_LEN);
+
+	wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
+
+	if (rx_desc->attention.more_data)
+		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
+
+	if (rx_desc->attention.power_mgmt)
+		wh->i_fc[1] |= IEEE80211_FC1_PWR_MGT;
+
+	if (rx_desc->attention.fragment)
+		wh->i_fc[1] |= IEEE80211_FC1_MORE_FRAG;
+
+	if (rx_desc->attention.order)
+		wh->i_fc[1] |= IEEE80211_FC1_ORDER;
+
+	if (rx_desc->mpdu_start.retry)
+		wh->i_fc[1] |= IEEE80211_FC1_RETRY;
+
+	seq_no = rx_desc->mpdu_start.seq_num;
+	seq_no = (seq_no << IEEE80211_SEQ_SEQ_SHIFT) & IEEE80211_SEQ_SEQ_MASK;
+	qdf_mem_copy(wh->i_seq, &seq_no, sizeof(seq_no));
+
+	new_hdsize = sizeof(struct ieee80211_frame);
+
+	if (rx_desc->attention.non_qos == 0) {
+		qos_cntl =
+		(struct ieee80211_qoscntl *)(localbuf + new_hdsize);
+		qos_cntl->i_qos[0] =
+		(rx_desc->mpdu_start.tid & IEEE80211_QOS_TID);
+		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS;
+
+		qos_cntl->i_qos[1] = 0;
+		new_hdsize += sizeof(struct ieee80211_qoscntl);
+	}
+
+	/*
+	 * Prepare llc Header
+	 */
+	llc_hdr = (struct llc_snap_hdr_t *)(localbuf + new_hdsize);
+	ether_type = (eth_hdr->ethertype[0] << 8) |
+			(eth_hdr->ethertype[1]);
+	if (ether_type >= IEEE8023_MAX_LEN) {
+		qdf_mem_copy(llc_hdr,
+			     ethernet_II_llc_snap_header_prefix,
+			     sizeof
+			     (ethernet_II_llc_snap_header_prefix));
+		if (ether_type == ETHERTYPE_AARP ||
+		    ether_type == ETHERTYPE_IPX) {
+			llc_hdr->org_code[2] =
+				BTEP_SNAP_ORGCODE_2;
+			/* 0xf8; bridge tunnel header */
+		}
+		llc_hdr->ethertype[0] = eth_hdr->ethertype[0];
+		llc_hdr->ethertype[1] = eth_hdr->ethertype[1];
+		new_hdsize += sizeof(struct llc_snap_hdr_t);
+	}
+
+	/*
+	 * Remove 802.3 Header by adjusting the head
+	 */
+	qdf_nbuf_pull_head(msdu, hdsize);
+
+	/*
+	 * Adjust the head and prepare 802.11 Header
+	 */
+	qdf_nbuf_push_head(msdu, new_hdsize);
+	qdf_mem_copy(qdf_nbuf_data(msdu), localbuf, new_hdsize);
+
+	return status;
+}
+
+#define SHORT_PREAMBLE 1
+#define LONG_PREAMBLE  0
+
+/**
+ * ol_txrx_get_tx_rate() - get tx rate for tx packet
+ * format from rx desc
+ * @preamble_type: preamble type
+ * @rate: rate code
+ * @preamble: preamble
+ *
+ * Return: rate
+ */
+static unsigned char ol_txrx_get_tx_rate(uint8_t preamble_type,
+					 uint8_t rate,
+					 uint8_t *preamble)
+{
+	char ret = 0x0;
+	*preamble = LONG_PREAMBLE;
+
+	if (preamble_type == 0) {
+		switch (rate) {
+		case 0x0:
+			ret = 0x60;
+			break;
+		case 0x1:
+			ret = 0x30;
+			break;
+		case 0x2:
+			ret = 0x18;
+			break;
+		case 0x3:
+			ret = 0x0c;
+			break;
+		case 0x4:
+			ret = 0x6c;
+			break;
+		case 0x5:
+			ret = 0x48;
+			break;
+		case 0x6:
+			ret = 0x24;
+			break;
+		case 0x7:
+			ret = 0x12;
+			break;
+		default:
+			break;
+		}
+	} else if (preamble_type == 1) {
+		switch (rate) {
+		case 0x0:
+			ret = 0x16;
+			*preamble = LONG_PREAMBLE;
+		case 0x1:
+			ret = 0xB;
+			*preamble = LONG_PREAMBLE;
+			break;
+		case 0x2:
+			ret = 0x4;
+			*preamble = LONG_PREAMBLE;
+			break;
+		case 0x3:
+			ret = 0x2;
+			*preamble = LONG_PREAMBLE;
+			break;
+		case 0x4:
+			ret = 0x16;
+			*preamble = SHORT_PREAMBLE;
+			break;
+		case 0x5:
+			ret = 0xB;
+			*preamble = SHORT_PREAMBLE;
+			break;
+		case 0x6:
+			ret = 0x4;
+			*preamble = SHORT_PREAMBLE;
+			break;
+		default:
+			break;
+		}
+	} else {
+		qdf_print("Invalid rate info\n");
+	}
+	return ret;
+}
+
+/**
+ * ol_txrx_get_phy_info(): get phy info for tx packets for pkt
+ * capture mode(normal tx + offloaded tx) to prepare radiotap header
+ * @mon_hdr: tx data header
+ * @tx_status: tx status to be updated with phy info
+ *
+ * Return: none
+ */
+static void ol_txrx_get_phy_info(struct ol_txrx_mon_hdr_elem_t *mon_hdr,
+				 struct mon_rx_status *tx_status)
+{
+	uint8_t preamble = 0;
+	uint8_t preamble_type = mon_hdr->preamble;
+	uint8_t mcs = 0, bw = 0;
+	uint16_t vht_flags = 0, ht_flags = 0;
+
+	switch (preamble_type) {
+	case 0x0:
+	case 0x1:
+	/* legacy */
+		tx_status->rate = ol_txrx_get_tx_rate(preamble_type,
+						mon_hdr->rate,
+						&preamble);
+		break;
+	case 0x2:
+		ht_flags = 1;
+		bw = mon_hdr->bw;
+		if (mon_hdr->nss == 2)
+			mcs = 8 + mon_hdr->mcs;
+		else
+			mcs = mon_hdr->mcs;
+		break;
+	case 0x3:
+		vht_flags = 1;
+		bw = mon_hdr->bw;
+		mcs = mon_hdr->mcs;
+
+		/* fallthrough */
+	default:
+		break;
+	}
+
+	tx_status->mcs = mcs;
+	tx_status->bw = bw;
+	tx_status->nr_ant = mon_hdr->nss;
+	tx_status->is_stbc = mon_hdr->stbc;
+	tx_status->sgi = mon_hdr->sgi;
+	tx_status->ldpc = mon_hdr->ldpc;
+	tx_status->beamformed = mon_hdr->beamformed;
+	tx_status->vht_flag_values3[0] = mcs << 0x4 | (mon_hdr->nss + 1);
+	tx_status->ht_flags = ht_flags;
+	tx_status->vht_flags = vht_flags;
+	tx_status->rtap_flags |= ((preamble == 1) ? BIT(1) : 0);
+	if (bw == 0)
+		tx_status->vht_flag_values2 = 0;
+	else if (bw == 1)
+		tx_status->vht_flag_values2 = 1;
+	else if (bw == 2)
+		tx_status->vht_flag_values2 = 4;
+}
+
+/**
+ * ol_txrx_update_tx_status(): update tx status for tx packets for
+ * pkt capture mode(normal tx + offloaded tx) to prepare radiotap header
+ * @pdev: device handler
+ * @tx_status: tx status to be updated
+ * @mon_hdr: tx data header
+ *
+ * Return: none
+ */
+static void
+ol_txrx_update_tx_status(struct ol_txrx_pdev_t *pdev,
+			 struct mon_rx_status *tx_status,
+			 struct ol_txrx_mon_hdr_elem_t *mon_hdr)
+{
+	struct mon_channel *ch_info = &pdev->htt_pdev->mon_ch_info;
+	uint16_t channel_flags = 0;
+
+	tx_status->tsft = (u_int64_t)(mon_hdr->timestamp);
+	tx_status->chan_freq = ch_info->ch_freq;
+	tx_status->chan_num = ch_info->ch_num;
+
+	ol_txrx_get_phy_info(mon_hdr, tx_status);
+
+	if (mon_hdr->preamble == 0)
+		channel_flags |= IEEE80211_CHAN_OFDM;
+	else if (mon_hdr->preamble == 1)
+		channel_flags |= IEEE80211_CHAN_CCK;
+
+	channel_flags |=
+		(cds_chan_to_band(ch_info->ch_num) == CDS_BAND_2GHZ ?
+		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
+
+	tx_status->chan_flags = channel_flags;
+	/* RSSI is filled with TPC which will be normalized
+	 * during radiotap updation, so add 96 here
+	 */
+	tx_status->ant_signal_db =
+				mon_hdr->rssi_comb - NORMALIZED_TO_NOISE_FLOOR;
+	tx_status->tx_status = mon_hdr->status;
+	tx_status->add_rtap_ext = true;
+	tx_status->tx_retry_cnt = mon_hdr->tx_retry_cnt;
+}
+
+/**
+ * ol_txrx_mon_tx_data_cb(): callback to process data tx packets
+ * for pkt capture mode. (normal tx + offloaded tx)
+ * @ppdev: device handler
+ * @nbuf_list: netbuf list
+ * @vdev_id: vdev id for which packet is captured
+ * @tid:  tid number
+ * @pkt_tx_status: Tx status
+ * @pktformat: Frame format
+ *
+ * Return: none
+ */
+static void
+ol_txrx_mon_tx_data_cb(void *ppdev, void *nbuf_list, uint8_t vdev_id,
+		       uint8_t tid, struct ol_mon_tx_status pkt_tx_status,
+		       bool pkt_format)
+{
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+	qdf_nbuf_t msdu, next_buf;
+	struct ol_txrx_peer_t *peer;
+	void *mon_osif_dev;
+	struct ol_txrx_vdev_t *vdev;
+	uint8_t drop_count;
+	uint8_t chan = 0;
+	struct htt_tx_data_hdr_information *cmpl_desc = NULL;
+	struct ol_txrx_mon_hdr_elem_t mon_hdr = {0};
+	struct ethernet_hdr_t *eth_hdr;
+	struct llc_snap_hdr_t *llc_hdr;
+	struct ieee80211_frame *wh;
+	uint8_t hdsize, new_hdsize;
+	struct ieee80211_qoscntl *qos_cntl;
+	uint16_t ether_type;
+	uint32_t headroom;
+	uint16_t seq_no, fc_ctrl;
+	uint8_t bssid[OL_TXRX_MAC_ADDR_LEN];
+	ol_txrx_mon_callback_fp data_rx = NULL;
+	struct mon_rx_status tx_status = {0};
+	uint8_t localbuf[sizeof(struct ieee80211_qosframe_htc_addr4) +
+			sizeof(struct llc_snap_hdr_t)];
+	const uint8_t ethernet_II_llc_snap_header_prefix[] = {
+					0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
+
+	if (qdf_unlikely(!pdev))
+		goto free_buf;
+
+	if (vdev_id != HTT_INVALID_VDEV) {
+		vdev = (struct ol_txrx_vdev_t *)
+			ol_txrx_get_vdev_from_vdev_id(vdev_id);
+		if (!vdev)
+			goto free_buf;
+
+		qdf_spin_lock_bh(&pdev->peer_ref_mutex);
+		peer = TAILQ_FIRST(&vdev->peer_list);
+		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+		if (!peer)
+			goto free_buf;
+
+		qdf_spin_lock_bh(&peer->peer_info_lock);
+		qdf_mem_copy(bssid, &peer->mac_addr.raw, IEEE80211_ADDR_LEN);
+		qdf_spin_unlock_bh(&peer->peer_info_lock);
+	}
+
+	data_rx = pdev->mon_cb;
+	mon_osif_dev = pdev->mon_osif_dev;
+
+	if (!data_rx || !mon_osif_dev)
+		goto free_buf;
+
+	msdu = nbuf_list;
+	while (msdu) {
+		next_buf = qdf_nbuf_queue_next(msdu);
+		qdf_nbuf_set_next(msdu, NULL);   /* Add NULL terminator */
+
+		cmpl_desc = (struct htt_tx_data_hdr_information *)
+					(qdf_nbuf_data(msdu));
+
+		mon_hdr.timestamp = cmpl_desc->phy_timestamp_l32;
+		mon_hdr.preamble = cmpl_desc->preamble;
+		mon_hdr.mcs = cmpl_desc->mcs;
+		mon_hdr.bw = cmpl_desc->bw;
+		mon_hdr.nss = cmpl_desc->nss;
+		mon_hdr.rssi_comb = cmpl_desc->rssi;
+		mon_hdr.rate = cmpl_desc->rate;
+		mon_hdr.stbc = cmpl_desc->stbc;
+		mon_hdr.sgi = cmpl_desc->sgi;
+		mon_hdr.ldpc = cmpl_desc->ldpc;
+		mon_hdr.beamformed = cmpl_desc->beamformed;
+		mon_hdr.status = pkt_tx_status.status;
+		mon_hdr.tx_retry_cnt = pkt_tx_status.tx_retry_cnt;
+
+		qdf_nbuf_pull_head(
+			msdu,
+			sizeof(struct htt_tx_data_hdr_information));
+
+		if (pkt_format == TXRX_PKT_FORMAT_8023) {
+			eth_hdr = (struct ethernet_hdr_t *)qdf_nbuf_data(msdu);
+			hdsize = sizeof(struct ethernet_hdr_t);
+			wh = (struct ieee80211_frame *)localbuf;
+
+			*(uint16_t *)wh->i_dur = 0;
+
+			new_hdsize = 0;
+
+			if (vdev_id == HTT_INVALID_VDEV)
+				qdf_mem_copy(bssid, eth_hdr->dest_addr,
+					     IEEE80211_ADDR_LEN);
+
+			/* BSSID , SA , DA */
+			qdf_mem_copy(wh->i_addr1, bssid,
+				     IEEE80211_ADDR_LEN);
+			qdf_mem_copy(wh->i_addr2, eth_hdr->src_addr,
+				     IEEE80211_ADDR_LEN);
+			qdf_mem_copy(wh->i_addr3, eth_hdr->dest_addr,
+				     IEEE80211_ADDR_LEN);
+
+			seq_no = cmpl_desc->seqno;
+			seq_no = (seq_no << IEEE80211_SEQ_SEQ_SHIFT) &
+					IEEE80211_SEQ_SEQ_MASK;
+			fc_ctrl = cmpl_desc->framectrl;
+			qdf_mem_copy(wh->i_fc, &fc_ctrl, sizeof(fc_ctrl));
+			qdf_mem_copy(wh->i_seq, &seq_no, sizeof(seq_no));
+
+			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+
+			new_hdsize = sizeof(struct ieee80211_frame);
+
+			if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
+				qos_cntl = (struct ieee80211_qoscntl *)
+						(localbuf + new_hdsize);
+				qos_cntl->i_qos[0] =
+					(tid & IEEE80211_QOS_TID);
+				qos_cntl->i_qos[1] = 0;
+				new_hdsize += sizeof(struct ieee80211_qoscntl);
+			}
+			/*
+			 * Prepare llc Header
+			 */
+			llc_hdr = (struct llc_snap_hdr_t *)
+					(localbuf + new_hdsize);
+			ether_type = (eth_hdr->ethertype[0] << 8) |
+					(eth_hdr->ethertype[1]);
+			if (ether_type >= IEEE8023_MAX_LEN) {
+				qdf_mem_copy(
+					llc_hdr,
+					ethernet_II_llc_snap_header_prefix,
+					sizeof
+					(ethernet_II_llc_snap_header_prefix));
+				if (ether_type == ETHERTYPE_AARP ||
+				    ether_type == ETHERTYPE_IPX) {
+					llc_hdr->org_code[2] =
+						BTEP_SNAP_ORGCODE_2;
+					/* 0xf8; bridge tunnel header */
+				}
+				llc_hdr->ethertype[0] = eth_hdr->ethertype[0];
+				llc_hdr->ethertype[1] = eth_hdr->ethertype[1];
+				new_hdsize += sizeof(struct llc_snap_hdr_t);
+			}
+
+			/*
+			 * Remove 802.3 Header by adjusting the head
+			 */
+			qdf_nbuf_pull_head(msdu, hdsize);
+
+			/*
+			 * Adjust the head and prepare 802.11 Header
+			 */
+			qdf_nbuf_push_head(msdu, new_hdsize);
+			qdf_mem_copy(qdf_nbuf_data(msdu), localbuf, new_hdsize);
+		}
+
+		/*
+		 * Get the channel info and update the rx status
+		 */
+		if (vdev_id != HTT_INVALID_VDEV) {
+			cds_get_chan_by_session_id(vdev_id, &chan);
+			ol_htt_mon_note_chan(pdev, chan);
+		}
+
+		ol_txrx_update_tx_status(pdev, &tx_status, &mon_hdr);
+
+		/*
+		 * Calculate the headroom and adjust head
+		 * to prepare radiotap header.
+		 */
+		headroom = qdf_nbuf_headroom(msdu);
+		qdf_nbuf_push_head(msdu, headroom);
+		qdf_nbuf_update_radiotap(&tx_status, msdu, headroom);
+
+		if (QDF_STATUS_SUCCESS != data_rx(mon_osif_dev, msdu)) {
+			ol_txrx_err("Frame Tx to HDD failed");
+			qdf_nbuf_free(msdu);
+		}
+
+		msdu = next_buf;
+	}
+
+	return;
+
+free_buf:
+	drop_count = ol_txrx_drop_nbuf_list(nbuf_list);
+}
+
+/**
+ * ol_txrx_mon_rx_data_cb(): callback to process data rx packets
+ * for pkt capture mode. (normal rx + offloaded rx)
+ * @ppdev: device handler
+ * @nbuf_list: netbuf list
+ * @vdev_id: vdev id for which packet is captured
+ * @tid:  tid number
+ * @pkt_tx_status: Tx status
+ * @pktformat: Frame format
+ *
+ * Return: none
+ */
+static void
+ol_txrx_mon_rx_data_cb(void *ppdev, void *nbuf_list, uint8_t vdev_id,
+		       uint8_t tid, struct ol_mon_tx_status pkt_tx_status,
+		       bool pkt_format)
+{
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+	qdf_nbuf_t buf_list = (qdf_nbuf_t)nbuf_list;
+	qdf_nbuf_t msdu, next_buf;
+	void *mon_osif_dev;
+	struct ol_txrx_vdev_t *vdev;
+	uint8_t drop_count;
+	struct ol_txrx_peer_t *peer;
+	uint8_t chan = 0;
+	struct htt_host_rx_desc_base *rx_desc;
+	struct mon_rx_status rx_status = {0};
+	uint32_t headroom;
+	ol_txrx_mon_callback_fp data_rx = NULL;
+	static uint8_t preamble_type;
+	static uint32_t vht_sig_a_1;
+	static uint32_t vht_sig_a_2;
+	uint8_t bssid[OL_TXRX_MAC_ADDR_LEN];
+
+	if (qdf_unlikely(!pdev))
+		goto free_buf;
+
+	if (vdev_id != HTT_INVALID_VDEV) {
+		vdev = (struct ol_txrx_vdev_t *)
+			ol_txrx_get_vdev_from_vdev_id(vdev_id);
+		if (!vdev)
+			goto free_buf;
+
+		qdf_spin_lock_bh(&pdev->peer_ref_mutex);
+		peer = TAILQ_FIRST(&vdev->peer_list);
+		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+		if (!peer)
+			goto free_buf;
+
+		qdf_spin_lock_bh(&peer->peer_info_lock);
+		qdf_mem_copy(bssid, &peer->mac_addr.raw, IEEE80211_ADDR_LEN);
+		qdf_spin_unlock_bh(&peer->peer_info_lock);
+	}
+
+	data_rx = pdev->mon_cb;
+	mon_osif_dev = pdev->mon_osif_dev;
+
+	if (!data_rx || !mon_osif_dev)
+		goto free_buf;
+
+	msdu = buf_list;
+	while (msdu) {
+		struct ethernet_hdr_t *eth_hdr;
+
+		next_buf = qdf_nbuf_queue_next(msdu);
+		qdf_nbuf_set_next(msdu, NULL);   /* Add NULL terminator */
+
+		rx_desc = htt_rx_desc(msdu);
+
+		/*
+		 * Only the first mpdu has valid preamble type, so use it
+		 * till the last mpdu is reached
+		 */
+		if (rx_desc->attention.first_mpdu) {
+			preamble_type = rx_desc->ppdu_start.preamble_type;
+			if (preamble_type == 8 || preamble_type == 9 ||
+			    preamble_type == 0x0c || preamble_type == 0x0d) {
+				vht_sig_a_1 = VHT_SIG_A_1(rx_desc);
+				vht_sig_a_2 = VHT_SIG_A_2(rx_desc);
+			}
+		} else {
+			rx_desc->ppdu_start.preamble_type = preamble_type;
+			if (preamble_type == 8 || preamble_type == 9 ||
+			    preamble_type == 0x0c || preamble_type == 0x0d) {
+				VHT_SIG_A_1(rx_desc) = vht_sig_a_1;
+				VHT_SIG_A_2(rx_desc) = vht_sig_a_2;
+			}
+		}
+
+		if (rx_desc->attention.last_mpdu) {
+			preamble_type = 0;
+			vht_sig_a_1 = 0;
+			vht_sig_a_2 = 0;
+		}
+
+		qdf_nbuf_pull_head(msdu, HTT_RX_STD_DESC_RESERVATION);
+
+		/*
+		 * Get the channel info and update the rx status
+		 */
+		if (vdev_id != HTT_INVALID_VDEV) {
+			cds_get_chan_by_session_id(vdev_id, &chan);
+			ol_htt_mon_note_chan(pdev, chan);
+		}
+		htt_rx_mon_get_rx_status(pdev->htt_pdev, rx_desc, &rx_status);
+
+		rx_status.tx_status = pkt_tx_status.status;
+		rx_status.add_rtap_ext = true;
+		rx_status.tx_retry_cnt = pkt_tx_status.tx_retry_cnt;
+
+		/* clear IEEE80211_RADIOTAP_F_FCS flag*/
+		rx_status.rtap_flags &= ~(BIT(4));
+		rx_status.rtap_flags &= ~(BIT(2));
+
+		/*
+		 * convert 802.3 header format into 802.11 format
+		 */
+		if (vdev_id == HTT_INVALID_VDEV) {
+			eth_hdr = (struct ethernet_hdr_t *)qdf_nbuf_data(msdu);
+			qdf_mem_copy(bssid, eth_hdr->src_addr,
+				     IEEE80211_ADDR_LEN);
+		}
+
+		ol_txrx_convert8023to80311(bssid, msdu, rx_desc);
+
+		/*
+		 * Calculate the headroom and adjust head
+		 * to prepare radiotap header.
+		 */
+		headroom = qdf_nbuf_headroom(msdu);
+		qdf_nbuf_push_head(msdu, headroom);
+		qdf_nbuf_update_radiotap(&rx_status, msdu, headroom);
+
+		if (QDF_STATUS_SUCCESS != data_rx(mon_osif_dev, msdu)) {
+			ol_txrx_err("Frame Rx to HDD failed");
+			qdf_nbuf_free(msdu);
+		}
+		msdu = next_buf;
+	}
+
+	return;
+
+free_buf:
+	drop_count = ol_txrx_drop_nbuf_list(buf_list);
+}
+
+/**
+ * ol_txrx_pktcapture_status_map() - map Tx status for data packets
+ * with packet capture Tx status
+ * @status: Tx status
+ *
+ * Return: pktcapture_tx_status enum
+ */
+static enum pktcapture_tx_status
+ol_txrx_pktcapture_status_map(uint8_t status)
+{
+	enum pktcapture_tx_status tx_status;
+
+	switch (status) {
+	case htt_tx_status_ok:
+		tx_status = pktcapture_tx_status_ok;
+		break;
+	case htt_tx_status_discard:
+		tx_status = pktcapture_tx_status_discard;
+		break;
+	case htt_tx_status_no_ack:
+		tx_status = pktcapture_tx_status_no_ack;
+		break;
+	default:
+		tx_status = pktcapture_tx_status_discard;
+		break;
+	}
+
+	return tx_status;
+}
+
+void ol_txrx_mon_data_process(uint8_t vdev_id,
+			      qdf_nbuf_t mon_buf_list,
+			      enum mon_data_process_type type,
+			      uint8_t tid,
+			      struct ol_mon_tx_status pkt_tx_status,
+			      bool pkt_format)
+{
+	uint8_t drop_count;
+	struct cds_ol_mon_pkt *pkt;
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	p_cds_sched_context sched_ctx = get_cds_sched_ctxt();
+	cds_ol_mon_thread_cb callback = NULL;
+	pkt_tx_status.status =
+		ol_txrx_pktcapture_status_map(pkt_tx_status.status);
+
+	if (!pdev) {
+		ol_txrx_err("pdev is NULL");
+		goto drop_rx_buf;
+	}
+	if (unlikely(!sched_ctx))
+		goto drop_rx_buf;
+	pkt = cds_alloc_ol_mon_pkt(sched_ctx);
+	if (!pkt)
+		goto drop_rx_buf;
+
+	switch (type) {
+	case PROCESS_TYPE_DATA_RX:
+		callback = ol_txrx_mon_rx_data_cb;
+		break;
+	case PROCESS_TYPE_DATA_TX:
+		callback = ol_txrx_mon_tx_data_cb;
+		break;
+	case PROCESS_TYPE_DATA_TX_COMPL:
+		callback = ol_txrx_mon_tx_data_cb;
+		break;
+	default:
+		return;
+	}
+	pkt->callback = callback;
+	pkt->context = (void *)pdev;
+	pkt->monpkt = (void *)mon_buf_list;
+	pkt->vdev_id = vdev_id;
+	pkt->tid = tid;
+	pkt->pkt_tx_status = pkt_tx_status;
+	pkt->pkt_format = pkt_format;
+	cds_indicate_monpkt(sched_ctx, pkt);
+	return;
+
+drop_rx_buf:
+	drop_count = ol_txrx_drop_nbuf_list(mon_buf_list);
+}
+
+/**
  * ol_rx_data_cb() - data rx callback
  * @peer: peer
  * @buf_list: buffer list
@@ -5374,9 +6308,10 @@ static inline int ol_txrx_drop_nbuf_list(qdf_nbuf_t buf_list)
  *
  * Return: None
  */
-static void ol_rx_data_cb(struct ol_txrx_pdev_t *pdev,
-			  qdf_nbuf_t buf_list, uint16_t staid)
+static void ol_rx_data_cb(void *_pdev, void *_buf_list, uint16_t staid)
 {
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)_pdev;
+	qdf_nbuf_t buf_list = (qdf_nbuf_t)_buf_list;
 	void *cds_ctx = cds_get_global_context();
 	void *osif_dev;
 	uint8_t drop_count = 0;
@@ -5513,6 +6448,7 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 	}
 	return QDF_STATUS_SUCCESS;
 }
+
 /**
  * ol_rx_data_process() - process rx frame
  * @peer: peer
@@ -5576,8 +6512,7 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 			if (!pkt)
 				goto drop_rx_buf;
 
-			pkt->callback = (cds_ol_rx_thread_cb)
-					ol_rx_data_cb;
+			pkt->callback = ol_rx_data_cb;
 			pkt->context = (void *)pdev;
 			pkt->Rxpkt = (void *)rx_buf_list;
 			pkt->staId = peer->local_id;

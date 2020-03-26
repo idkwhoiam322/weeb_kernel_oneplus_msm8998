@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -175,16 +166,6 @@ typedef struct tagCsrRSNAuthIe {
 	} qdf_packed AuthOui[1];
 } qdf_packed tCsrRSNAuthIe;
 
-typedef struct tagCsrRSNCapabilities {
-	uint16_t PreAuthSupported:1;
-	uint16_t NoPairwise:1;
-	uint16_t PTKSAReplayCounter:2;
-	uint16_t GTKSAReplayCounter:2;
-	uint16_t MFPRequired:1;
-	uint16_t MFPCapable:1;
-	uint16_t Reserved:8;
-} qdf_packed tCsrRSNCapabilities;
-
 typedef struct tagCsrRSNPMKIe {
 	uint16_t cPMKIDs;
 	struct {
@@ -219,7 +200,7 @@ typedef struct tagCsrWapiIe {
 
 typedef struct tagRoamingTimerInfo {
 	tpAniSirGlobal pMac;
-	uint8_t sessionId;
+	uint8_t vdev_id;
 } tCsrTimerInfo;
 
 #define CSR_IS_11A_BSS(pBssDesc)    (eSIR_11A_NW_TYPE == (pBssDesc)->nwType)
@@ -366,8 +347,9 @@ QDF_STATUS csr_reassoc(tpAniSirGlobal pMac, uint32_t sessionId,
 QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal pMac, uint8_t channelId,
 		uint16_t *beaconInterval, uint32_t cursessionId,
 		enum tQDF_ADAPTER_MODE currBssPersona);
-bool csr_is_profile11r(tCsrRoamProfile *pProfile);
-bool csr_is_auth_type11r(eCsrAuthType AuthType, uint8_t mdiePresent);
+bool csr_is_profile11r(tpAniSirGlobal mac, tCsrRoamProfile *pProfile);
+bool csr_is_auth_type11r(tpAniSirGlobal mac, eCsrAuthType AuthType,
+			 uint8_t mdiePresent);
 #ifdef FEATURE_WLAN_ESE
 bool csr_is_profile_ese(tCsrRoamProfile *pProfile);
 #endif

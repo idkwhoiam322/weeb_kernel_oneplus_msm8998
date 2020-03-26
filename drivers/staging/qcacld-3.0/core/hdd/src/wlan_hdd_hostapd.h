@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined(WLAN_HDD_HOSTAPD_H)
@@ -137,9 +128,41 @@ bool hdd_is_peer_associated(hdd_adapter_t *adapter,
 			    struct qdf_mac_addr *mac_addr);
 void hdd_sap_indicate_disconnect_for_sta(hdd_adapter_t *adapter);
 void hdd_sap_destroy_events(hdd_adapter_t *adapter);
-void hdd_copy_ht_caps(struct ieee80211_ht_cap *hdd_ht_cap,
-		      tDot11fIEHTCaps *roam_ht_cap);
-void hdd_copy_vht_caps(struct ieee80211_vht_cap *hdd_vht_cap,
-		       tDot11fIEVHTCaps *roam_vht_cap);
+
+/**
+ * hdd_softap_set_peer_authorized() - set peer authorized
+ * @adapter: pointer to the hostapd adapter
+ * @peer_mac: MAC address of the peer
+ *
+ * This functions sends the PEER authorize command to the SME/WMI and also
+ * notifies the hostapd that the peer is authorized.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS hdd_softap_set_peer_authorized(hdd_adapter_t *adapter,
+					  struct qdf_mac_addr *peer_mac);
+
+/**
+ * wlan_hdd_disable_channels() - Cache the channels
+ * and current state of the channels from the channel list
+ * received in the command and disable the channels on the
+ * wiphy and reg table.
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Return: 0 on success, Error code on failure
+ */
+int wlan_hdd_disable_channels(hdd_context_t *hdd_ctx);
+
+/*
+ * hdd_check_and_disconnect_sta_on_invalid_channel() - Disconnect STA if it is
+ * on invalid channel
+ * @hdd_ctx: pointer to hdd context
+ *
+ * STA should be disconnected before starting the SAP if it is on indoor
+ * channel.
+ *
+ * Return: void
+ */
+void hdd_check_and_disconnect_sta_on_invalid_channel(hdd_context_t *hdd_ctx);
 
 #endif /* end #if !defined(WLAN_HDD_HOSTAPD_H) */

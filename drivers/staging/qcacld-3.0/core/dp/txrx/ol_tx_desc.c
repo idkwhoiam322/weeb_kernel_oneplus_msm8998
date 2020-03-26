@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011, 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include <qdf_net_types.h>      /* QDF_NBUF_EXEMPT_NO_EXEMPTION, etc. */
@@ -199,7 +190,6 @@ struct ol_tx_desc_t *ol_tx_desc_alloc(struct ol_txrx_pdev_t *pdev,
 			if (qdf_unlikely(pool->avail_desc < pool->stop_th)
 				&& (pool->status != FLOW_POOL_ACTIVE_PAUSED)) {
 				pool->status = FLOW_POOL_ACTIVE_PAUSED;
-				qdf_spin_unlock_bh(&pool->flow_pool_lock);
 				/* pause network queues */
 				pdev->pause_cb(vdev->vdev_id,
 					       WLAN_STOP_ALL_NETIF_QUEUE,
@@ -208,13 +198,14 @@ struct ol_tx_desc_t *ol_tx_desc_alloc(struct ol_txrx_pdev_t *pdev,
 				pdev->pause_cb(vdev->vdev_id,
 					       WLAN_NETIF_PRIORITY_QUEUE_ON,
 					       WLAN_DATA_FLOW_CONTROL_PRIORITY);
+				qdf_spin_unlock_bh(&pool->flow_pool_lock);
 			} else if (qdf_unlikely(pool->avail_desc <
 						pool->stop_priority_th)) {
-				qdf_spin_unlock_bh(&pool->flow_pool_lock);
 				/* pause priority queue */
 				pdev->pause_cb(vdev->vdev_id,
 					       WLAN_NETIF_PRIORITY_QUEUE_OFF,
 					       WLAN_DATA_FLOW_CONTROL_PRIORITY);
+				qdf_spin_unlock_bh(&pool->flow_pool_lock);
 			} else {
 				qdf_spin_unlock_bh(&pool->flow_pool_lock);
 			}
@@ -424,6 +415,7 @@ static void ol_tx_desc_free_common(struct ol_txrx_pdev_t *pdev,
 	/* clear the ref cnt */
 	qdf_atomic_init(&tx_desc->ref_cnt);
 	tx_desc->vdev_id = OL_TXRX_INVALID_VDEV_ID;
+	tx_desc->notify_tx_comp = 0;
 }
 
 #ifndef QCA_LL_TX_FLOW_CONTROL_V2
@@ -740,8 +732,17 @@ void ol_tx_desc_frame_list_free(struct ol_txrx_pdev_t *pdev,
 		/* restore original hdr offset */
 		OL_TX_RESTORE_HDR(tx_desc, msdu);
 #endif
-		if (qdf_nbuf_get_users(msdu) <= 1)
-			qdf_nbuf_unmap(pdev->osdev, msdu, QDF_DMA_TO_DEVICE);
+
+		/*
+		 * In MCC IPA tx context, IPA driver provides skb with directly
+		 * DMA mapped address. In such case, there's no need for WLAN
+		 * driver to DMA unmap the skb.
+		 */
+		if (qdf_nbuf_get_users(msdu) <= 1) {
+			if (!qdf_nbuf_ipa_owned_get(msdu))
+				qdf_nbuf_unmap(pdev->osdev, msdu,
+					       QDF_DMA_TO_DEVICE);
+		}
 
 		/* free the tx desc */
 		ol_tx_desc_free(pdev, tx_desc);

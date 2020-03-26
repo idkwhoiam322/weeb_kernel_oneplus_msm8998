@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**=========================================================================
@@ -132,6 +123,15 @@ static void pe_reset_protection_callback(void *ptr)
 		return;
 	}
 
+	/*
+	 * If dfsIncludeChanSwIe is set restrat timer as we are going to change
+	 * channel and no point in checking protection mode for this channel.
+	 */
+	if (pe_session_entry->dfsIncludeChanSwIe) {
+		pe_err("CSA going on restart timer");
+		goto restart_timer;
+	}
+
 	current_protection_state |=
 	       pe_session_entry->gLimOverlap11gParams.protectionEnabled        |
 	       pe_session_entry->gLimOverlap11aParams.protectionEnabled   << 1 |
@@ -232,7 +232,9 @@ static void pe_reset_protection_callback(void *ptr)
 		lim_send_beacon_params(mac_ctx, &beacon_params, pe_session_entry);
 	}
 
+
 	pe_session_entry->old_protection_state = current_protection_state;
+restart_timer:
 	if (qdf_mc_timer_start(&pe_session_entry->
 				protection_fields_reset_timer,
 				SCH_PROTECTION_RESET_TIME)
@@ -240,36 +242,6 @@ static void pe_reset_protection_callback(void *ptr)
 		pe_err("cannot create or start protectionFieldsResetTimer");
 	}
 }
-
-#ifdef WLAN_FEATURE_11W
-/**
- * pe_init_pmf_comeback_timer: init PMF comeback timer
- * @mac_ctx: pointer to global adapter context
- * @session: pe session
- * @session_id: session ID
- *
- * Return: void
- */
-static void pe_init_pmf_comeback_timer(tpAniSirGlobal mac_ctx,
-tpPESession session, uint8_t session_id)
-{
-	QDF_STATUS status;
-
-	session->pmfComebackTimerInfo.pMac = mac_ctx;
-	session->pmfComebackTimerInfo.sessionID = session_id;
-	status = qdf_mc_timer_init(&session->pmfComebackTimer,
-			QDF_TIMER_TYPE_SW, lim_pmf_comeback_timer_callback,
-			(void *)&session->pmfComebackTimerInfo);
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		pe_err("cannot init pmf comeback timer");
-}
-#else
-static inline void
-pe_init_pmf_comeback_timer(tpAniSirGlobal mac_ctx,
-	tpPESession session, uint8_t session_id)
-{
-}
-#endif
 
 #ifdef WLAN_FEATURE_FILS_SK
 /**
@@ -479,6 +451,7 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 		    sizeof(session_ptr->peerAIDBitmap), 0);
 	session_ptr->tdls_prohibited = false;
 	session_ptr->tdls_chan_swit_prohibited = false;
+	session_ptr->is_tdls_csa = false;
 #endif
 	session_ptr->fWaitForProbeRsp = 0;
 	session_ptr->fIgnoreCapsChange = 0;
@@ -488,11 +461,11 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 
 	if (eSIR_INFRA_AP_MODE == bssType || eSIR_IBSS_MODE == bssType) {
 		session_ptr->pSchProbeRspTemplate =
-			qdf_mem_malloc(SCH_MAX_PROBE_RESP_SIZE);
+			qdf_mem_malloc(SIR_MAX_PROBE_RESP_SIZE);
 		session_ptr->pSchBeaconFrameBegin =
-			qdf_mem_malloc(SCH_MAX_BEACON_SIZE);
+			qdf_mem_malloc(SIR_MAX_BEACON_SIZE);
 		session_ptr->pSchBeaconFrameEnd =
-			qdf_mem_malloc(SCH_MAX_BEACON_SIZE);
+			qdf_mem_malloc(SIR_MAX_BEACON_SIZE);
 		if ((NULL == session_ptr->pSchProbeRspTemplate)
 		    || (NULL == session_ptr->pSchBeaconFrameBegin)
 		    || (NULL == session_ptr->pSchBeaconFrameEnd)) {
@@ -536,9 +509,16 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 		}
 		if (status != QDF_STATUS_SUCCESS)
 			pe_err("cannot create or start protectionFieldsResetTimer");
+		qdf_wake_lock_create(&session_ptr->ap_ecsa_wakelock,
+				     "ap_ecsa_wakelock");
+		qdf_runtime_lock_init(&session_ptr->ap_ecsa_runtime_lock);
+		status = qdf_mc_timer_init(&session_ptr->ap_ecsa_timer,
+			 QDF_TIMER_TYPE_WAKE_APPS, lim_process_ap_ecsa_timeout,
+			 (void *)&pMac->lim.gpSession[i]);
+		if (status != QDF_STATUS_SUCCESS)
+			pe_err("cannot create ap_ecsa_timer");
 	}
 	pe_init_fils_info(session_ptr);
-	pe_init_pmf_comeback_timer(pMac, session_ptr, *sessionId);
 	session_ptr->deauthmsgcnt = 0;
 	session_ptr->disassocmsgcnt = 0;
 	session_ptr->ht_client_cnt = 0;
@@ -706,6 +686,11 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 	if (LIM_IS_AP_ROLE(session)) {
 		qdf_mc_timer_stop(&session->protection_fields_reset_timer);
 		qdf_mc_timer_destroy(&session->protection_fields_reset_timer);
+		session->dfsIncludeChanSwIe = 0;
+		qdf_mc_timer_stop(&session->ap_ecsa_timer);
+		qdf_mc_timer_destroy(&session->ap_ecsa_timer);
+		qdf_runtime_lock_deinit(&session->ap_ecsa_runtime_lock);
+		qdf_wake_lock_destroy(&session->ap_ecsa_wakelock);
 		lim_del_pmf_sa_query_timer(mac_ctx, session);
 	}
 
@@ -830,14 +815,12 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 		session->addIeParams.probeRespBCNData_buff = NULL;
 		session->addIeParams.probeRespBCNDataLen = 0;
 	}
-#ifdef WLAN_FEATURE_11W
-	if (QDF_TIMER_STATE_RUNNING ==
-	    qdf_mc_timer_get_current_state(&session->pmfComebackTimer))
-		qdf_mc_timer_stop(&session->pmfComebackTimer);
-	qdf_mc_timer_destroy(&session->pmfComebackTimer);
-#endif
+
 	pe_delete_fils_info(session);
 	session->valid = false;
+
+	qdf_mem_zero(session->WEPKeyMaterial,
+		     sizeof(session->WEPKeyMaterial));
 
 	if (session->access_policy_vendor_ie)
 		qdf_mem_free(session->access_policy_vendor_ie);

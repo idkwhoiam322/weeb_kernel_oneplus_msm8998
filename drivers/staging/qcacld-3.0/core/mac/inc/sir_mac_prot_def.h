@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -18,13 +15,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 
 /*
  * This file sir_mac_prot_def.h contains the MAC/PHY protocol
@@ -197,6 +187,8 @@
 /* VHT Action Field */
 #define SIR_MAC_VHT_GID_NOTIFICATION           1
 #define SIR_MAC_VHT_OPMODE_NOTIFICATION        2
+
+#define SIR_MAC_VHT_OPMODE_SIZE                3
 
 #define NUM_OF_SOUNDING_DIMENSIONS	1 /*Nss - 1, (Nss = 2 for 2x2)*/
 /* HT Action Field Codes */
@@ -414,6 +406,9 @@
 #define VHT_MCS_1x1 0xFFFC
 #define VHT_MCS_2x2 0xFFF3
 
+/* Mask to check if BTM offload is enabled/disabled*/
+#define BTM_OFFLOAD_ENABLED_MASK     0x01
+
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 #define SIR_MAC_QCOM_VENDOR_EID      200
 #define SIR_MAC_QCOM_VENDOR_OUI      "\x00\xA0\xC6"
@@ -463,12 +458,23 @@
 #define SIR_MAX_NOA_ATTR_LEN        31
 #define SIR_MAX_NOA_DESCR           2
 #define SIR_P2P_IE_HEADER_LEN       6
+#define HEADER_LEN_P2P_IE  6
+#define OUI_SIZE_P2P       4
+
+#define P2P_1X1_WAR_OUI   "\x00\x50\xf2\x04"
+#define P2P_1X1_OUI_LEN    4
+#define MAX_CONFIG_METHODS_LEN   2
+#define DEVICE_CATEGORY_MAX_LEN  1
 
 #define SIR_MAC_CISCO_OUI "\x00\x40\x96"
 #define SIR_MAC_CISCO_OUI_SIZE 3
 
 #define SIR_MAC_QCN_OUI_TYPE   "\x8c\xfd\xf0\x01"
 #define SIR_MAC_QCN_OUI_TYPE_SIZE  4
+
+/* MBO OUI definitions */
+#define SIR_MAC_MBO_OUI "\x50\x6f\x9a\x16"
+#define SIR_MAC_MBO_OUI_SIZE 4
 
 /* min size of wme oui header: oui(3) + type + subtype + version */
 #define SIR_MAC_OUI_WME_HDR_MIN       6
@@ -637,6 +643,11 @@
 
 #define SIR_MAC_VENDOR_AP_4_OUI             "\x8C\xFD\xF0"
 #define SIR_MAC_VENDOR_AP_4_OUI_LEN         3
+
+/* Maximum allowable size of a beacon and probe rsp frame */
+#define SIR_MAX_BEACON_SIZE    512
+#define SIR_MAX_PROBE_RESP_SIZE 512
+
 /* / Status Code (present in Management response frames) enum */
 
 typedef enum eSirMacStatusCodes {
@@ -2067,6 +2078,43 @@ typedef struct sSirMacLinkReport {
 } tSirMacLinkReport, *tpSirMacLinkReport;
 
 #define BEACON_REPORT_MAX_IES 224       /* Refer IEEE 802.11k-2008, Table 7-31d */
+/* Max number of beacon reports per channel supported in the driver */
+#define MAX_BEACON_REPORTS 8
+/* Offset of IEs after Fixed Fields in Beacon Frame */
+#define BEACON_FRAME_IES_OFFSET 12
+
+/**
+ * struct bcn_report_frame_body_frag_id - beacon report reported frame body
+ *					  fragment ID sub element params
+ * @id: report ID
+ * @frag_id: fragment ID
+ * @more_frags: more frags present or not present
+ */
+struct bcn_report_frame_body_frag_id {
+	uint8_t id;
+	uint8_t frag_id;
+	bool more_frags;
+};
+
+/**
+ * struct sSirMacBeaconReport - Beacon Report Structure
+ * @regClass: Regulatory Class
+ * @channel: Channel for which the current report is being sent
+ * @measStartTime: RRM scan start time for this report
+ * @measDuration: Scan duration for the current channel
+ * @phyType: Condensed Phy Type
+ * @bcnProbeRsp: Beacon or probe response being reported
+ * @rsni: Received signal-to-noise indication
+ * @rcpi: Received Channel Power indication
+ * @bssid: BSSID of the AP requesting the beacon report
+ * @antennaId: Number of Antennas used for measurement
+ * @parentTSF: measuring STA's TSF timer value
+ * @numIes: Number of IEs included in the beacon frames
+ * @last_bcn_report_ind_support: Support for Last beacon report indication
+ * @is_last_bcn_report: Is the current report last or more reports present
+ * @frame_body_frag_id: Reported Frame Body Frag Id sub-element params
+ * @Ies: IEs included in the beacon report
+ */
 typedef struct sSirMacBeaconReport {
 	uint8_t regClass;
 	uint8_t channel;
@@ -2080,6 +2128,9 @@ typedef struct sSirMacBeaconReport {
 	uint8_t antennaId;
 	uint32_t parentTSF;
 	uint8_t numIes;
+	uint8_t last_bcn_report_ind_support;
+	uint8_t is_last_bcn_report;
+	struct bcn_report_frame_body_frag_id frame_body_frag_id;
 	uint8_t Ies[BEACON_REPORT_MAX_IES];
 
 } tSirMacBeaconReport, *tpSirMacBeaconReport;
@@ -2220,4 +2271,67 @@ typedef struct sSirMacRadioMeasureReport {
 #define SIR_MAC_TXSTBC                             1
 #define SIR_MAC_RXSTBC                             1
 
+/**
+ * enum p2p_attr_id - enum for P2P attributes ID in P2P IE
+ * @P2P_ATTR_STATUS - Attribute Status none
+ * @P2P_ATTR_MINOR_REASON_CODE: Minor reason code attribute
+ * @P2P_ATTR_CAPABILITY: Capability attribute
+ * @P2P_ATTR_DEVICE_ID: device ID attribute
+ * @P2P_ATTR_GROUP_OWNER_INTENT: Group owner intent attribute
+ * @P2P_ATTR_CONFIGURATION_TIMEOUT: Config timeout attribute
+ * @P2P_ATTR_LISTEN_CHANNEL: listen channel attribute
+ * @P2P_ATTR_GROUP_BSSID: Group BSSID attribute
+ * @P2P_ATTR_EXT_LISTEN_TIMING: Listen timing attribute
+ * @P2P_ATTR_INTENDED_INTERFACE_ADDR: Intended interface address attribute
+ * @P2P_ATTR_MANAGEABILITY:  Manageability attribute
+ * @P2P_ATTR_CHANNEL_LIST: Channel list attribute
+ * @P2P_ATTR_NOTICE_OF_ABSENCE: Notice of Absence attribute
+ * @P2P_ATTR_DEVICE_INFO: Device Info attribute
+ * @P2P_ATTR_GROUP_INFO: Group Info attribute
+ * @P2P_ATTR_GROUP_ID: Group ID attribute
+ * @P2P_ATTR_INTERFACE: Interface attribute
+ * @P2P_ATTR_OPERATING_CHANNEL: Operating channel attribute
+ * @P2P_ATTR_INVITATION_FLAGS: Invitation flags attribute
+ * @P2P_ATTR_OOB_GO_NEG_CHANNEL: GO neg channel attribute
+ * @P2P_ATTR_SERVICE_HASH: Service HASH attribute
+ * @P2P_ATTR_SESSION_INFORMATION_DATA: Session Info data attribute
+ * @P2P_ATTR_CONNECTION_CAPABILITY = Connection capability attribute
+ * @P2P_ATTR_ADVERTISEMENT_ID = Advertisement ID attribute
+ * @P2P_ATTR_ADVERTISED_SERVICE = Advertised Service attribute
+ * @P2P_ATTR_SESSION_ID = Session ID attribute
+ * @P2P_ATTR_FEATURE_CAPABILITY = Feature capability attribute
+ * @P2P_ATTR_PERSISTENT_GROUP -Persistent group attribute
+ * @P2P_ATTR_VENDOR_SPECIFIC - Vendor specific attribute
+ */
+enum p2p_attr_id {
+	P2P_ATTR_STATUS = 0,
+	P2P_ATTR_MINOR_REASON_CODE = 1,
+	P2P_ATTR_CAPABILITY = 2,
+	P2P_ATTR_DEVICE_ID = 3,
+	P2P_ATTR_GROUP_OWNER_INTENT = 4,
+	P2P_ATTR_CONFIGURATION_TIMEOUT = 5,
+	P2P_ATTR_LISTEN_CHANNEL = 6,
+	P2P_ATTR_GROUP_BSSID = 7,
+	P2P_ATTR_EXT_LISTEN_TIMING = 8,
+	P2P_ATTR_INTENDED_INTERFACE_ADDR = 9,
+	P2P_ATTR_MANAGEABILITY = 10,
+	P2P_ATTR_CHANNEL_LIST = 11,
+	P2P_ATTR_NOTICE_OF_ABSENCE = 12,
+	P2P_ATTR_DEVICE_INFO = 13,
+	P2P_ATTR_GROUP_INFO = 14,
+	P2P_ATTR_GROUP_ID = 15,
+	P2P_ATTR_INTERFACE = 16,
+	P2P_ATTR_OPERATING_CHANNEL = 17,
+	P2P_ATTR_INVITATION_FLAGS = 18,
+	P2P_ATTR_OOB_GO_NEG_CHANNEL = 19,
+	P2P_ATTR_SERVICE_HASH = 21,
+	P2P_ATTR_SESSION_INFORMATION_DATA = 22,
+	P2P_ATTR_CONNECTION_CAPABILITY = 23,
+	P2P_ATTR_ADVERTISEMENT_ID = 24,
+	P2P_ATTR_ADVERTISED_SERVICE = 25,
+	P2P_ATTR_SESSION_ID = 26,
+	P2P_ATTR_FEATURE_CAPABILITY = 27,
+	P2P_ATTR_PERSISTENT_GROUP = 28,
+	P2P_ATTR_VENDOR_SPECIFIC = 221
+};
 #endif /* __MAC_PROT_DEFS_H */

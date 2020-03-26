@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*-
@@ -68,6 +59,8 @@
 #include <ol_rx_defrag.h>
 #include <enet.h>
 #include <qdf_time.h>           /* qdf_system_time */
+#include <htt_internal.h>
+
 
 #define DEFRAG_IEEE80211_ADDR_EQ(a1, a2) \
 	(!qdf_mem_cmp(a1, a2, IEEE80211_ADDR_LEN))
@@ -316,6 +309,26 @@ void ol_rx_frag_send_pktlog_event(struct ol_txrx_pdev_t *pdev,
 
 #endif
 
+#ifndef CONFIG_HL_SUPPORT
+static int ol_rx_frag_get_inord_msdu_cnt(qdf_nbuf_t rx_ind_msg)
+{
+	uint32_t *msg_word;
+	uint8_t *rx_ind_data;
+	uint32_t msdu_cnt;
+
+	rx_ind_data = qdf_nbuf_data(rx_ind_msg);
+	msg_word = (uint32_t *)rx_ind_data;
+	msdu_cnt = HTT_RX_IN_ORD_PADDR_IND_MSDU_CNT_GET(*(msg_word + 1));
+
+	return msdu_cnt;
+}
+#else
+static int ol_rx_frag_get_inord_msdu_cnt(qdf_nbuf_t rx_ind_msg)
+{
+	return 0;
+}
+#endif
+
 /*
  * Process incoming fragments
  */
@@ -353,11 +366,14 @@ ol_rx_frag_indication_handler(ol_txrx_pdev_handle pdev,
 		 * separate from normal frames
 		 */
 		ol_rx_reorder_flush_frag(htt_pdev, peer, tid, seq_num_start);
+	} else {
+		msdu_count = ol_rx_frag_get_inord_msdu_cnt(rx_frag_ind_msg);
 	}
+
 	pktlog_bit =
 		(htt_rx_amsdu_rx_in_order_get_pktlog(rx_frag_ind_msg) == 0x01);
 	ret = htt_rx_frag_pop(htt_pdev, rx_frag_ind_msg, &head_msdu,
-			      &tail_msdu, &msdu_count);
+			      &tail_msdu, NULL, &msdu_count);
 	/* Return if msdu pop fails from rx hash table, as recovery
 	 * is triggered and we exit gracefully.
 	 */
@@ -389,7 +405,11 @@ ol_rx_frag_indication_handler(ol_txrx_pdev_handle pdev,
 		htt_rx_desc_frame_free(htt_pdev, head_msdu);
 	}
 	/* request HTT to provide new rx MSDU buffers for the target to fill. */
-	htt_rx_msdu_buff_replenish(htt_pdev);
+	if (ol_cfg_is_full_reorder_offload(pdev->ctrl_pdev) &&
+	    !pdev->cfg.is_high_latency)
+		htt_rx_msdu_buff_in_order_replenish(htt_pdev, msdu_count);
+	else
+		htt_rx_msdu_buff_replenish(htt_pdev);
 }
 
 /*
@@ -664,6 +684,7 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 	struct ieee80211_frame *wh;
 	uint8_t key[DEFRAG_IEEE80211_KEY_LEN];
 	htt_pdev_handle htt_pdev = pdev->htt_pdev;
+	struct ol_mon_tx_status pkt_tx_status = {0};
 
 	vdev = peer->vdev;
 
@@ -780,6 +801,41 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 		ol_rx_defrag_qos_decap(pdev, msdu, hdr_space);
 	if (ol_cfg_frame_type(pdev->ctrl_pdev) == wlan_frm_fmt_802_3)
 		ol_rx_defrag_nwifi_to_8023(pdev, msdu);
+
+	if (cds_get_pktcap_mode_enable() &&
+	    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
+	     PKT_CAPTURE_MODE_DATA_ONLY) &&
+	    pdev->mon_cb) {
+		qdf_nbuf_t tmp_msdu, tmp_msdu_next;
+		qdf_nbuf_t mon_prev = NULL;
+		qdf_nbuf_t mon_msdu = NULL;
+		qdf_nbuf_t head_mon_msdu = NULL;
+
+		tmp_msdu = msdu;
+		while (tmp_msdu) {
+			tmp_msdu_next = qdf_nbuf_next(tmp_msdu);
+			mon_msdu = qdf_nbuf_copy(tmp_msdu);
+			if (mon_msdu) {
+				qdf_nbuf_push_head(mon_msdu,
+						   HTT_RX_STD_DESC_RESERVATION);
+				qdf_nbuf_set_next(mon_msdu, NULL);
+
+				if (!(head_mon_msdu)) {
+					head_mon_msdu = mon_msdu;
+					mon_prev = mon_msdu;
+				} else {
+					qdf_nbuf_set_next(mon_prev, mon_msdu);
+					mon_prev = mon_msdu;
+				}
+			}
+			tmp_msdu = tmp_msdu_next;
+		}
+		if (head_mon_msdu)
+			ol_txrx_mon_data_process(
+				vdev->vdev_id, head_mon_msdu,
+				PROCESS_TYPE_DATA_RX, 0, pkt_tx_status,
+				TXRX_PKT_FORMAT_8023);
+	}
 
 	ol_rx_fwd_check(vdev, peer, tid, msdu);
 }

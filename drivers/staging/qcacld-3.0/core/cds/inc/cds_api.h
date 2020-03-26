@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,11 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
-* This file was originally distributed by Qualcomm Atheros, Inc.
-* under proprietary terms before Copyright ownership was assigned
-* to the Linux Foundation.
-*/
 #if !defined(__CDS_API_H)
 #define __CDS_API_H
 
@@ -65,6 +57,7 @@
 * CDS_DRIVER_STATE_BAD: Driver in bad state.
 * CDS_DRIVER_STATE_FW_READY:
 * CDS_DRIVER_STATE_MODULE_STOPPING: Module stop in progress.
+* CDS_DRIVER_STATE_THERMAL_STATE: Driver in thermal mitigated state
 */
 enum cds_driver_state {
 CDS_DRIVER_STATE_UNINITIALIZED	 = 0,
@@ -75,6 +68,7 @@ CDS_DRIVER_STATE_RECOVERING	 = BIT(3),
 CDS_DRIVER_STATE_BAD		 = BIT(4),
 CDS_DRIVER_STATE_FW_READY	 = BIT(5),
 CDS_DRIVER_STATE_MODULE_STOPPING = BIT(6),
+CDS_DRIVER_STATE_THERMAL_STATE	 = BIT(7),
 };
 
 #define __CDS_IS_DRIVER_STATE(_state, _mask) (((_state) & (_mask)) == (_mask))
@@ -379,6 +373,44 @@ enum cds_driver_state state = cds_get_driver_state();
 return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_LOADED);
 }
 
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * cds_set_driver_thermal_mitigated() - Setting the flag to indicate that driver
+ * is in thermal mitigation state.
+ *
+ * @value: A boolean value to indicate to set or reset
+ *
+ * Return: None
+ */
+static inline void cds_set_driver_thermal_mitigated(bool value)
+{
+	if (value)
+		cds_set_driver_state(CDS_DRIVER_STATE_THERMAL_STATE);
+	else
+		cds_clear_driver_state(CDS_DRIVER_STATE_THERMAL_STATE);
+}
+
+/**
+ * cds_is_driver_thermal_mitigated() - Check if driver is in power save state
+ *
+ * Return: True if in power save state, false otherwise
+ */
+static inline bool cds_is_driver_thermal_mitigated(void)
+{
+	enum cds_driver_state state = cds_get_driver_state();
+
+	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_THERMAL_STATE);
+}
+#else
+static inline void cds_set_driver_thermal_mitigated(bool value)
+{
+}
+
+static inline bool cds_is_driver_thermal_mitigated(void)
+{
+	return false;
+}
+#endif
 v_CONTEXT_t cds_init(void);
 void cds_deinit(void);
 
@@ -590,4 +622,25 @@ QDF_STATUS cds_register_mode_change_cb(send_mode_change_event_cb callback);
  * Return: QDF_STATUS
  */
 QDF_STATUS cds_deregister_mode_change_cb(void);
+
+/**
+ * cds_get_pktcap_mode_enable() - get pktcap mode enable/disable
+ *
+ * Get the pktcap mode enable/disable from ini
+ *
+ * Return: 0 - disable, 1 - enable
+ */
+bool cds_get_pktcap_mode_enable(void);
+
+/**
+ * cds_get_pktcapture_mode() - get pktcapture mode value
+ *
+ * Get the pktcapture mode value from hdd context
+ *
+ * Return: 0 - disable
+ *         1 - Mgmt packets
+ *         2 - Data packets
+ *         3 - Both Mgmt and Data packets
+ */
+uint8_t cds_get_pktcapture_mode(void);
 #endif /* if !defined __CDS_API_H */

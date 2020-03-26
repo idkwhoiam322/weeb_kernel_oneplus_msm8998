@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #ifndef WMA_API_H
@@ -41,6 +32,7 @@
 #include "cds_concurrency.h"
 #include "cds_utils.h"
 #include "wma_sar_public_structs.h"
+#include "ol_txrx.h"
 
 typedef void *WMA_HANDLE;
 
@@ -377,6 +369,18 @@ static inline QDF_STATUS wma_encrypt_decrypt_msg(WMA_HANDLE wma,
 #endif
 
 /**
+ * wma_find_if_fw_supports_dbs() - to check if FW supports DBS
+ *
+ * Firmware sends supported HW mode as part of service ready and
+ * service ready extension WMI message. This API checks through
+ * those HW mode list and figures out if DBS is supported by
+ * FW/HW.
+ *
+ * Return: True if FW/HW supports DBS else returns false.
+ */
+bool wma_find_if_fw_supports_dbs(void);
+
+/**
  * wma_set_cts2self_for_p2p_go() - set CTS2SELF command for P2P GO.
  * @wma_handle:                  pointer to wma handle.
  * @cts2self_for_p2p_go:         value needs to set to firmware.
@@ -391,6 +395,27 @@ QDF_STATUS wma_set_cts2self_for_p2p_go(void *wma_handle,
 QDF_STATUS wma_set_tx_rx_aggregation_size
 	(struct sir_set_tx_rx_aggregation_size *tx_rx_aggregation_size);
 
+/**
+ * wma_set_tx_rx_aggregation_size_per_ac() - set aggregation size per ac
+ * @tx_rx_aggregation_size: the parameter for aggregation size
+ *
+ *  This function try to set the aggregation size per AC.
+ *
+ *  Return: QDF_STATUS enumeration
+ */
+QDF_STATUS wma_set_tx_rx_aggregation_size_per_ac
+	(struct sir_set_tx_rx_aggregation_size *tx_rx_aggregation_size);
+/**
+ * wma_set_sw_retry_threshold() - set sw retry threshold per AC for tx
+ * @tx_rx_aggregation_size: value needs to set to firmware
+ *
+ * This function sends WMI command to set the sw retry threshold per AC
+ * for Tx.
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS wma_set_sw_retry_threshold
+	(struct sir_set_tx_aggr_sw_retry_threshold *tx_rx_aggregation_size);
 /**
  * wma_get_sar_limit() - get SAR limits from the target
  * @handle: wma handle
@@ -415,6 +440,18 @@ QDF_STATUS wma_get_sar_limit(WMA_HANDLE handle,
  */
 QDF_STATUS wma_set_sar_limit(WMA_HANDLE handle,
 		struct sar_limit_cmd_params *sar_limit_params);
+
+/**
+ * wma_send_coex_config_cmd() - Send coex config params
+ * @wma_handle: wma handle
+ * @coex_cfg_params: struct to coex cofig params
+ *
+ * This function sends WMI command to send coex cofig params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_send_coex_config_cmd(WMA_HANDLE wma_handle,
+				    struct coex_config_params *coex_cfg_params);
 
 /**
  * wma_set_qpower_config() - update qpower config in wma
@@ -536,6 +573,22 @@ QDF_STATUS wma_wow_set_wake_time(WMA_HANDLE wma_handle, uint8_t vdev_id,
 void wma_wmi_stop(void);
 
 /**
+ * wma_dual_beacon_on_single_mac_scc_capable() - get capability that whether
+ * Support dual beacon on same channel on single MAC
+ *
+ *  Return: bool: capable
+ */
+bool wma_dual_beacon_on_single_mac_scc_capable(void);
+
+/**
+ * wma_dual_beacon_on_single_mac_mcc_capable() - get capability that whether
+ * Support dual beacon on different channel on single MAC
+ *
+ *  Return: bool: capable
+ */
+bool wma_dual_beacon_on_single_mac_mcc_capable(void);
+
+/**
  * wma_cleanup_vdev_resp_and_hold_req() - cleaunup the vdev resp and hold req
  * queue
  * @priv : WMA handle
@@ -543,5 +596,41 @@ void wma_wmi_stop(void);
  * Return: None
  */
 void wma_cleanup_vdev_resp_and_hold_req(void *priv);
+
+/**
+ * wma_send_dhcp_ind() - Send DHCP Start/Stop Indication to FW.
+ * @type - WMA message type.
+ * @device_mode - mode(AP, SAP etc) of the device.
+ * @mac_addr - MAC address of the adapter.
+ * @sta_mac_addr - MAC address of the peer station.
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS wma_send_dhcp_ind(uint16_t type, uint8_t device_mode,
+			     uint8_t *mac_addr, uint8_t *sta_mac_addr);
+
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * wma_update_thermal_mitigation_to_fw() - update thermal mitigation to fw
+ * @wma: wma handle
+ * @thermal_level: thermal level
+ *
+ * This function sends down thermal mitigation params to the fw
+ *
+ * Returns: QDF_STATUS_SUCCESS for success otherwise failure
+ */
+QDF_STATUS wma_update_thermal_mitigation_to_fw(uint8_t thermal_level);
+#endif
+
+/**
+ * wma_mgmt_pktcapture_status_map() - map Tx status for MGMT packets
+ * with packet capture Tx status
+ * @status: Tx status
+ * @is_data_pkt: Tx status for data packets
+ *
+ * Return: pktcapture_tx_status enum
+ */
+enum pktcapture_tx_status
+wma_mgmt_pktcapture_status_map(uint8_t status);
 
 #endif

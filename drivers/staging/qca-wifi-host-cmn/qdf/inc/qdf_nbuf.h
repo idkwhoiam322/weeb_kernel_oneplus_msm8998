@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -164,6 +155,8 @@
  * @sgi: Rx frame short guard interval
  * @ldpc: ldpc enabled
  * @beamformed: Is frame beamformed.
+ * @tx_status: Status of Tx frame
+ * @add_rtap_ext: Bool to add extension to radiotap header
  */
 struct mon_rx_status {
 	uint64_t tsft;
@@ -188,6 +181,9 @@ struct mon_rx_status {
 	uint8_t  sgi;
 	uint8_t  ldpc;
 	uint8_t  beamformed;
+	uint8_t  tx_status;
+	bool add_rtap_ext;
+	uint8_t  tx_retry_cnt;
 };
 
 /* DHCP Related Mask */
@@ -893,7 +889,8 @@ qdf_nbuf_alloc(qdf_device_t osdev,
 
 static inline void qdf_nbuf_free(qdf_nbuf_t buf)
 {
-	__qdf_nbuf_free(buf);
+	if (qdf_likely(buf))
+		__qdf_nbuf_free(buf);
 }
 
 /**
@@ -2435,17 +2432,6 @@ qdf_nbuf_tx_cksum_info(qdf_nbuf_t buf, uint8_t **hdr_off, uint8_t **where)
 static inline void qdf_nbuf_reset_ctxt(__qdf_nbuf_t nbuf)
 {
 	__qdf_nbuf_reset_ctxt(nbuf);
-}
-
-static inline void
-qdf_nbuf_set_rx_info(__qdf_nbuf_t nbuf, void *info, uint32_t len)
-{
-	__qdf_nbuf_set_rx_info(nbuf, info, len);
-}
-
-static inline void *qdf_nbuf_get_rx_info(__qdf_nbuf_t nbuf)
-{
-	return __qdf_nbuf_get_rx_info(nbuf);
 }
 
 static inline void qdf_nbuf_init(qdf_nbuf_t buf)

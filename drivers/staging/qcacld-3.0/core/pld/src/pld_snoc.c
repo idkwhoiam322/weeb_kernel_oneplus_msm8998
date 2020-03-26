@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -271,6 +262,35 @@ static int pld_snoc_uevent(struct device *dev,
 	return 0;
 }
 
+#if defined(CONFIG_WLAN_FW_THERMAL_MITIGATION)
+/**
+ * pld_snoc_set_thermal_state() - Set thermal state for thermal mitigation
+ * @dev: device
+ * @thermal_state: Thermal state set by thermal subsystem
+ *
+ * This function will be called when thermal subsystem notifies platform
+ * driver about change in thermal state.
+ *
+ * Return: 0 for success
+ * Non zero failure code for errors
+ */
+static int pld_snoc_set_thermal_state(struct device *dev,
+				      unsigned long thermal_state)
+{
+	struct pld_context *pld_context;
+
+	pld_context = pld_get_global_context();
+	if (!pld_context)
+		return -EINVAL;
+
+	if (pld_context->ops->set_curr_therm_state)
+		return pld_context->ops->set_curr_therm_state(dev,
+							      thermal_state);
+
+	return -ENOTSUPP;
+}
+#endif
+
 #ifdef MULTI_IF_NAME
 #define PLD_SNOC_OPS_NAME "pld_snoc_" MULTI_IF_NAME
 #else
@@ -289,6 +309,9 @@ struct icnss_driver_ops pld_snoc_ops = {
 	.suspend_noirq = pld_snoc_suspend_noirq,
 	.resume_noirq = pld_snoc_resume_noirq,
 	.uevent = pld_snoc_uevent,
+#if defined(CONFIG_WLAN_FW_THERMAL_MITIGATION)
+	.set_therm_state = pld_snoc_set_thermal_state,
+#endif
 };
 
 /**
@@ -325,7 +348,6 @@ void pld_snoc_unregister_driver(void)
  *         Non zero failure code for errors
  */
 
-#ifdef ICNSS_API_WITH_DEV
 int pld_snoc_wlan_enable(struct device *dev, struct pld_wlan_enable_cfg *config,
 			 enum pld_driver_mode mode, const char *host_version)
 {
@@ -359,38 +381,6 @@ int pld_snoc_wlan_enable(struct device *dev, struct pld_wlan_enable_cfg *config,
 
 	return icnss_wlan_enable(dev, &cfg, icnss_mode, host_version);
 }
-#else
-int pld_snoc_wlan_enable(struct device *dev, struct pld_wlan_enable_cfg *config,
-			 enum pld_driver_mode mode, const char *host_version)
-{
-	struct icnss_wlan_enable_cfg cfg;
-	enum icnss_driver_mode icnss_mode;
-
-	cfg.num_ce_tgt_cfg = config->num_ce_tgt_cfg;
-	cfg.ce_tgt_cfg = (struct ce_tgt_pipe_cfg *)
-		config->ce_tgt_cfg;
-	cfg.num_ce_svc_pipe_cfg = config->num_ce_svc_pipe_cfg;
-	cfg.ce_svc_cfg = (struct ce_svc_pipe_cfg *)
-		config->ce_svc_cfg;
-	cfg.num_shadow_reg_cfg = config->num_shadow_reg_cfg;
-	cfg.shadow_reg_cfg = (struct icnss_shadow_reg_cfg *)
-		config->shadow_reg_cfg;
-
-	switch (mode) {
-	case PLD_FTM:
-		icnss_mode = ICNSS_FTM;
-		break;
-	case PLD_EPPING:
-		icnss_mode = ICNSS_EPPING;
-		break;
-	default:
-		icnss_mode = ICNSS_MISSION;
-		break;
-	}
-
-	return icnss_wlan_enable(&cfg, icnss_mode, host_version);
-}
-#endif
 
 /**
  * pld_snoc_wlan_disable() - Disable WLAN
@@ -402,7 +392,6 @@ int pld_snoc_wlan_enable(struct device *dev, struct pld_wlan_enable_cfg *config,
  * Return: 0 for success
  *         Non zero failure code for errors
  */
-#ifdef ICNSS_API_WITH_DEV
 int pld_snoc_wlan_disable(struct device *dev, enum pld_driver_mode mode)
 {
 	if (!dev)
@@ -410,12 +399,6 @@ int pld_snoc_wlan_disable(struct device *dev, enum pld_driver_mode mode)
 
 	return icnss_wlan_disable(dev, ICNSS_OFF);
 }
-#else
-int pld_snoc_wlan_disable(struct device *dev, enum pld_driver_mode mode)
-{
-	return icnss_wlan_disable(ICNSS_OFF);
-}
-#endif
 
 /**
  * pld_snoc_get_soc_info() - Get SOC information
@@ -427,7 +410,6 @@ int pld_snoc_wlan_disable(struct device *dev, enum pld_driver_mode mode)
  * Return: 0 for success
  *         Non zero failure code for errors
  */
-#ifdef ICNSS_API_WITH_DEV
 int pld_snoc_get_soc_info(struct device *dev, struct pld_soc_info *info)
 {
 	int ret = 0;
@@ -443,21 +425,4 @@ int pld_snoc_get_soc_info(struct device *dev, struct pld_soc_info *info)
 	memcpy(info, &icnss_info, sizeof(*info));
 	return 0;
 }
-#else
-int pld_snoc_get_soc_info(struct device *dev, struct pld_soc_info *info)
-{
-	int ret = 0;
-	struct icnss_soc_info icnss_info;
-
-	if (info == NULL)
-		return -ENODEV;
-
-	ret = icnss_get_soc_info(&icnss_info);
-	if (0 != ret)
-		return ret;
-
-	memcpy(info, &icnss_info, sizeof(*info));
-	return 0;
-}
-#endif
 #endif

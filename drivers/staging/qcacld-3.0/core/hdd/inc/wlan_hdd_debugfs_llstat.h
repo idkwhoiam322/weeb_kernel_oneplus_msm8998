@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,12 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 /**
  * DOC: wlan_hdd_debugfs_llstat.h
  *
@@ -35,7 +26,7 @@
 #ifndef _WLAN_HDD_DEBUGFS_LLSTAT_H
 #define _WLAN_HDD_DEBUGFS_LLSTAT_H
 
-#define DEBUGFS_LLSTATS_BUF_SIZE 10240
+#define DEBUGFS_LLSTATS_BUF_SIZE 12288
 #define DEBUGFS_LLSTATS_REQID   4294967295UL
 #define DEBUGFS_LLSTATS_REQMASK 0x7
 

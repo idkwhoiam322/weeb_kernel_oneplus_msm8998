@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -496,10 +487,9 @@ void lim_perform_disassoc(tpAniSirGlobal mac_ctx, int32_t frame_rssi,
 void lim_disassoc_tdls_peers(tpAniSirGlobal mac_ctx,
 				    tpPESession pe_session, tSirMacAddr addr);
 #else
-void lim_disassoc_tdls_peers(tpAniSirGlobal mac_ctx,
+static inline void lim_disassoc_tdls_peers(tpAniSirGlobal mac_ctx,
 				    tpPESession pe_session, tSirMacAddr addr)
 {
-	return;
 }
 #endif
 void lim_process_deauth_frame(tpAniSirGlobal, uint8_t *, tpPESession);
@@ -588,11 +578,27 @@ tSirRetStatus lim_send_neighbor_report_request_frame(tpAniSirGlobal,
 						     tSirMacAddr, tpPESession);
 tSirRetStatus lim_send_link_report_action_frame(tpAniSirGlobal, tpSirMacLinkReport,
 						tSirMacAddr, tpPESession);
-tSirRetStatus lim_send_radio_measure_report_action_frame(tpAniSirGlobal, uint8_t,
-							 uint8_t,
-							 tpSirMacRadioMeasureReport,
-							 tSirMacAddr, tpPESession);
 
+/**
+ * lim_send_radio_measure_report_action_frame - Send RRM report action frame
+ * @pMac: pointer to global MAC context
+ * @dialog_token: Dialog token to be used in the action frame
+ * @num_report: number of reports in pRRMReport
+ * @is_last_frame: is the current report last or more reports to follow
+ * @pRRMReport: Pointer to the RRM report structure
+ * @peer: MAC address of the peer
+ * @psessionEntry: Pointer to the PE session entry
+ *
+ * Return: Ret Status
+ */
+tSirRetStatus
+lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
+				uint8_t dialog_token,
+				uint8_t num_report,
+				bool is_last_frame,
+				tpSirMacRadioMeasureReport pRRMReport,
+				tSirMacAddr peer,
+				tpPESession psessionEntry);
 
 #ifdef FEATURE_WLAN_TDLS
 void lim_init_tdls_data(tpAniSirGlobal, tpPESession);
@@ -870,20 +876,15 @@ lim_get_ielen_from_bss_description(tpSirBssDescription pBssDescr)
 } /*** end lim_get_ielen_from_bss_description() ***/
 
 /**
- * lim_send_beacon_ind()
+ * lim_send_beacon_ind() - send the beacon indication
+ * @mac_ctx: pointer to mac structure
+ * @session: pe session
+ * @reason: beacon update reason
  *
- ***FUNCTION:
- * This function is called  to send the beacon indication
- * number being scanned.
- *
- ***PARAMS:
- *
- ***LOGIC:
- *
- ***ASSUMPTIONS:
+ * return: success: QDF_STATUS_SUCCESS failure: QDF_STATUS_E_FAILURE
  */
-
-void lim_send_beacon_ind(tpAniSirGlobal pMac, tpPESession psessionEntry);
+QDF_STATUS lim_send_beacon_ind(tpAniSirGlobal mac_ctx, tpPESession session,
+			       enum sir_bcn_update_reason reason);
 
 void
 lim_send_vdev_restart(tpAniSirGlobal pMac, tpPESession psessionEntry,
@@ -946,6 +947,15 @@ tSirRetStatus lim_process_sme_del_all_tdls_peers(tpAniSirGlobal p_mac,
 	return eSIR_SUCCESS;
 }
 #endif
+
+/**
+ * lim_send_bcn_rsp() - handle beacon send response
+ * @mac_ctx Pointer to Global MAC structure
+ * @rsp: beacon send response
+ *
+ * Return: None
+ */
+void lim_send_bcn_rsp(tpAniSirGlobal mac_ctx, tpSendbeaconParams rsp);
 
 /**
  * lim_process_rx_channel_status_event() - processes
@@ -1018,4 +1028,16 @@ void lim_process_assoc_failure_timeout(tpAniSirGlobal mac_ctx,
 void lim_send_mgmt_frame_tx(tpAniSirGlobal mac_ctx,
 		uint32_t *msg_buf);
 
+/**
+ * lim_p2p_check_oui_and_force_1x1() - Function to get P2P client device
+ * attributes from assoc request frame IE passed in.
+ * @mac_ctx: Pointer to mac_context
+ * @assoc_ie: Pointer to IE in association request
+ * @assoc_ie_len: Total association IE length
+ *
+ * Return: True if OUI is found. Else return false
+ *
+ */
+bool lim_p2p_check_oui_and_force_1x1(tpAniSirGlobal mac_ctx,
+				     uint8_t *assoc_ie, uint32_t assoc_ie_len);
 #endif /* __LIM_TYPES_H */

@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -45,10 +36,6 @@
 #include "lim_scan_result_utils.h"
 #include "lim_timer_utils.h"
 #include "lim_trace.h"
-typedef enum {
-	ONE_BYTE = 1,
-	TWO_BYTE = 2
-} eSizeOfLenField;
 
 #define LIM_STA_ID_MASK                        0x00FF
 #define LIM_AID_MASK                              0xC000
@@ -465,9 +452,6 @@ tpPESession lim_is_ibss_session_active(tpAniSirGlobal pMac);
 tpPESession lim_is_ap_session_active(tpAniSirGlobal pMac);
 void lim_handle_heart_beat_failure_timeout(tpAniSirGlobal pMac);
 
-uint8_t *lim_get_ie_ptr_new(tpAniSirGlobal pMac, uint8_t *pIes, int length,
-		uint8_t eid, eSizeOfLenField size_of_len_field);
-
 #define limGetWscIEPtr(pMac, ie, ie_len) \
 	cfg_get_vendor_ie_ptr_from_oui(pMac, SIR_MAC_WSC_OUI, \
 			SIR_MAC_WSC_OUI_SIZE, ie, ie_len)
@@ -475,6 +459,11 @@ uint8_t *lim_get_ie_ptr_new(tpAniSirGlobal pMac, uint8_t *pIes, int length,
 #define limGetP2pIEPtr(pMac, ie, ie_len) \
 	cfg_get_vendor_ie_ptr_from_oui(pMac, SIR_MAC_P2P_OUI, \
 			SIR_MAC_P2P_OUI_SIZE, ie, ie_len)
+
+#define LE_READ_2(p) \
+	((uint16_t)\
+	((((const uint8_t *)(p))[0]) |\
+	(((const uint8_t *)(p))[1] <<  8)))
 
 uint8_t lim_get_noa_attr_stream_in_mult_p2p_ies(tpAniSirGlobal pMac,
 		uint8_t *noaStream, uint8_t noaLen,
@@ -597,6 +586,7 @@ typedef enum {
 	WLAN_PE_DIAG_DISASSOC_FRAME_EVENT,
 	WLAN_PE_DIAG_AUTH_ACK_EVENT,
 	WLAN_PE_DIAG_ASSOC_ACK_EVENT,
+	WLAN_PE_DIAG_AUTH_ALGO_NUM,
 } WLAN_PE_DIAG_EVENT_TYPE;
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
@@ -624,14 +614,13 @@ bool lim_check_disassoc_deauth_ack_pending(tpAniSirGlobal pMac,
 
 #ifdef WLAN_FEATURE_11W
 void lim_pmf_sa_query_timer_handler(void *pMacGlobal, uint32_t param);
-#endif
-
 void lim_set_protected_bit(tpAniSirGlobal pMac,
 		tpPESession psessionEntry,
 		tSirMacAddr peer, tpSirMacMgmtHdr pMacHdr);
-
-#ifdef WLAN_FEATURE_11W
-void lim_pmf_comeback_timer_callback(void *context);
+#else
+static inline void lim_set_protected_bit(tpAniSirGlobal pMac,
+	tpPESession psessionEntry,
+	tSirMacAddr peer, tpSirMacMgmtHdr pMacHdr) {}
 #endif /* WLAN_FEATURE_11W */
 
 void lim_set_ht_caps(tpAniSirGlobal p_mac,
@@ -761,7 +750,7 @@ void lim_send_set_dtim_period(tpAniSirGlobal mac_ctx, uint8_t dtim_period,
 
 tSirRetStatus lim_strip_ie(tpAniSirGlobal mac_ctx,
 		uint8_t *addn_ie, uint16_t *addn_ielen,
-		uint8_t eid, eSizeOfLenField size_of_len_field,
+		uint8_t eid, enum size_of_len_field size_of_len_field,
 		uint8_t *oui, uint8_t out_len, uint8_t *extracted_ie,
 		uint32_t eid_max_len);
 bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, enum channel_enum ch,
@@ -779,6 +768,26 @@ bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, enum channel_enum ch,
 void lim_decrement_pending_mgmt_count(tpAniSirGlobal mac_ctx);
 QDF_STATUS lim_util_get_type_subtype(void *pkt, uint8_t *type,
 					uint8_t *subtype);
+
+/**
+ * lim_send_dfs_chan_sw_ie_update() -updates the channel switch IE in beacon
+ * template
+ * @mac_ctx - pointer to global mac context
+ * @session - A pointer to pesession
+ *
+ * Return None
+ */
+void lim_send_dfs_chan_sw_ie_update(tpAniSirGlobal mac_ctx,
+				    tpPESession session);
+
+/**
+ * lim_process_ap_ecsa_timeout() -process ECSA timeout which decrement csa count
+ * in beacon and update beacon template in firmware
+ * @data - A pointer to pesession
+ *
+ * Return None
+ */
+void lim_process_ap_ecsa_timeout(void *session);
 
 /**
  * lim_send_chan_switch_action_frame()- function to send ECSA/CSA
@@ -801,9 +810,7 @@ void lim_send_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
  * lim_assoc_rej_add_to_rssi_based_reject_list() - Add BSSID to the rssi based
  * rejection list
  * @mac_ctx: mac ctx
- * @rssi_assoc_rej: rssi assoc reject attribute
- * @bssid : BSSID of the AP
- * @rssi : RSSI of the assoc resp
+ * @ap_info: bssid info to be added to reject list.
  *
  * Add BSSID to the rssi based rejection list. Also if number
  * of entries is greater than MAX_RSSI_AVOID_BSSID_LIST
@@ -812,8 +819,7 @@ void lim_send_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
  * Return: void
  */
 void lim_assoc_rej_add_to_rssi_based_reject_list(tpAniSirGlobal mac_ctx,
-	tDot11fTLVrssi_assoc_rej  *rssi_assoc_rej,
-	tSirMacAddr bssid, int8_t rssi);
+				struct sir_rssi_disallow_lst *ap_info);
 
 /**
  * lim_check_if_vendor_oui_match() - Check if the given OUI match in IE buffer

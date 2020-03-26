@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,11 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
 /**
  * @file cdp_txrx_api_common.h
  * @brief Define the host data path converged API functions
@@ -128,6 +120,18 @@ enum wlan_op_mode {
 };
 
 /**
+ * mon_data_process_type - data pkt type for pkt capture mode
+ * @PROCESS_TYPE_DATA_RX: process RX data packet (normal rx + offloaded rx)
+ * @PROCESS_TYPE_DATA_TX: process TX data packet (ofloaded tx)
+ * @PROCESS_TYPE_DATA_TX_COMPL: process TX compl data packet (normal tx)
+ */
+enum mon_data_process_type {
+	PROCESS_TYPE_DATA_RX,
+	PROCESS_TYPE_DATA_TX,
+	PROCESS_TYPE_DATA_TX_COMPL,
+};
+
+/**
  * connectivity_stats_pkt_status - data pkt type
  * @PKT_TYPE_REQ: Request packet
  * @PKT_TYPE_RSP: Response packet
@@ -153,9 +157,19 @@ enum connectivity_stats_pkt_status {
  * ol_txrx_tx_fp - top-level transmit function
  * @data_vdev - handle to the virtual device object
  * @msdu_list - list of network buffers
+ * @notify_tx_comp - tx completion to be notified
  */
 typedef qdf_nbuf_t (*ol_txrx_tx_fp)(ol_txrx_vdev_handle data_vdev,
-				    qdf_nbuf_t msdu_list);
+				    qdf_nbuf_t msdu_list,
+				    bool notify_tx_comp);
+/**
+ * ol_txrx_completion_fp - top-level transmit function
+ * for tx completion
+ * @skb: skb data
+ * @osif_dev: the virtual device's OS shim object
+ */
+typedef void (*ol_txrx_completion_fp)(struct sk_buff *skb,
+					 void *osif_dev);
 /**
  * ol_txrx_tx_flow_control_fp - tx flow control notification
  * function from txrx to OS shim
@@ -180,6 +194,9 @@ typedef bool (*ol_txrx_tx_flow_control_is_pause_fp)(void *osif_dev);
  * @msdu_list - list of network buffers
  */
 typedef QDF_STATUS (*ol_txrx_rx_fp)(void *osif_dev, qdf_nbuf_t msdu_list);
+
+typedef QDF_STATUS(*ol_txrx_mon_callback_fp)(void *osif_dev,
+					     qdf_nbuf_t msdu_list);
 
 /**
  * ol_txrx_stats_rx_fp - receive function to hand batches of data
@@ -272,6 +289,7 @@ struct ol_txrx_ops {
 	/* tx function pointers - specified by txrx, stored by OS shim */
 	struct {
 		ol_txrx_tx_fp         tx;
+		ol_txrx_completion_fp tx_comp;
 	} tx;
 
 	/* rx function pointers - specified by OS shim, stored by txrx */
@@ -406,6 +424,11 @@ ol_txrx_mgmt_tx_cb_set(ol_txrx_pdev_handle pdev,
 			 ol_txrx_mgmt_tx_cb ota_ack_cb, void *ctxt);
 
 int ol_txrx_get_tx_pending(ol_txrx_pdev_handle pdev);
+
+void ol_txrx_mon_cb_deregister(void);
+
+void ol_txrx_mon_cb_register(void *osif_vdev,
+			     ol_txrx_mon_callback_fp mon_cb);
 
 /**
  * enum data_stall_log_event_indicator - Module triggering data stall
@@ -576,6 +599,10 @@ void ol_txrx_fw_stats_cfg(
 
 #define PER_RADIO_FW_STATS_REQUEST 0
 #define PER_VDEV_FW_STATS_REQUEST 1
+
+#define TXRX_PKT_FORMAT_8023    0
+#define TXRX_PKT_FORMAT_80211   1
+
 /**
  * ol_txrx_get_vdev_mac_addr() - Return mac addr of vdev
  * @vdev: vdev handle

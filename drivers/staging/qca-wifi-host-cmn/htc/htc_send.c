@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include "htc_debug.h"
@@ -210,7 +201,7 @@ static void send_packet_completion(HTC_TARGET *target, HTC_PACKET *pPacket)
 
 }
 
-void htc_send_complete_check_cleanup(void *context)
+void htc_send_complete_check_cleanup(unsigned long context)
 {
 	HTC_ENDPOINT *pEndpoint = (HTC_ENDPOINT *) context;
 
@@ -303,9 +294,13 @@ void free_htc_bundle_packet(HTC_TARGET *target, HTC_PACKET *pPacket)
 
 	/* restore queue */
 	pQueueSave = (HTC_PACKET_QUEUE *) pPacket->pContext;
-	AR_DEBUG_ASSERT(pQueueSave);
-
-	INIT_HTC_PACKET_QUEUE(pQueueSave);
+	if (qdf_unlikely(!pQueueSave)) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+				("\n%s: Invalid pQueueSave in HTC Packet\n",
+				__func__));
+		AR_DEBUG_ASSERT(pQueueSave);
+	} else
+		INIT_HTC_PACKET_QUEUE(pQueueSave);
 
 	LOCK_HTC_TX(target);
 	if (target->pBundleFreeList == NULL) {
@@ -612,7 +607,14 @@ static QDF_STATUS htc_issue_packets(HTC_TARGET *target,
 
 			pHtcHdr = (HTC_FRAME_HDR *)
 				qdf_nbuf_get_frag_vaddr(netbuf, 0);
-			AR_DEBUG_ASSERT(pHtcHdr);
+			if (qdf_unlikely(!pHtcHdr)) {
+				AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+						("%s Invalid pHtcHdr\n",
+						 __func__));
+				AR_DEBUG_ASSERT(pHtcHdr);
+				status = QDF_STATUS_E_FAILURE;
+				break;
+			}
 
 			HTC_WRITE32(pHtcHdr,
 					SM(payloadLen,
@@ -2085,6 +2087,30 @@ void htc_flush_endpoint_tx(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint,
 		}
 	}
 	UNLOCK_HTC_TX(target);
+}
+
+/* flush endpoint TX Lookup queue */
+void htc_flush_endpoint_txlookupQ(HTC_TARGET *target)
+{
+	int i;
+	HTC_PACKET *pPacket;
+	HTC_ENDPOINT *pEndpoint;
+
+	for (i = 0; i < ENDPOINT_MAX; i++) {
+		pEndpoint = &target->endpoint[i];
+
+		if (!pEndpoint && pEndpoint->service_id == 0)
+			continue;
+
+		while (HTC_PACKET_QUEUE_DEPTH(&pEndpoint->TxLookupQueue)) {
+			pPacket = htc_packet_dequeue(&pEndpoint->TxLookupQueue);
+
+			if (pPacket) {
+				pPacket->Status = QDF_STATUS_E_CANCELED;
+				send_packet_completion(target, pPacket);
+			}
+		}
+	}
 }
 
 /* HTC API to flush an endpoint's TX queue*/

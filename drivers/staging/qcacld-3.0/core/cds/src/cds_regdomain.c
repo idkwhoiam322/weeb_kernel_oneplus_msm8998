@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011,2013-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011,2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -70,6 +61,13 @@
 #include "cds_regdomain.h"
 
 static struct reg_dmn_supp_op_classes reg_dmn_curr_supp_opp_classes = { 0 };
+
+enum op_class_table_num {
+	OP_CLASS_US = 1,
+	OP_CLASS_EU,
+	OP_CLASS_JAPAN,
+	OP_CLASS_GLOBAL
+};
 
 static const struct reg_dmn_op_class_map_t global_op_class[] = {
 	{81, 25, BW20, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13} },
@@ -184,6 +182,8 @@ static const struct reg_dmn_pair g_reg_dmn_pairs[] = {
 	{ETSI8_WORLD, ETSI8, WORLD, CTRY_DEFAULT},
 	{ETSI9_WORLD, ETSI9, WORLD, CTRY_DEFAULT},
 	{ETSI13_WORLD, ETSI13, WORLD, CTRY_DEFAULT},
+	{ETSI14_WORLD, ETSI14, WORLD, CTRY_DEFAULT},
+	{ETSI15_WORLD, ETSI15, WORLD, CTRY_DEFAULT},
 	{APL4_WORLD, APL4, WORLD, CTRY_DEFAULT},
 	{APL2_WORLD, APL2, WORLD, CTRY_DEFAULT},
 	{APL2_FCCA, APL2, FCCA, CTRY_DEFAULT},
@@ -216,7 +216,7 @@ static const struct reg_dmn_pair g_reg_dmn_pairs[] = {
 	{WORA_WORLD, WORA_WORLD, WORA_WORLD, CTRY_DEFAULT},
 	{WORB_WORLD, WORB_WORLD, WORB_WORLD, CTRY_DEFAULT},
 	{WORC_WORLD, WORC_WORLD, WORC_WORLD, CTRY_DEFAULT},
-	{MKK5_MKKC, MKK5, MKKC, CTRY_JAPAN15},
+	{MKK5_MKKC, MKK5, MKKC, CTRY_JAPAN},
 	{MKK5_MKKA2, MKK5, MKKA, CTRY_DEFAULT},
 };
 
@@ -316,7 +316,7 @@ static const struct country_code_to_reg_dmn g_all_countries[] = {
 	{CTRY_MARSHALL_ISLANDS, FCC3_FCCA, "MH", "MARSHALL ISLANDS"},
 	{CTRY_MARTINIQUE, ETSI13_WORLD, "MQ", "MARTINIQUE"},
 	{CTRY_MAURITANIA, ETSI1_WORLD, "MR", "MAURITANA"},
-	{CTRY_MAURITIUS, FCC3_WORLD, "MU", "MAURITIUS"},
+	{CTRY_MAURITIUS, ETSI13_WORLD, "MU", "MAURITIUS"},
 	{CTRY_MAYOTTE, ETSI1_WORLD, "YT", "MAYOTTE"},
 	{CTRY_MEXICO, FCC3_ETSIC, "MX", "MEXICO"},
 	{CTRY_MICRONESIA, FCC3_FCCA, "FM", "MICRONESIA"},
@@ -325,6 +325,7 @@ static const struct country_code_to_reg_dmn g_all_countries[] = {
 	{CTRY_MONGOLIA, FCC3_WORLD, "MN", "MONGOLIA"},
 	{CTRY_MONTENEGRO, ETSI13_WORLD, "ME", "MONTENEGRO"},
 	{CTRY_MOROCCO, ETSI3_WORLD, "MA", "MOROCCO"},
+	{CTRY_MYANMAR, APL1_WORLD, "MM", "MYANMAR"},
 	{CTRY_NAMIBIA, APL20_WORLD, "NA", "NAMIBIA"},
 	{CTRY_NEPAL, APL23_WORLD, "NP", "NEPAL"},
 	{CTRY_NETHERLANDS, ETSI13_WORLD, "NL", "NETHERLANDS"},
@@ -345,7 +346,7 @@ static const struct country_code_to_reg_dmn g_all_countries[] = {
 	{CTRY_POLAND, ETSI13_WORLD, "PL", "POLAND"},
 	{CTRY_PORTUGAL, ETSI13_WORLD, "PT", "PORTUGAL"},
 	{CTRY_PUERTO_RICO, FCC3_FCCA, "PR", "PUERTO RICO"},
-	{CTRY_QATAR, APL1_WORLD, "QA", "QATAR"},
+	{CTRY_QATAR, ETSI14_WORLD, "QA", "QATAR"},
 	{CTRY_REUNION, ETSI1_WORLD, "RE", "REUNION"},
 	{CTRY_ROMANIA, ETSI13_WORLD, "RO", "ROMANIA"},
 	{CTRY_RUSSIA, ETSI8_WORLD, "RU", "RUSSIA"},
@@ -357,7 +358,7 @@ static const struct country_code_to_reg_dmn g_all_countries[] = {
 	{CTRY_SAINT_PIERRE_AND_MIQUELON, ETSI13_WORLD, "PM", "SAINT PIERRE"},
 	{CTRY_SAINT_VINCENT_AND_THE_GRENADIENS, ETSI13_WORLD, "VC", "VINCENT"},
 	{CTRY_SAMOA, ETSI1_WORLD, "WS", "SAMOA"},
-	{CTRY_SAUDI_ARABIA, ETSI1_WORLD, "SA", "SAUDI ARABIA"},
+	{CTRY_SAUDI_ARABIA, ETSI15_WORLD, "SA", "SAUDI ARABIA"},
 	{CTRY_SENEGAL, FCC13_WORLD, "SN", "SENEGAL"},
 	{CTRY_SERBIA, ETSI13_WORLD, "RS", "REPUBLIC OF SERBIA"},
 	{CTRY_SINGAPORE, FCC3_WORLD, "SG", "SINGAPORE"},
@@ -391,7 +392,7 @@ static const struct country_code_to_reg_dmn g_all_countries[] = {
 	{CTRY_WALLIS_AND_FUTUNA, ETSI1_WORLD, "WF" "WALLIS"},
 	{CTRY_YEMEN, NULL1_WORLD, "YE", "YEMEN"},
 	{CTRY_ZIMBABWE, ETSI1_WORLD, "ZW", "ZIMBABWE"},
-	{CTRY_JAPAN15, MKK5_MKKC, "JP", "JAPAN"},
+	{CTRY_JAPAN, MKK5_MKKC, "JP", "JAPAN"},
 	{CTRY_XA, MKK5_MKKA2, "XA", "JAPAN PASSIVE"}
 };
 
@@ -420,6 +421,7 @@ static const struct reg_dmn g_reg_dmns[] = {
 	{ETSI10, ETSI},
 	{ETSI11, ETSI},
 	{ETSI13, ETSI},
+	{ETSI15, ETSI},
 	{APL1, ETSI},
 	{APL2, ETSI},
 	{APL3, ETSI},
@@ -473,6 +475,63 @@ struct reg_dmn_tables g_reg_dmn_tbl = {
 	QDF_ARRAY_SIZE(g_all_countries),
 	QDF_ARRAY_SIZE(g_reg_dmns),
 };
+
+/*
+ *  ETSI is updating EN 301 893, which specifies 5 GHz channel access
+ *  in Europe
+ */
+static const char etsi_europe_country[][2] = {
+	{'A', 'T'},
+	{'B', 'E'},
+	{'B', 'G'},
+	{'C', 'Z'},
+	{'D', 'K'},
+	{'E', 'E'},
+	{'F', 'R'},
+
+	{'D', 'E'},
+	{'I', 'S'},
+	{'I', 'E'},
+	{'I', 'T'},
+	{'E', 'L'},
+	{'E', 'S'},
+	{'C', 'Y'},
+
+	{'L', 'V'},
+	{'L', 'I'},
+	{'L', 'T'},
+	{'L', 'U'},
+	{'H', 'U'},
+	{'M', 'T'},
+	{'N', 'L'},
+
+	{'N', 'O'},
+	{'P', 'L'},
+	{'P', 'T'},
+	{'R', 'O'},
+	{'S', 'I'},
+	{'S', 'K'},
+	{'T', 'R'},
+
+	{'F', 'I'},
+	{'S', 'E'},
+	{'C', 'H'},
+	{'U', 'K'},
+	{'H', 'R'},
+};
+
+bool cds_is_etsi_europe_country(uint8_t *country)
+{
+	int32_t i;
+
+	for (i = 0; i < QDF_ARRAY_SIZE(etsi_europe_country); i++) {
+		if (country[0] == etsi_europe_country[i][0] &&
+		    country[1] == etsi_europe_country[i][1])
+			return true;
+	}
+
+	return false;
+}
 
 /**
  * get_bdf_reg_dmn() - get regulatory domain from BDF
@@ -840,14 +899,33 @@ uint16_t cds_reg_dmn_get_opclass_from_channel(uint8_t *country, uint8_t channel,
 	const struct reg_dmn_op_class_map_t *class = NULL;
 	uint16_t i = 0;
 
-	if (!qdf_mem_cmp(country, "US", 2)) {
+	switch (country[2]) {
+	case OP_CLASS_US:
 		class = us_op_class;
-	} else if (!qdf_mem_cmp(country, "EU", 2)) {
+		break;
+
+	case OP_CLASS_EU:
 		class = euro_op_class;
-	} else if (!qdf_mem_cmp(country, "JP", 2)) {
+		break;
+
+	case OP_CLASS_JAPAN:
 		class = japan_op_class;
-	} else {
+		break;
+
+	case OP_CLASS_GLOBAL:
 		class = global_op_class;
+		break;
+
+	default:
+		if (!qdf_mem_cmp(country, "US", 2)) {
+			class = us_op_class;
+		} else if (!qdf_mem_cmp(country, "EU", 2)) {
+			class = euro_op_class;
+		} else if (!qdf_mem_cmp(country, "JP", 2)) {
+			class = japan_op_class;
+		} else {
+			class = global_op_class;
+		}
 	}
 
 	while (class->op_class) {
@@ -863,6 +941,60 @@ uint16_t cds_reg_dmn_get_opclass_from_channel(uint8_t *country, uint8_t channel,
 	}
 
 	return 0;
+}
+
+void cds_reg_dmn_print_channels_in_opclass(uint8_t *country, uint8_t op_class)
+{
+	const struct reg_dmn_op_class_map_t *class = NULL;
+	uint16_t i = 0;
+
+	qdf_debug("Country %c%c 0x%x",
+		  country[0], country[1], country[2]);
+
+	switch (country[2]) {
+	case OP_CLASS_US:
+		class = us_op_class;
+		break;
+
+	case OP_CLASS_EU:
+		class = euro_op_class;
+		break;
+
+	case OP_CLASS_JAPAN:
+		class = japan_op_class;
+		break;
+
+	case OP_CLASS_GLOBAL:
+		class = global_op_class;
+		break;
+
+	default:
+		if (!qdf_mem_cmp(country, "US", 2)) {
+			class = us_op_class;
+		} else if (!qdf_mem_cmp(country, "EU", 2)) {
+			class = euro_op_class;
+		} else if (!qdf_mem_cmp(country, "JP", 2)) {
+			class = japan_op_class;
+		} else {
+			class = global_op_class;
+		}
+	}
+
+	while (class->op_class) {
+		if (class->op_class == op_class) {
+			for (i = 0;
+			     (i < MAX_CHANNELS_PER_OPERATING_CLASS &&
+			      class->channels[i]); i++) {
+				qdf_debug("Valid channel(%d) in requested RC(%d)",
+					  class->channels[i], op_class);
+			}
+			break;
+		}
+		class++;
+	}
+	if (!class->op_class)
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+			  "Invalid requested RC (%d)", op_class);
 }
 
 /**

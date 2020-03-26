@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -115,7 +115,10 @@ static int __wlan_hdd_cfg80211_spectral_scan_start(struct wiphy *wiphy,
 		return -EPERM;
 	}
 	adapter = WLAN_HDD_GET_PRIV_PTR(dev);
-
+	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
+		hdd_err("invalid session id: %d", adapter->sessionId);
+		return -EINVAL;
+	}
 	/* initialize config parameters*/
 	config_req = hdd_ctx->ss_config;
 
@@ -388,7 +391,7 @@ static void __spectral_scan_msg_handler(const void *data, int data_len,
 					void *ctx, int pid)
 {
 	struct spectral_scan_msg *ss_msg = NULL;
-	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_MAX + 1];
+	struct nlattr *tb[CLD80211_ATTR_MAX + 1];
 	hdd_context_t *hdd_ctx;
 	int ret;
 
@@ -397,6 +400,10 @@ static void __spectral_scan_msg_handler(const void *data, int data_len,
 	if (0 != ret)
 		return;
 
+	/*
+	 * audit note: it is ok to pass a NULL policy here since only
+	 * one attribute is parsed and it is explicitly validated
+	 */
 	if (hdd_nla_parse(tb, CLD80211_ATTR_MAX, data, data_len, NULL)) {
 		hdd_err("nla parse fails");
 		return;
@@ -406,6 +413,12 @@ static void __spectral_scan_msg_handler(const void *data, int data_len,
 		hdd_err("attr VENDOR_DATA fails");
 		return;
 	}
+
+	if (nla_len(tb[CLD80211_ATTR_DATA]) < sizeof(*ss_msg)) {
+		hdd_err("Invalid length for ATTR_DATA");
+		return;
+	}
+
 	ss_msg = (struct spectral_scan_msg *)nla_data(tb[CLD80211_ATTR_DATA]);
 
 	if (!ss_msg) {
@@ -434,20 +447,16 @@ static void spectral_scan_msg_handler(const void *data, int data_len,
 	cds_ssr_unprotect(__func__);
 }
 
-/**
- * spectral_scan_activate_service() - API to register spectral
- * scan cmd handler
- *
- * API to register the spectral scan command handler using new
- * genl infra. Return type is zero to match with legacy
- * prototype
- *
- * Return: 0
- */
 int spectral_scan_activate_service(void)
 {
 	register_cld_cmd_cb(WLAN_NL_MSG_SPECTRAL_SCAN,
 				spectral_scan_msg_handler, NULL);
+	return 0;
+}
+
+int spectral_scan_deactivate_service(void)
+{
+	deregister_cld_cmd_cb(WLAN_NL_MSG_SPECTRAL_SCAN);
 	return 0;
 }
 
@@ -488,16 +497,6 @@ static int spectral_scan_msg_callback(struct sk_buff *skb)
 	return 0;
 }
 
-/**
- * spectral_scan_activate_service() - Activate spectral scan message handler
- *
- *  This function registers a handler to receive netlink message from
- *  the spectral scan application process.
- *  param -
- *     - None
- *
- * Return - 0 for success, non zero for failure
- */
 int spectral_scan_activate_service(void)
 {
 	int ret;
@@ -512,6 +511,23 @@ int spectral_scan_activate_service(void)
 
 	return ret;
 }
+
+int spectral_scan_deactivate_service(void)
+{
+	int ret;
+
+	/*
+	 * Unregister the msg handler for msgs addressed to
+	 * WLAN_NL_MSG_SPECTRAL_SCAN
+	 */
+	ret = nl_srv_unregister(WLAN_NL_MSG_SPECTRAL_SCAN,
+				spectral_scan_msg_callback);
+	if (ret)
+		hdd_err("Spectral Scan Unregistration failed");
+
+	return ret;
+}
+
 #endif
 
 /**

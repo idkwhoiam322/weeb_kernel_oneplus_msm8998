@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -187,12 +178,14 @@ void sch_send_start_scan_rsp(tpAniSirGlobal pMac)
  *
  * @return QDF_STATUS
  */
-tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
-				  uint16_t size, tpPESession psessionEntry)
+QDF_STATUS sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
+			       uint16_t size, tpPESession psessionEntry,
+			       enum sir_bcn_update_reason reason)
 {
 	tSirMsgQ msgQ;
 	tpSendbeaconParams beaconParams = NULL;
 	tSirRetStatus retCode;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	if (LIM_IS_AP_ROLE(psessionEntry) &&
 			(pMac->sch.schObject.fBeaconChanged)) {
@@ -208,7 +201,7 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 	}
 	beaconParams = qdf_mem_malloc(sizeof(tSendbeaconParams));
 	if (NULL == beaconParams)
-		return eSIR_MEM_ALLOC_FAILED;
+		return QDF_STATUS_E_NOMEM;
 
 	msgQ.type = WMA_SEND_BEACON_REQ;
 
@@ -223,7 +216,19 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 		beaconParams->timIeOffset = 0;
 	} else {
 		beaconParams->timIeOffset = psessionEntry->schBeaconOffsetBegin;
+		if (psessionEntry->dfsIncludeChanSwIe) {
+			beaconParams->csa_count_offset =
+				pMac->sch.schObject.csa_count_offset;
+			beaconParams->ecsa_count_offset =
+				pMac->sch.schObject.ecsa_count_offset;
+			pe_debug("csa_count_offset %d ecsa_count_offset %d",
+				 beaconParams->csa_count_offset,
+				 beaconParams->ecsa_count_offset);
+		}
 	}
+
+	beaconParams->vdev_id = psessionEntry->smeSessionId;
+	beaconParams->reason = reason;
 
 	/* p2pIeOffset should be atleast greater than timIeOffset */
 	if ((pMac->sch.schObject.p2pIeOffset != 0) &&
@@ -233,14 +238,22 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 			pMac->sch.schObject.p2pIeOffset);
 		QDF_ASSERT(0);
 		qdf_mem_free(beaconParams);
-		return eSIR_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 	beaconParams->p2pIeOffset = pMac->sch.schObject.p2pIeOffset;
 #ifdef WLAN_SOFTAP_FW_BEACON_TX_PRNT_LOG
 	pe_err("TimIeOffset:[%d]", beaconParams->TimIeOffset);
 #endif
 
-	beaconParams->beacon = beaconPayload;
+	if (size >= SIR_MAX_BEACON_SIZE) {
+		  pe_err("beacon size (%d) exceed host limit %d",
+			 size, SIR_MAX_BEACON_SIZE);
+		QDF_ASSERT(0);
+		qdf_mem_free(beaconParams);
+		return QDF_STATUS_E_FAILURE;
+	}
+	qdf_mem_copy(beaconParams->beacon, beaconPayload, size);
+
 	beaconParams->beaconLength = (uint32_t) size;
 	msgQ.bodyptr = beaconParams;
 	msgQ.bodyval = 0;
@@ -263,11 +276,13 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
-	if (eSIR_SUCCESS != retCode)
+	if (eSIR_SUCCESS != retCode) {
+		status = QDF_STATUS_E_FAILURE;
 		pe_err("Posting SEND_BEACON_REQ to HAL failed, reason=%X",
 			retCode);
+	}
 
-	return retCode;
+	return status;
 }
 
 static uint32_t lim_remove_p2p_ie_from_add_ie(tpAniSirGlobal pMac,
@@ -418,7 +433,7 @@ uint32_t lim_send_probe_rsp_template_to_hal(tpAniSirGlobal pMac,
 	nBytes += nPayload + sizeof(tSirMacMgmtHdr);
 
 	/* Make sure we are not exceeding allocated len */
-	if (nBytes > SCH_MAX_PROBE_RESP_SIZE) {
+	if (nBytes > SIR_MAX_PROBE_RESP_SIZE) {
 		pe_err("nBytes %d greater than max size", nBytes);
 		qdf_mem_free(addIE);
 		return eSIR_FAILURE;
@@ -466,7 +481,8 @@ uint32_t lim_send_probe_rsp_template_to_hal(tpAniSirGlobal pMac,
 		pe_err("malloc failed for bytes %d", nBytes);
 	} else {
 		sir_copy_mac_addr(pprobeRespParams->bssId, psessionEntry->bssId);
-		pprobeRespParams->pProbeRespTemplate = pFrame2Hal;
+		qdf_mem_copy(pprobeRespParams->probeRespTemplate,
+			     pFrame2Hal, nBytes);
 		pprobeRespParams->probeRespTemplateLen = nBytes;
 		qdf_mem_copy(pprobeRespParams->ucProxyProbeReqValidIEBmap,
 			     IeBitmap, (sizeof(uint32_t) * 8));

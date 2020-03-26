@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined __CDS_REG_SERVICE_H
@@ -46,6 +37,8 @@
 #define CDS_CHANNEL_FREQ(chan_enum) chan_mapping[chan_enum].center_freq
 #define CDS_IS_DFS_CH(chan_num) (cds_get_channel_state((chan_num)) == \
 				CHANNEL_STATE_DFS)
+#define CDS_IS_DISABLE_CH(chan_num) (cds_get_channel_state((chan_num)) == \
+				     CHANNEL_STATE_DISABLE)
 
 #define CDS_IS_PASSIVE_OR_DISABLE_CH(chan_num) \
 	(cds_get_channel_state(chan_num) != CHANNEL_STATE_ENABLE)
@@ -384,6 +377,19 @@ QDF_STATUS cds_read_default_country(uint8_t *default_country);
 QDF_STATUS cds_get_channel_list_with_power(struct channel_power
 					   *base_channels,
 					   uint8_t *num_base_channels);
+
+/**
+ * cds_set_channel_state() - API to set the channel state in reg table
+ * @chan_num  - input channel enum
+ * @state - state of the channel to be set
+ * CHANNEL_STATE_DISABLE
+ * CHANNEL_STATE_DFS
+ * CHANNEL_STATE_ENABLE
+ * CHANNEL_STATE_INVALID
+ *
+ * Return: Void
+ */
+void cds_set_channel_state(uint32_t chan_num, enum channel_state state);
 
 enum channel_state cds_get_channel_state(uint32_t chan_num);
 QDF_STATUS cds_get_dfs_region(enum dfs_region *dfs_reg);

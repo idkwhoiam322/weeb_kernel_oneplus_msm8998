@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -353,6 +344,43 @@ fill_ieee80211_hdr_data(struct ol_txrx_pdev_t *txrx_pdev,
 #endif
 
 #ifdef HELIUMPLUS
+/**
+ * fw_data_length_check() - check firmware data length
+ * @len: firmware data length
+ *
+ * Return: 0 for success and non-zero for failure
+ */
+static A_STATUS fw_data_length_check(uint32_t len)
+{
+	if (len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_FLAGS_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MISSED_CNT_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_LOG_TYPE_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MAC_ID_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_SIZE_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET
+					+ 1))) {
+		qdf_print("Invalid msdu len in %s\n", __func__);
+		return A_ERROR;
+	}
+	return A_OK;
+}
+#else
+static A_STATUS fw_data_length_check(uint32_t len)
+{
+	if (len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_FLAGS_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MISSED_CNT_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_LOG_TYPE_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_SIZE_OFFSET + 1)) ||
+	    len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET
+					+ 1))) {
+		qdf_print("Invalid msdu len in %s\n", __func__);
+		return A_ERROR;
+	}
+	return A_OK;
+}
+#endif
+
+#ifdef HELIUMPLUS
 A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 {
 	/*
@@ -377,16 +405,9 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 	fw_data = (struct ol_fw_data *)data;
 	len = fw_data->len;
 	pl_tgt_hdr = (uint32_t *) fw_data->data;
-	if (len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_FLAGS_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MISSED_CNT_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_LOG_TYPE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MAC_ID_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_SIZE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET + 1))) {
-		qdf_print("Invalid msdu len in %s\n", __func__);
-		qdf_assert(0);
+	if (A_ERROR == fw_data_length_check(len))
 		return A_ERROR;
-	}
+
 	/*
 	 * Makes the short words (16 bits) portable b/w little endian
 	 * and big endian
@@ -476,16 +497,9 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 	fw_data = (struct ol_fw_data *)data;
 	len = fw_data->len;
 	pl_tgt_hdr = (uint32_t *) fw_data->data;
-	if (len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_FLAGS_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MISSED_CNT_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_LOG_TYPE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MAC_ID_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_SIZE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET + 1))) {
-		qdf_print("Invalid msdu len in %s\n", __func__);
-		qdf_assert(0);
+	if (A_ERROR == fw_data_length_check(len))
 		return A_ERROR;
-	}
+
 	/*
 	 * Makes the short words (16 bits) portable b/w little endian
 	 * and big endian
@@ -701,16 +715,8 @@ A_STATUS process_rx_info(void *pdev, void *data)
 	fw_data = (struct ol_fw_data *)data;
 	len = fw_data->len;
 	pl_tgt_hdr = (uint32_t *) fw_data->data;
-	if (len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_FLAGS_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MISSED_CNT_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_LOG_TYPE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MAC_ID_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_SIZE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET + 1))) {
-		qdf_print("Invalid msdu len in %s\n", __func__);
-		qdf_assert(0);
+	if (A_ERROR == fw_data_length_check(len))
 		return A_ERROR;
-	}
 
 	pl_hdr.flags = (*(pl_tgt_hdr + ATH_PKTLOG_HDR_FLAGS_OFFSET) &
 			ATH_PKTLOG_HDR_FLAGS_MASK) >>
@@ -784,16 +790,9 @@ A_STATUS process_rate_find(void *pdev, void *data)
 	fw_data = (struct ol_fw_data *)data;
 	len = fw_data->len;
 	pl_tgt_hdr = (uint32_t *) fw_data->data;
-	if (len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_FLAGS_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MISSED_CNT_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_LOG_TYPE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MAC_ID_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_SIZE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET + 1))) {
-		qdf_print("Invalid msdu len in %s\n", __func__);
-		qdf_assert(0);
+	if (A_ERROR == fw_data_length_check(len))
 		return A_ERROR;
-	}
+
 	/*
 	 * Makes the short words (16 bits) portable b/w little endian
 	 * and big endian
@@ -872,16 +871,9 @@ A_STATUS process_sw_event(void *pdev, void *data)
 	fw_data = (struct ol_fw_data *)data;
 	len = fw_data->len;
 	pl_tgt_hdr = (uint32_t *) fw_data->data;
-	if (len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_FLAGS_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MISSED_CNT_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_LOG_TYPE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MAC_ID_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_SIZE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET + 1))) {
-		qdf_print("Invalid msdu len in %s\n", __func__);
-		qdf_assert(0);
+	if (A_ERROR == fw_data_length_check(len))
 		return A_ERROR;
-	}
+
 	/*
 	 * Makes the short words (16 bits) portable b/w little endian
 	 * and big endian
@@ -927,6 +919,7 @@ A_STATUS process_sw_event(void *pdev, void *data)
 	qdf_mem_copy(sw_event.sw_event,
 				 ((char *)fw_data->data + sizeof(struct ath_pktlog_hdr)),
 				 pl_hdr.size);
+	cds_pkt_stats_to_logger_thread(&pl_hdr, NULL, sw_event.sw_event);
 
 	return A_OK;
 }
@@ -953,16 +946,9 @@ A_STATUS process_rate_update(void *pdev, void *data)
 	fw_data = (struct ol_fw_data *)data;
 	len = fw_data->len;
 	pl_tgt_hdr = (uint32_t *) fw_data->data;
-	if (len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_FLAGS_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MISSED_CNT_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_LOG_TYPE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_MAC_ID_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_SIZE_OFFSET + 1)) ||
-		len < (sizeof(uint32_t) * (ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET + 1))) {
-		qdf_print("Invalid msdu len in %s\n", __func__);
-		qdf_assert(0);
+	if (A_ERROR == fw_data_length_check(len))
 		return A_ERROR;
-	}
+
 	/*
 	 * Makes the short words (16 bits) portable b/w little endian
 	 * and big endian

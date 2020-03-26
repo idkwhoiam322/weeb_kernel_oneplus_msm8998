@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -54,6 +45,14 @@
 #define IS_5G_CH(__chNum) ((__chNum >= 36) && (__chNum <= 165))
 #define IS_2X2_CHAIN(__chain) ((__chain & 0x3) == 0x3)
 #define DISABLE_NSS2_MCS 0xC
+#define VHT_1x1_MCS9_MAP 0x2
+#define VHT_2x2_MCS9_MAP 0xA
+#define VHT_1x1_MCS8_VAL 0xFFFD
+#define VHT_2x2_MCS8_VAL 0xFFF5
+#define VHT_1x1_MCS_MASK 0x3
+#define VHT_2x2_MCS_MASK 0xF
+#define DISABLE_VHT_MCS_9(mcs, nss) \
+	(mcs = (nss > 1) ? VHT_2x2_MCS8_VAL : VHT_1x1_MCS8_VAL)
 
 #define NSS_1x1_MODE 1
 #define NSS_2x2_MODE 2
@@ -796,10 +795,20 @@ populate_dot11f_ext_supp_rates(tpAniSirGlobal pMac,
 			uint8_t nChannelNum, tDot11fIEExtSuppRates *pDot11f,
 			tpPESession psessionEntry);
 
+/**
+ * populate_dot11f_beacon_report() - Populate the Beacon Report IE
+ * @pMac: Pointer to the global MAC context
+ * @pDot11f: Pointer to the measurement report structure
+ * @pBeaconReport: Pointer to the Beacon Report structure
+ * @is_last_frame: is the current report last or more reports to follow
+ *
+ * Return: Ret Status
+ */
 tSirRetStatus
 populate_dot11f_beacon_report(tpAniSirGlobal pMac,
 			tDot11fIEMeasurementReport *pDot11f,
-			tSirMacBeaconReport *pBeaconReport);
+			tSirMacBeaconReport *pBeaconReport,
+			bool is_last_frame);
 
 /**
  * \brief Populate a tDot11fIEExtSuppRates

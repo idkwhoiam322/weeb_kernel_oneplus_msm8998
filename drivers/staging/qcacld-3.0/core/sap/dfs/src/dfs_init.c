@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2002-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2002-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*===========================================================================
@@ -92,8 +83,8 @@ void dfs_reset_alldelaylines(struct ath_dfs *dfs, int seg_id)
 	}
 
 	if (dfs->ic->dfs_hw_bd_id !=  DFS_HWBD_QCA6174) {
-		if (((seg_id == 0) ?
-		    dfs->dfs_b5radars : dfs->dfs_b5radars_ext_seg) == NULL) {
+		if (dfs->dfs_rinfo.rn_numbin5radars && (((seg_id == 0) ?
+		    dfs->dfs_b5radars : dfs->dfs_b5radars_ext_seg) == NULL)) {
 			DFS_DPRINTK(dfs, ATH_DEBUG_DFS,
 				    "%s: pl==NULL, b5radars=%pK\n",
 				    __func__,
@@ -102,7 +93,8 @@ void dfs_reset_alldelaylines(struct ath_dfs *dfs, int seg_id)
 			return;
 		}
 	} else {
-		if (dfs->dfs_b5radars == NULL) {
+		if (dfs->dfs_rinfo.rn_numbin5radars &&
+				(dfs->dfs_b5radars == NULL)) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 				"%s[%d]: pl==NULL, b5radars=%pK", __func__, __LINE__,
 				dfs->dfs_b5radars);

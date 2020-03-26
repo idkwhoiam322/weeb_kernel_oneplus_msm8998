@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011, 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -74,7 +65,7 @@
 #define MAX_CHANNELS_PER_OPERATING_CLASS  25
 #define CDS_MAX_SUPP_OPER_CLASSES 32
 #define MIN_TX_PWR_CAP    8
-#define MAX_TX_PWR_CAP    22
+#define MAX_TX_PWR_CAP    30
 
 #define CTRY_DEFAULT          0
 #define CTRY_FLAG             0x8000
@@ -161,6 +152,7 @@ enum country_code {
 	CTRY_ISRAEL = 376,
 	CTRY_ITALY = 380,
 	CTRY_JAMAICA = 388,
+	CTRY_JAPAN = 392,
 	CTRY_JORDAN = 400,
 	CTRY_KAZAKHSTAN = 398,
 	CTRY_KENYA = 404,
@@ -192,6 +184,7 @@ enum country_code {
 	CTRY_MONGOLIA = 496,
 	CTRY_MONTENEGRO = 499,
 	CTRY_MOROCCO = 504,
+	CTRY_MYANMAR = 104,
 	CTRY_NAMIBIA = 516,
 	CTRY_NEPAL = 524,
 	CTRY_NETHERLANDS = 528,
@@ -261,11 +254,6 @@ enum country_code {
 	CTRY_WALLIS_AND_FUTUNA = 876,
 	CTRY_YEMEN = 887,
 	CTRY_ZIMBABWE = 716,
-	CTRY_JAPAN9 = 4009,
-	CTRY_JAPAN15 = 4015,
-	CTRY_JAPAN48 = 4048,
-	CTRY_JAPAN55 = 4055,
-	CTRY_JAPAN60 = 4060,
 	CTRY_XA = 4100,
 };
 
@@ -310,7 +298,9 @@ enum reg_domain {
 	ETSI9_WORLD = 0x3E,
 	ETSI10_WORLD = 0x24,
 	ETSI11_WORLD = 0x26,
-	ETSI13_WORLD = 0x28,
+	ETSI13_WORLD = 0x27,
+	ETSI14_WORLD = 0x29,
+	ETSI15_WORLD = 0x31,
 
 	APL4_WORLD = 0x42,
 	APL3_FCCA = 0x50,
@@ -414,6 +404,8 @@ enum reg_domain {
 	ETSI10 = 0x0D30,
 	ETSI11 = 0x0E30,
 	ETSI13 = 0x0E39,
+	ETSI14 = 0x0E40,
+	ETSI15 = 0x0E41,
 
 	APL1 = 0x0150,
 	APL2 = 0x0250,
@@ -567,10 +559,26 @@ void cds_set_wma_dfs_region(uint8_t dfs_region);
 uint16_t cds_reg_dmn_get_opclass_from_channel(uint8_t *country,
 					      uint8_t channel,
 					      uint8_t offset);
+
+/**
+ * cds_reg_dmn_print_channels_in_opclass() - Print channels in given op class
+ *					     and country combination
+ * @country: the country code
+ * @op_class: operating class
+ *
+ * Return: none
+ */
+void cds_reg_dmn_print_channels_in_opclass(uint8_t *country, uint8_t op_class);
 uint16_t cds_reg_dmn_get_chanwidth_from_opclass(uint8_t *country,
 						uint8_t channel,
 						uint8_t opclass);
 uint16_t cds_reg_dmn_set_curr_opclasses(uint8_t num_classes, uint8_t *class);
 uint16_t cds_reg_dmn_get_curr_opclasses(uint8_t *num_classes, uint8_t *class);
-
+/**
+ * cds_is_etsi_europe_country - check ETSI Europe country or not
+ * @country: country string with two Characters
+ *
+ * Return: true if country in ETSI Europe country list
+ */
+bool cds_is_etsi_europe_country(uint8_t *country);
 #endif /* __CDS_REGDOMAIN_H */

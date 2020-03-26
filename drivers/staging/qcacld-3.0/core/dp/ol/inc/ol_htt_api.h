@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011, 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -369,6 +360,10 @@ static inline void htt_ipa_uc_detach(struct htt_pdev_t *pdev)
 #endif /* IPA_OFFLOAD */
 
 void htt_rx_mon_note_capture_channel(htt_pdev_handle pdev, int mon_ch);
+
+void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
+			      void *rx_desc,
+			      struct mon_rx_status *rx_status);
 
 void ol_htt_mon_note_chan(ol_txrx_pdev_handle pdev, int mon_ch);
 

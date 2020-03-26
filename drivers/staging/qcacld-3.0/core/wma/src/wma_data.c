@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -44,11 +35,7 @@
 #include "cfg_api.h"
 #include "ol_txrx_ctrl_api.h"
 #include <cdp_txrx_tx_throttle.h>
-#if defined(CONFIG_HL_SUPPORT)
-#include "wlan_tgt_def_config_hl.h"
-#else
-#include "wlan_tgt_def_config.h"
-#endif
+#include "target_if_def_config.h"
 #include "ol_txrx.h"
 #include "qdf_nbuf.h"
 #include "qdf_types.h"
@@ -841,8 +828,7 @@ static void wma_data_tx_ack_work_handler(void *ack_work)
 
 	/* Call the Ack Cb registered by UMAC */
 	if (ack_cb)
-		ack_cb((tpAniSirGlobal) (wma_handle->mac_context),
-			work->status ? 0 : 1);
+		ack_cb(wma_handle->mac_context, work->status ? 0 : 1);
 	else
 		WMA_LOGE("Data Tx Ack Cb is NULL");
 
@@ -1389,23 +1375,22 @@ static void wma_mgmt_tx_ack_work_handler(void *ack_work)
 	tp_wma_handle wma_handle;
 	pWMAAckFnTxComp ack_cb;
 
-	if (cds_is_load_or_unload_in_progress()) {
-		WMA_LOGE("%s: Driver load/unload in progress", __func__);
-		return;
-	}
-
 	work = (struct wma_tx_ack_work_ctx *)ack_work;
 
 	wma_handle = work->wma_handle;
 	ack_cb = wma_handle->umac_ota_ack_cb[work->sub_type];
 
+	if (cds_is_load_or_unload_in_progress()) {
+		WMA_LOGE("%s: Driver load/unload in progress", __func__);
+		goto end;
+	}
+
 	WMA_LOGD("Tx Ack Cb SubType %d Status %d",
 		 work->sub_type, work->status);
 
 	/* Call the Ack Cb registered by UMAC */
-	ack_cb((tpAniSirGlobal) (wma_handle->mac_context),
-	       work->status ? 0 : 1);
-
+	ack_cb(wma_handle->mac_context, work->status ? 0 : 1);
+end:
 	qdf_mem_free(work);
 	wma_handle->mgmt_ack_work_ctx = NULL;
 }
@@ -2592,7 +2577,7 @@ static void wma_update_tx_send_params(struct tx_send_params *tx_param,
  *
  * Return: true - if category is robust mgmt type
  */
-static bool wma_is_rmf_mgmt_action_frame(uint8_t action_category)
+bool wma_is_rmf_mgmt_action_frame(uint8_t action_category)
 {
 	switch (action_category) {
 	case SIR_MAC_ACTION_SPECTRUM_MGMT:
@@ -2666,6 +2651,8 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 	struct wmi_desc_t *wmi_desc = NULL;
 	ol_pdev_handle ctrl_pdev;
 	bool is_5g = false;
+
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if (NULL == wma_handle) {
 		WMA_LOGE("wma_handle is NULL");
@@ -2812,6 +2799,13 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			frmLen = newFrmLen;
 			pFc = (tpSirMacFrameCtl) (qdf_nbuf_data(tx_frame));
 		}
+		/*
+		 * Some target which support sending mgmt frame based on htt
+		 * would DMA write this PMF tx frame buffer, it may cause smmu
+		 * check permission fault, set a flag to do bi-direction DMA
+		 * map, normal tx unmap is enough for this case.
+		 */
+		QDF_NBUF_CB_TX_DMA_BI_MAP((qdf_nbuf_t)tx_frame) = 1;
 	}
 #endif /* WLAN_FEATURE_11W */
 	mHdr = (tpSirMacMgmtHdr)qdf_nbuf_data(tx_frame);
@@ -2953,12 +2947,8 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 					tx_frm_ota_comp_cb;
 			}
 		} else {
-			if (downld_comp_required)
-				tx_frm_index =
-					GENERIC_DOWNLD_COMP_NOACK_COMP_INDEX;
-			else
-				tx_frm_index =
-					GENERIC_NODOWNLD_NOACK_COMP_INDEX;
+			tx_frm_index =
+				GENERIC_NODOWNLD_NOACK_COMP_INDEX;
 		}
 	}
 
@@ -3055,6 +3045,16 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			wmi_desc->nbuf = tx_frame;
 			wmi_desc->tx_cmpl_cb = tx_frm_download_comp_cb;
 			wmi_desc->ota_post_proc_cb = tx_frm_ota_comp_cb;
+
+			if (pdev && cds_get_pktcap_mode_enable() &&
+			    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
+			    PKT_CAPTURE_MODE_MGMT_ONLY) &&
+			    pdev->mon_cb) {
+				chanfreq = wma_handle->interfaces[vdev_id].mhz;
+				wma_process_mon_mgmt_tx(tx_frame,
+							qdf_nbuf_len(tx_frame),
+							&mgmt_param, chanfreq);
+			}
 			status = wmi_mgmt_unified_cmd_send(
 					wma_handle->wmi_handle,
 					&mgmt_param);

@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include "wmi_unified_api.h"
@@ -7227,6 +7218,14 @@ static bool is_management_record_non_tlv(uint32_t cmd_id)
 
 	return false;
 }
+
+static bool is_diag_event_non_tlv(uint32_t event_id)
+{
+	if (WMI_DIAG_EVENTID == event_id)
+		return true;
+
+	return false;
+}
 #endif
 
 /**
@@ -8026,6 +8025,8 @@ void wmi_non_tlv_attach(struct wmi_unified *wmi_handle)
 	wmi_handle->log_info.buf_offset_event = 0;
 	wmi_handle->log_info.is_management_record =
 		is_management_record_non_tlv;
+	wmi_handle->log_info.is_diag_event =
+		is_diag_event_non_tlv;
 	/*(uint8 *)(*wmi_id_to_name)(uint32_t cmd_id);*/
 #endif
 #else

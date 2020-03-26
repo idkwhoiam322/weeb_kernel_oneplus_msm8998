@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined(__QDF_TRACE_H)
@@ -93,12 +84,14 @@ typedef int (qdf_abstract_print)(void *priv, const char *fmt, ...);
 
 
 #ifdef TRACE_RECORD
+
 #define MTRACE(p) p
+#define NO_SESSION 0xFF
+
 #else
 #define MTRACE(p) {  }
-#endif
 
-#define NO_SESSION 0xFF
+#endif
 
 /**
  * typedef struct qdf_trace_record_s - keep trace record

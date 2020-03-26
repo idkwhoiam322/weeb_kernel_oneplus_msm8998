@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -156,22 +147,15 @@ static void htt_rx_hash_deinit(struct htt_pdev_t *pdev)
 	struct htt_rx_hash_entry *hash_entry;
 	struct htt_rx_hash_bucket **hash_table;
 	struct htt_list_node *list_iter = NULL;
-	qdf_mem_info_t *mem_map_table = NULL, *mem_info = NULL;
-	uint32_t num_unmapped = 0;
+	qdf_mem_info_t mem_map_table = {0};
+	bool ipa_smmu = false;
 
 	if (NULL == pdev->rx_ring.hash_table)
 		return;
 
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
-		mem_map_table = qdf_mem_map_table_alloc(
-					pdev->rx_ring.fill_level);
-		if (!mem_map_table) {
-			qdf_print("%s: Failed to allocate memory for mem map table\n",
-				  __func__);
-			return;
-		}
-		mem_info = mem_map_table;
-	}
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled &&
+	    pdev->rx_ring.smmu_map)
+		ipa_smmu = true;
 
 	qdf_spin_lock_bh(&(pdev->rx_ring.rx_hash_lock));
 	hash_table = pdev->rx_ring.hash_table;
@@ -187,15 +171,15 @@ static void htt_rx_hash_deinit(struct htt_pdev_t *pdev)
 							     pdev->rx_ring.
 							     listnode_offset);
 			if (hash_entry->netbuf) {
-				if (qdf_mem_smmu_s1_enabled(pdev->osdev) &&
-						pdev->is_ipa_uc_enabled) {
+				if (ipa_smmu) {
 					qdf_update_mem_map_table(pdev->osdev,
-						mem_info,
+						&mem_map_table,
 						QDF_NBUF_CB_PADDR(
 							hash_entry->netbuf),
 						HTT_RX_BUF_SIZE);
-					mem_info++;
-					num_unmapped++;
+
+					cds_smmu_map_unmap(false, 1,
+							   &mem_map_table);
 				}
 #ifdef DEBUG_DMA_DONE
 				qdf_nbuf_unmap(pdev->osdev, hash_entry->netbuf,
@@ -219,13 +203,6 @@ static void htt_rx_hash_deinit(struct htt_pdev_t *pdev)
 	qdf_mem_free(hash_table);
 
 	qdf_spinlock_destroy(&(pdev->rx_ring.rx_hash_lock));
-
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
-		if (num_unmapped)
-			cds_smmu_map_unmap(false, num_unmapped,
-					   mem_map_table);
-		qdf_mem_free(mem_map_table);
-	}
 }
 #endif
 
@@ -515,8 +492,8 @@ static int htt_rx_ring_fill_n(struct htt_pdev_t *pdev, int num)
 	struct htt_host_rx_desc_base *rx_desc;
 	int filled = 0;
 	int debt_served = 0;
-	qdf_mem_info_t *mem_map_table = NULL, *mem_info = NULL;
-	int num_alloc = 0;
+	qdf_mem_info_t mem_map_table = {0};
+	bool ipa_smmu = false;
 
 	idx = *(pdev->rx_ring.alloc_idx.vaddr);
 
@@ -528,15 +505,9 @@ static int htt_rx_ring_fill_n(struct htt_pdev_t *pdev, int num)
 		return filled;
 	}
 
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
-		mem_map_table = qdf_mem_map_table_alloc(num);
-		if (!mem_map_table) {
-			qdf_print("%s: Failed to allocate memory for mem map table\n",
-				  __func__);
-			goto update_alloc_idx;
-		}
-		mem_info = mem_map_table;
-	}
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled &&
+	    pdev->rx_ring.smmu_map)
+		ipa_smmu = true;
 
 moretofill:
 	while (num > 0) {
@@ -563,7 +534,7 @@ moretofill:
 			qdf_timer_start(
 				&pdev->rx_ring.refill_retry_timer,
 				HTT_RX_RING_REFILL_RETRY_TIME_MS);
-			goto free_mem_map_table;
+			goto update_alloc_idx;
 		}
 
 		/* Clear rx_desc attention word before posting to Rx ring */
@@ -600,8 +571,9 @@ moretofill:
 #endif
 		if (status != QDF_STATUS_SUCCESS) {
 			qdf_nbuf_free(rx_netbuf);
-			goto free_mem_map_table;
+			goto update_alloc_idx;
 		}
+
 		paddr = qdf_nbuf_get_frag_paddr(rx_netbuf, 0);
 		paddr_marked = htt_rx_paddr_mark_high_bits(paddr);
 		if (pdev->cfg.is_full_reorder_offload) {
@@ -618,19 +590,17 @@ moretofill:
 					       QDF_DMA_FROM_DEVICE);
 #endif
 				qdf_nbuf_free(rx_netbuf);
-				goto free_mem_map_table;
+				goto update_alloc_idx;
 			}
 			htt_rx_dbg_rxbuf_set(pdev, paddr_marked, rx_netbuf);
 		} else {
 			pdev->rx_ring.buf.netbufs_ring[idx] = rx_netbuf;
 		}
 
-		if (qdf_mem_smmu_s1_enabled(pdev->osdev) &&
-					pdev->is_ipa_uc_enabled) {
-			qdf_update_mem_map_table(pdev->osdev, mem_info,
+		if (ipa_smmu) {
+			qdf_update_mem_map_table(pdev->osdev, &mem_map_table,
 						 paddr, HTT_RX_BUF_SIZE);
-			mem_info++;
-			num_alloc++;
+			cds_smmu_map_unmap(true, 1, &mem_map_table);
 		}
 
 		pdev->rx_ring.buf.paddrs_ring[idx] = paddr_marked;
@@ -642,34 +612,10 @@ moretofill:
 		idx &= pdev->rx_ring.size_mask;
 	}
 
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
-		cds_smmu_map_unmap(true, num_alloc, mem_map_table);
-		qdf_mem_free(mem_map_table);
-	}
-
-	num_alloc = 0;
 	if (debt_served <  qdf_atomic_read(&pdev->rx_ring.refill_debt)) {
 		num = qdf_atomic_read(&pdev->rx_ring.refill_debt);
 		debt_served += num;
-		if (qdf_mem_smmu_s1_enabled(pdev->osdev) &&
-				pdev->is_ipa_uc_enabled) {
-			mem_map_table = qdf_mem_map_table_alloc(num);
-			if (!mem_map_table) {
-				qdf_print("%s: Failed to allocate memory for mem map table\n",
-					  __func__);
-				goto update_alloc_idx;
-			}
-			mem_info = mem_map_table;
-		}
 		goto moretofill;
-	}
-
-	goto update_alloc_idx;
-
-free_mem_map_table:
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
-		cds_smmu_map_unmap(true, num_alloc, mem_map_table);
-		qdf_mem_free(mem_map_table);
 	}
 
 update_alloc_idx:
@@ -742,7 +688,7 @@ static int htt_rx_ring_fill_level(struct htt_pdev_t *pdev)
 	return size;
 }
 
-static void htt_rx_ring_refill_retry(void *arg)
+static void htt_rx_ring_refill_retry(unsigned long arg)
 {
 	htt_pdev_handle pdev = (htt_pdev_handle) arg;
 	int             filled = 0;
@@ -788,9 +734,15 @@ static inline unsigned int htt_rx_in_order_ring_elems(struct htt_pdev_t *pdev)
 
 void htt_rx_detach(struct htt_pdev_t *pdev)
 {
+	bool ipa_smmu = false;
+
 	qdf_timer_stop(&pdev->rx_ring.refill_retry_timer);
 	qdf_timer_free(&pdev->rx_ring.refill_retry_timer);
 	htt_rx_dbg_rxbuf_deinit(pdev);
+
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled &&
+	    pdev->rx_ring.smmu_map)
+		ipa_smmu = true;
 
 	if (pdev->cfg.is_full_reorder_offload) {
 		qdf_mem_free_consistent(pdev->osdev, pdev->osdev->dev,
@@ -804,30 +756,18 @@ void htt_rx_detach(struct htt_pdev_t *pdev)
 		htt_rx_hash_deinit(pdev);
 	} else {
 		int sw_rd_idx = pdev->rx_ring.sw_rd_idx.msdu_payld;
-		qdf_mem_info_t *mem_map_table = NULL, *mem_info = NULL;
-		uint32_t num_unmapped = 0;
+		qdf_mem_info_t mem_map_table = {0};
 
-		if (qdf_mem_smmu_s1_enabled(pdev->osdev) &&
-					pdev->is_ipa_uc_enabled) {
-			mem_map_table = qdf_mem_map_table_alloc(
-						pdev->rx_ring.fill_level);
-			if (!mem_map_table) {
-				qdf_print("%s: Failed to allocate memory for mem map table\n",
-					  __func__);
-				return;
-			}
-			mem_info = mem_map_table;
-		}
 		while (sw_rd_idx != *(pdev->rx_ring.alloc_idx.vaddr)) {
-			if (qdf_mem_smmu_s1_enabled(pdev->osdev) &&
-						pdev->is_ipa_uc_enabled) {
-				qdf_update_mem_map_table(pdev->osdev, mem_info,
+			if (ipa_smmu) {
+				qdf_update_mem_map_table(pdev->osdev,
+					&mem_map_table,
 					QDF_NBUF_CB_PADDR(
 						pdev->rx_ring.buf.netbufs_ring[
 								sw_rd_idx]),
 					HTT_RX_BUF_SIZE);
-				mem_info++;
-				num_unmapped++;
+				cds_smmu_map_unmap(false, 1,
+						   &mem_map_table);
 			}
 #ifdef DEBUG_DMA_DONE
 			qdf_nbuf_unmap(pdev->osdev,
@@ -847,13 +787,6 @@ void htt_rx_detach(struct htt_pdev_t *pdev)
 		}
 		qdf_mem_free(pdev->rx_ring.buf.netbufs_ring);
 
-		if (qdf_mem_smmu_s1_enabled(pdev->osdev) &&
-					pdev->is_ipa_uc_enabled) {
-			if (num_unmapped)
-				cds_smmu_map_unmap(false, num_unmapped,
-						   mem_map_table);
-			qdf_mem_free(mem_map_table);
-		}
 	}
 
 	qdf_mem_free_consistent(pdev->osdev, pdev->osdev->dev,
@@ -865,7 +798,7 @@ void htt_rx_detach(struct htt_pdev_t *pdev)
 							   memctx));
 
 	qdf_mem_free_consistent(pdev->osdev, pdev->osdev->dev,
-				   pdev->rx_ring.size * sizeof(qdf_dma_addr_t),
+				   pdev->rx_ring.size * sizeof(target_paddr_t),
 				   pdev->rx_ring.buf.paddrs_ring,
 				   pdev->rx_ring.base_paddr,
 				   qdf_get_dma_mem_context((&pdev->rx_ring.buf),
@@ -1278,7 +1211,7 @@ static int
 htt_rx_amsdu_pop_ll(htt_pdev_handle pdev,
 		    qdf_nbuf_t rx_ind_msg,
 		    qdf_nbuf_t *head_msdu, qdf_nbuf_t *tail_msdu,
-		    uint32_t *msdu_count)
+		    qdf_nbuf_t *head_mon_msdu, uint32_t *msdu_count)
 {
 	int msdu_len, msdu_chaining = 0;
 	qdf_nbuf_t msdu;
@@ -1563,6 +1496,7 @@ htt_rx_amsdu_pop_hl(
 	qdf_nbuf_t rx_ind_msg,
 	qdf_nbuf_t *head_msdu,
 	qdf_nbuf_t *tail_msdu,
+	qdf_nbuf_t *head_mon_msdu,
 	uint32_t *msdu_count)
 {
 	pdev->rx_desc_size_hl =
@@ -1589,6 +1523,7 @@ htt_rx_frag_pop_hl(
 	qdf_nbuf_t frag_msg,
 	qdf_nbuf_t *head_msdu,
 	qdf_nbuf_t *tail_msdu,
+	qdf_nbuf_t *mon_head_msdu,
 	uint32_t *msdu_count)
 {
 	qdf_nbuf_pull_head(frag_msg, HTT_RX_FRAG_IND_BYTES);
@@ -2166,17 +2101,18 @@ static uint8_t htt_mon_rx_get_rtap_flags(struct htt_host_rx_desc_base *rx_desc)
 /**
  * htt_rx_mon_get_rx_status() - Update information about the rx status,
  * which is used later for radiotap updation.
- * @rx_desc: Pointer to struct htt_host_rx_desc_base
+ * @desc: Pointer to struct htt_host_rx_desc_base
  * @rx_status: Return variable updated with rx_status
  *
  * Return: None
  */
-static void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
-				     struct htt_host_rx_desc_base *rx_desc,
-				     struct mon_rx_status *rx_status)
+void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
+			      void *desc,
+			      struct mon_rx_status *rx_status)
 {
 	uint16_t channel_flags = 0;
 	struct mon_channel *ch_info = &pdev->mon_ch_info;
+	struct htt_host_rx_desc_base *rx_desc = desc;
 
 	rx_status->tsft = (u_int64_t)TSF_TIMESTAMP(rx_desc);
 	rx_status->chan_freq = ch_info->ch_freq;
@@ -2218,6 +2154,7 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 					       qdf_nbuf_t rx_ind_msg,
 					       qdf_nbuf_t *head_msdu,
 					       qdf_nbuf_t *tail_msdu,
+					       qdf_nbuf_t *head_mon_msdu,
 					       uint32_t *replenish_cnt)
 {
 	qdf_nbuf_t msdu, next, prev = NULL;
@@ -2230,6 +2167,9 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	uint32_t len;
 	uint32_t last_frag;
 	qdf_dma_addr_t paddr;
+	static uint8_t preamble_type;
+	static uint32_t vht_sig_a_1;
+	static uint32_t vht_sig_a_2;
 
 	HTT_ASSERT1(htt_rx_in_order_ring_elems(pdev) != 0);
 
@@ -2304,6 +2244,33 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		prev = msdu;
 
 		HTT_PKT_DUMP(htt_print_rx_desc(rx_desc));
+
+		/*
+		 * Only the first mpdu has valid preamble type, so use it
+		 * till the last mpdu is reached
+		 */
+		if (rx_desc->attention.first_mpdu) {
+			preamble_type = rx_desc->ppdu_start.preamble_type;
+			if (preamble_type == 8 || preamble_type == 9 ||
+			   preamble_type == 0x0c || preamble_type == 0x0d) {
+				vht_sig_a_1 = VHT_SIG_A_1(rx_desc);
+				vht_sig_a_2 = VHT_SIG_A_2(rx_desc);
+			}
+		} else {
+			rx_desc->ppdu_start.preamble_type = preamble_type;
+			if (preamble_type == 8 || preamble_type == 9 ||
+			   preamble_type == 0x0c || preamble_type == 0x0d) {
+				VHT_SIG_A_1(rx_desc) = vht_sig_a_1;
+				VHT_SIG_A_2(rx_desc) = vht_sig_a_2;
+			}
+		}
+
+		if (rx_desc->attention.last_mpdu) {
+			preamble_type = 0;
+			vht_sig_a_1 = 0;
+			vht_sig_a_2 = 0;
+		}
+
 		/*
 		 * Make the netbuf's data pointer point to the payload rather
 		 * than the descriptor.
@@ -2415,9 +2382,11 @@ static int
 htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				qdf_nbuf_t rx_ind_msg,
 				qdf_nbuf_t *head_msdu, qdf_nbuf_t *tail_msdu,
+				qdf_nbuf_t *head_mon_msdu,
 				uint32_t *replenish_cnt)
 {
 	qdf_nbuf_t msdu, next, prev = NULL;
+	qdf_nbuf_t mon_prev = NULL;
 	uint8_t *rx_ind_data;
 	uint32_t *msg_word;
 	uint32_t rx_ctx_id;
@@ -2427,9 +2396,10 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	struct htt_host_rx_desc_base *rx_desc;
 	enum rx_pkt_fate status = RX_PKT_FATE_SUCCESS;
 	qdf_dma_addr_t paddr;
-	qdf_mem_info_t *mem_map_table = NULL, *mem_info = NULL;
-	uint32_t num_unmapped = 0;
+	qdf_mem_info_t mem_map_table = {0};
 	int ret = 1;
+	bool ipa_smmu = false;
+	qdf_nbuf_t mon_msdu = NULL;
 
 	HTT_ASSERT1(htt_rx_in_order_ring_elems(pdev) != 0);
 
@@ -2445,15 +2415,11 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	/* Get the total number of MSDUs */
 	msdu_count = HTT_RX_IN_ORD_PADDR_IND_MSDU_CNT_GET(*(msg_word + 1));
 	HTT_RX_CHECK_MSDU_COUNT(msdu_count);
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
-		mem_map_table = qdf_mem_map_table_alloc(msdu_count);
-		if (!mem_map_table) {
-			qdf_print("%s: Failed to allocate memory for mem map table\n",
-				  __func__);
-			return 0;
-		}
-		mem_info = mem_map_table;
-	}
+
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled &&
+	    pdev->rx_ring.smmu_map)
+		ipa_smmu = true;
+
 	ol_rx_update_histogram_stats(msdu_count, frag_ind, offload_ind);
 	htt_rx_dbg_rxbuf_httrxind(pdev, msdu_count);
 
@@ -2463,8 +2429,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		ol_rx_offload_paddr_deliver_ind_handler(pdev, msdu_count,
 							msg_word);
 		*head_msdu = *tail_msdu = NULL;
-		ret = 0;
-		goto free_mem_map_table;
+		goto end;
 	}
 
 	paddr = htt_rx_in_ord_paddr_get(msg_word);
@@ -2475,17 +2440,15 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		*tail_msdu = NULL;
 		ret = 0;
 		pdev->rx_ring.pop_fail_cnt++;
-		goto free_mem_map_table;
+		goto end;
 	}
 
 	while (msdu_count > 0) {
-		if (qdf_mem_smmu_s1_enabled(pdev->osdev) &&
-					pdev->is_ipa_uc_enabled) {
-			qdf_update_mem_map_table(pdev->osdev, mem_info,
+		if (ipa_smmu) {
+			qdf_update_mem_map_table(pdev->osdev, &mem_map_table,
 						 QDF_NBUF_CB_PADDR(msdu),
 						 HTT_RX_BUF_SIZE);
-			mem_info++;
-			num_unmapped++;
+			cds_smmu_map_unmap(false, 1, &mem_map_table);
 		}
 
 		/*
@@ -2536,6 +2499,26 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 
 		msdu_count--;
 
+		if (head_mon_msdu && cds_get_pktcap_mode_enable() &&
+		    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
+		     PKT_CAPTURE_MODE_DATA_ONLY) &&
+		    pdev->txrx_pdev->mon_cb && !frag_ind) {
+			mon_msdu = qdf_nbuf_copy(msdu);
+			if (mon_msdu) {
+				qdf_nbuf_push_head(mon_msdu,
+						   HTT_RX_STD_DESC_RESERVATION);
+				qdf_nbuf_set_next(mon_msdu, NULL);
+
+				if (!(*head_mon_msdu)) {
+					*head_mon_msdu = mon_msdu;
+					mon_prev = mon_msdu;
+				} else {
+					qdf_nbuf_set_next(mon_prev, mon_msdu);
+					mon_prev = mon_msdu;
+				}
+			}
+		}
+
 		/* calling callback function for packet logging */
 		if (pdev->rx_pkt_dump_cb) {
 			if (qdf_unlikely(RX_DESC_MIC_ERR_IS_SET &&
@@ -2566,11 +2549,11 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				if (!prev) {
 					*head_msdu = *tail_msdu = NULL;
 					ret = 0;
-					goto free_mem_map_table;
+					goto end;
 				}
 				*tail_msdu = prev;
 				qdf_nbuf_set_next(prev, NULL);
-				goto free_mem_map_table;
+				goto end;
 			} else { /* if this is not the last msdu */
 				/* get the next msdu */
 				msg_word += HTT_RX_IN_ORD_PADDR_IND_MSDU_DWORDS;
@@ -2582,7 +2565,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 					*tail_msdu = NULL;
 					ret = 0;
 					pdev->rx_ring.pop_fail_cnt++;
-					goto free_mem_map_table;
+					goto end;
 				}
 
 				/* if this is not the first msdu, update the
@@ -2615,7 +2598,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				*tail_msdu = NULL;
 				pdev->rx_ring.pop_fail_cnt++;
 				ret = 0;
-				goto free_mem_map_table;
+				goto end;
 			}
 			qdf_nbuf_set_next(msdu, next);
 			prev = msdu;
@@ -2626,13 +2609,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		}
 	}
 
-free_mem_map_table:
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
-		if (num_unmapped)
-			cds_smmu_map_unmap(false, num_unmapped,
-					   mem_map_table);
-		qdf_mem_free(mem_map_table);
-	}
+end:
 	return ret;
 }
 #endif
@@ -3022,7 +2999,7 @@ int16_t htt_rx_mpdu_desc_rssi_dbm(htt_pdev_handle pdev, void *mpdu_desc)
 int (*htt_rx_amsdu_pop)(htt_pdev_handle pdev,
 			qdf_nbuf_t rx_ind_msg,
 			qdf_nbuf_t *head_msdu, qdf_nbuf_t *tail_msdu,
-			uint32_t *msdu_count);
+			qdf_nbuf_t *head_mon_msdu, uint32_t *msdu_count);
 
 /*
  * htt_rx_frag_pop -
@@ -3032,7 +3009,7 @@ int (*htt_rx_amsdu_pop)(htt_pdev_handle pdev,
 int (*htt_rx_frag_pop)(htt_pdev_handle pdev,
 		       qdf_nbuf_t rx_ind_msg,
 		       qdf_nbuf_t *head_msdu, qdf_nbuf_t *tail_msdu,
-		       uint32_t *msdu_count);
+		       qdf_nbuf_t *head_mon_msdu, uint32_t *msdu_count);
 
 int
 (*htt_rx_offload_msdu_cnt)(
@@ -3605,10 +3582,7 @@ qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev,
 	if (netbuf == NULL) {
 		qdf_print("rx hash: %s: no entry found for %pK!\n",
 			  __func__, (void *)paddr);
-		if (cds_is_self_recovery_enabled())
-			cds_trigger_recovery(CDS_RX_HASH_NO_ENTRY_FOUND);
-		else
-			HTT_ASSERT_ALWAYS(0);
+		cds_trigger_recovery(CDS_RX_HASH_NO_ENTRY_FOUND);
 	}
 
 	return netbuf;
@@ -4039,6 +4013,59 @@ int htt_rx_ipa_uc_detach(struct htt_pdev_t *pdev)
 	htt_rx_ipa_uc_free_wdi2_rsc(pdev);
 	return 0;
 }
+
+static int htt_rx_hash_smmu_map(bool map, struct htt_pdev_t *pdev)
+{
+	uint32_t i;
+	struct htt_rx_hash_entry *hash_entry;
+	struct htt_rx_hash_bucket **hash_table;
+	struct htt_list_node *list_iter = NULL;
+	qdf_mem_info_t mem_map_table = {0};
+
+	qdf_spin_lock_bh(&(pdev->rx_ring.rx_hash_lock));
+	hash_table = pdev->rx_ring.hash_table;
+
+	for (i = 0; i < RX_NUM_HASH_BUCKETS; i++) {
+		/* Free the hash entries in hash bucket i */
+		list_iter = hash_table[i]->listhead.next;
+		while (list_iter != &hash_table[i]->listhead) {
+			hash_entry =
+				(struct htt_rx_hash_entry *)((char *)list_iter -
+							     pdev->rx_ring.
+							     listnode_offset);
+			if (hash_entry->netbuf) {
+				qdf_update_mem_map_table(pdev->osdev,
+						&mem_map_table,
+						QDF_NBUF_CB_PADDR(
+							hash_entry->netbuf),
+						HTT_RX_BUF_SIZE);
+				cds_smmu_map_unmap(map, 1, &mem_map_table);
+			}
+			list_iter = list_iter->next;
+		}
+	}
+	qdf_spin_unlock_bh(&(pdev->rx_ring.rx_hash_lock));
+
+	return 0;
+}
+
+int htt_rx_hash_smmu_map_update(struct htt_pdev_t *pdev, bool map)
+{
+	int ret;
+
+	if (NULL == pdev->rx_ring.hash_table)
+		return 0;
+
+	if (!qdf_mem_smmu_s1_enabled(pdev->osdev) || !pdev->is_ipa_uc_enabled)
+		return 0;
+
+	qdf_spin_lock_bh(&(pdev->rx_ring.refill_lock));
+	pdev->rx_ring.smmu_map = map;
+	ret = htt_rx_hash_smmu_map(map, pdev);
+	qdf_spin_unlock_bh(&(pdev->rx_ring.refill_lock));
+
+	return ret;
+}
 #endif /* IPA_OFFLOAD */
 
 /**
@@ -4091,4 +4118,3 @@ void htt_deregister_rx_pkt_dump_callback(struct htt_pdev_t *pdev)
 	}
 	pdev->rx_pkt_dump_cb = NULL;
 }
-

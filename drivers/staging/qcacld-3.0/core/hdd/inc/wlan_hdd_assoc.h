@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined(WLAN_HDD_ASSOC_H__)
@@ -40,6 +31,8 @@
 #include "cdp_txrx_peer_ops.h"
 #include <net/cfg80211.h>
 #include <linux/ieee80211.h>
+
+#define HDD_TIME_STRING_LEN 24
 
 /* Preprocessor Definitions and Constants */
 #ifdef FEATURE_WLAN_TDLS
@@ -177,6 +170,8 @@ struct hdd_conn_flag {
  * @congestion: holds congestion percentage
  * @last_ssid: holds last ssid
  * @last_auth_type: holds last auth type
+ * @auth_time: last authentication established time
+ * @connect_time: last association established time
  */
 typedef struct connection_info_s {
 	eConnectionState connState;
@@ -211,6 +206,9 @@ typedef struct connection_info_s {
 	uint32_t cca;
 	tCsrSSIDInfo last_ssid;
 	eCsrAuthType last_auth_type;
+	char auth_time[HDD_TIME_STRING_LEN];
+	char connect_time[HDD_TIME_STRING_LEN];
+	enum phy_ch_width ch_width;
 } connection_info_t;
 
 /* Forward declarations */
@@ -226,6 +224,23 @@ typedef struct hdd_ap_ctx_s hdd_ap_ctx_t;
  * Return: true if connecting, false otherwise
  */
 bool hdd_is_connecting(hdd_station_ctx_t *hdd_sta_ctx);
+
+/**
+ * hdd_is_disconnecting() - Function to check disconnection progress
+ * @hdd_sta_ctx:    pointer to global HDD Station context
+ *
+ * Return: true if disconnecting, false otherwise
+ */
+bool hdd_is_disconnecting(hdd_station_ctx_t *hdd_sta_ctx);
+
+/*
+ * hdd_is_fils_connection: API to determine if connection is FILS
+ * @adapter: hdd adapter
+ *
+ * Return: true if fils connection else false
+ */
+bool hdd_is_fils_connection(hdd_adapter_t *adapter);
+
 
 /**
  * hdd_conn_is_connected() - Function to check connection status
@@ -252,6 +267,16 @@ tSirRFBand hdd_conn_get_connected_band(hdd_station_ctx_t *pHddStaCtx);
  * Return: hdd adpater for which connection is in progress
  */
 hdd_adapter_t *hdd_get_sta_connection_in_progress(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_abort_ongoing_sta_connection() - Disconnect the sta for which the
+ * connection is in progress.
+ *
+ * @hdd_ctx: hdd context
+ *
+ * Return: none
+ */
+void hdd_abort_ongoing_sta_connection(hdd_context_t *hdd_ctx);
 
 /**
  * hdd_sme_roam_callback() - hdd sme roam callback
@@ -360,7 +385,7 @@ int hdd_get_peer_idx(hdd_station_ctx_t *sta_ctx, struct qdf_mac_addr *addr);
 QDF_STATUS hdd_roam_deregister_sta(hdd_adapter_t *adapter, uint8_t sta_id);
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
+QDF_STATUS hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 				  const tSirMacAddr bssid, int channel);
 /**
  * hdd_save_gtk_params() - Save GTK offload params
@@ -373,9 +398,10 @@ void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 void hdd_save_gtk_params(hdd_adapter_t *adapter,
 			 tCsrRoamInfo *csr_roam_info, bool is_reassoc);
 #else
-static inline void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
+static inline QDF_STATUS hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 		const tSirMacAddr bssid, int channel)
 {
+	return QDF_STATUS_SUCCESS;
 }
 static inline void hdd_save_gtk_params(hdd_adapter_t *adapter,
 				       tCsrRoamInfo *csr_roam_info,
@@ -383,5 +409,27 @@ static inline void hdd_save_gtk_params(hdd_adapter_t *adapter,
 {
 }
 #endif
+
+/**
+ * hdd_copy_ht_caps()- copy ht caps info from roam info to
+ *  hdd station context.
+ * @hdd_ht_cap: pointer to Source ht_cap info of type ieee80211_ht_cap
+ * @roam_ht_cap: pointer to roam ht_caps info
+ *
+ * Return: None
+ */
+void hdd_copy_ht_caps(struct ieee80211_ht_cap *hdd_ht_cap,
+		      tDot11fIEHTCaps *roam_ht_cap);
+
+/**
+ * hdd_copy_vht_caps()- copy vht caps info from roam info to
+ *  hdd station context.
+ * @hdd_vht_cap: pointer to Source vht_cap info of type ieee80211_vht_cap
+ * @roam_vht_cap: pointer to roam vht_caps info
+ *
+ * Return: None
+ */
+void hdd_copy_vht_caps(struct ieee80211_vht_cap *hdd_vht_cap,
+		       tDot11fIEVHTCaps *roam_vht_cap);
 
 #endif

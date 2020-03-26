@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2463,10 +2460,6 @@ __wlan_hdd_cfg80211_extscan_get_valid_channels(struct wiphy *wiphy,
 	if (0 != ret)
 		return -EINVAL;
 
-	if (!pHddCtx->config->extscan_enabled) {
-		hdd_err("extscan not supported");
-		return -ENOTSUPP;
-	}
 	if (hdd_nla_parse(tb,
 			  QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
 			  data, data_len, wlan_hdd_extscan_config_policy)) {
@@ -4372,23 +4365,6 @@ int wlan_hdd_cfg80211_reset_passpoint_list(struct wiphy *wiphy,
 #undef PARAM_ROAM_PLMN
 
 /**
- * wlan_hdd_init_completion_extwow() - Initialize ext wow variable
- * @hdd_ctx: Global HDD context
- *
- * Return: none
- */
-#ifdef WLAN_FEATURE_EXTWOW_SUPPORT
-static inline void wlan_hdd_init_completion_extwow(hdd_context_t *pHddCtx)
-{
-	init_completion(&pHddCtx->ready_to_extwow);
-}
-#else
-static inline void wlan_hdd_init_completion_extwow(hdd_context_t *pHddCtx)
-{
-}
-#endif
-
-/**
  * wlan_hdd_cfg80211_extscan_init() - Initialize the ExtScan feature
  * @hdd_ctx: Global HDD context
  *
@@ -4396,7 +4372,6 @@ static inline void wlan_hdd_init_completion_extwow(hdd_context_t *pHddCtx)
  */
 void wlan_hdd_cfg80211_extscan_init(hdd_context_t *hdd_ctx)
 {
-	wlan_hdd_init_completion_extwow(hdd_ctx);
 	init_completion(&ext_scan_context.response_event);
 	spin_lock_init(&ext_scan_context.context_lock);
 }

@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
@@ -373,14 +364,13 @@ void hdd_send_oem_data_rsp_msg(struct oem_data_rsp *oem_data_rsp)
  */
 static QDF_STATUS oem_process_data_req_msg(int oem_data_len, char *oem_data)
 {
-	hdd_adapter_t *adapter = NULL;
 	struct oem_data_req oem_data_req;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	/* for now, STA interface only */
-	adapter = hdd_get_adapter(p_hdd_ctx, QDF_STA_MODE);
-	if (!adapter) {
-		hdd_err("No adapter for STA mode");
+	if (!hdd_get_adapter(p_hdd_ctx, QDF_STA_MODE) &&
+	    !hdd_get_adapter(p_hdd_ctx, QDF_SAP_MODE)) {
+		hdd_err("No adapter for STA or SAP mode");
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -1072,21 +1062,19 @@ static void oem_cmd_handler(const void *data, int data_len, void *ctx, int pid)
 	oem_request_dispatcher(msg_hdr, pid);
 }
 
-/**
- * oem_activate_service() - API to register the oem command handler
- * @hdd_ctx: Pointer to HDD Context
- *
- * This API is used to register the oem app command handler. Argument
- * @pAdapter is given for prototype compatibility with legacy code.
- *
- * Return: 0
- */
 int oem_activate_service(struct hdd_context_s *hdd_ctx)
 {
 	p_hdd_ctx = hdd_ctx;
 	register_cld_cmd_cb(WLAN_NL_MSG_OEM, oem_cmd_handler, NULL);
 	return 0;
 }
+
+int oem_deactivate_service(void)
+{
+	deregister_cld_cmd_cb(WLAN_NL_MSG_OEM);
+	return 0;
+}
+
 #else
 
 /*
@@ -1153,16 +1141,6 @@ static int __oem_msg_callback(struct sk_buff *skb)
 	return ret;
 }
 
-/**
- * oem_activate_service() - Activate oem message handler
- * @hdd_ctx:   pointer to global HDD context
- *
- * This function registers a handler to receive netlink message from
- * an OEM application process.
- *
- * Return: zero on success
- *         On error, error number will be returned.
- */
 int oem_activate_service(struct hdd_context_s *hdd_ctx)
 {
 	p_hdd_ctx = hdd_ctx;
@@ -1170,5 +1148,12 @@ int oem_activate_service(struct hdd_context_s *hdd_ctx)
 	/* Register the msg handler for msgs addressed to WLAN_NL_MSG_OEM */
 	return nl_srv_register(WLAN_NL_MSG_OEM, __oem_msg_callback);
 }
+
+int oem_deactivate_service(void)
+{
+	/* Deregister the msg handler for msgs addressed to WLAN_NL_MSG_OEM */
+	return nl_srv_unregister(WLAN_NL_MSG_OEM, __oem_msg_callback);
+}
+
 #endif
 #endif

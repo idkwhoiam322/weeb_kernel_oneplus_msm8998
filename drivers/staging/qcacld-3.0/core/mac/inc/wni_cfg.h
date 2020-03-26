@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #ifndef __WNICFG_H
@@ -256,6 +247,14 @@ enum {
 	WNI_CFG_PS_WOW_DATA_INACTIVITY_TIMEOUT,
 	WNI_CFG_RATE_FOR_TX_MGMT_2G,
 	WNI_CFG_RATE_FOR_TX_MGMT_5G,
+	WNI_CFG_EDCA_ETSI_ACBK_LOCAL,
+	WNI_CFG_EDCA_ETSI_ACBE_LOCAL,
+	WNI_CFG_EDCA_ETSI_ACVI_LOCAL,
+	WNI_CFG_EDCA_ETSI_ACVO_LOCAL,
+	WNI_CFG_EDCA_ETSI_ACBK,
+	WNI_CFG_EDCA_ETSI_ACBE,
+	WNI_CFG_EDCA_ETSI_ACVI,
+	WNI_CFG_EDCA_ETSI_ACVO,
 	/* Any new items to be added should be above this strictly */
 	CFG_PARAM_MAX_NUM
 };
@@ -299,6 +298,14 @@ enum {
 #define WNI_CFG_EDCA_WME_ACBE_LEN    20
 #define WNI_CFG_EDCA_WME_ACVI_LEN    20
 #define WNI_CFG_EDCA_WME_ACVO_LEN    20
+#define WNI_CFG_EDCA_ETSI_ACBK_LOCAL_LEN    20
+#define WNI_CFG_EDCA_ETSI_ACBE_LOCAL_LEN    20
+#define WNI_CFG_EDCA_ETSI_ACVI_LOCAL_LEN    20
+#define WNI_CFG_EDCA_ETSI_ACVO_LOCAL_LEN    20
+#define WNI_CFG_EDCA_ETSI_ACBK_LEN    20
+#define WNI_CFG_EDCA_ETSI_ACBE_LEN    20
+#define WNI_CFG_EDCA_ETSI_ACVI_LEN    20
+#define WNI_CFG_EDCA_ETSI_ACVO_LEN    20
 #define WNI_CFG_SCAN_CONTROL_LIST_LEN    128
 #define WNI_CFG_SUPPORTED_MCS_SET_LEN    16
 #define WNI_CFG_BASIC_MCS_SET_LEN    16
@@ -682,7 +689,8 @@ enum {
 #define WNI_CFG_EDCA_PROFILE_ANI    0
 #define WNI_CFG_EDCA_PROFILE_WMM    1
 #define WNI_CFG_EDCA_PROFILE_TIT_DEMO    2
-#define WNI_CFG_EDCA_PROFILE_MAX    3
+#define WNI_CFG_EDCA_PROFILE_ETSI_EUROPE   3
+#define WNI_CFG_EDCA_PROFILE_MAX    4
 #define WNI_CFG_EDCA_PROFILE_ACM_IDX    0
 #define WNI_CFG_EDCA_PROFILE_AIFSN_IDX    1
 #define WNI_CFG_EDCA_PROFILE_CWMINA_IDX    2
@@ -875,7 +883,7 @@ enum {
 
 #define WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STAMIN    0
 #define WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STAMAX    8
-#define WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STADEF    8
+#define WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STADEF    4
 /*
  * WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_FW_DEF + 1 is
  * assumed to be the default fw supported BF antennas, if fw

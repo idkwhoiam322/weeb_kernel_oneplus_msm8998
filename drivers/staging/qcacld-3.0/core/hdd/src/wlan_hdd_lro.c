@@ -1,8 +1,6 @@
 /*
  * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -16,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -467,6 +459,22 @@ static void *hdd_init_lro_mgr(void)
 	hdd_lro->lro_mgr->max_desc = LRO_DESC_POOL_SZ;
 
 	return hdd_lro;
+}
+
+/**
+ * hdd_is_lro_enabled() - Is LRO enabled
+ * @hdd_ctx: HDD context
+ *
+ * This function checks if LRO is enabled in HDD context.
+ *
+ * Return: 0 - success, < 0 - failure
+ */
+int hdd_is_lro_enabled(hdd_context_t *hdd_ctx)
+{
+	if (hdd_ctx->ol_enable != CFG_LRO_ENABLED)
+		return -EOPNOTSUPP;
+
+	return 0;
 }
 
 /**
