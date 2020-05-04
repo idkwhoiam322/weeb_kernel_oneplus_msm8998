@@ -664,7 +664,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 	spin_lock_init(&fpc1020->irq_lock);
 	fpc1020->irq_enabled = true;
 
-	irqf = IRQF_TRIGGER_RISING | IRQF_ONESHOT | IRQF_PERF_CRITICAL;
+	irqf = IRQF_TRIGGER_RISING | IRQF_ONESHOT;
 	mutex_init(&fpc1020->lock);
 	init_completion(&fpc1020->irq_sent);
 	rc = devm_request_threaded_irq(dev, gpio_to_irq(fpc1020->irq_gpio),
